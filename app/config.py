@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     gcs_bucket: str = ""
     bq_dataset: str = "textile_ops"
 
+    # Where uploaded media lands until gcs_bucket is configured. Local disk is
+    # fine for the launch cohort; on Cloud Run it is per-instance and ephemeral.
+    upload_dir: str = "var/uploads"
+
     auto_commit_floor: float = 0.85
     default_overdue_days: int = 45
     env: str = "dev"

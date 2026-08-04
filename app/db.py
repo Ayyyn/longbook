@@ -7,6 +7,13 @@ handler is enough to show one trader their competitor's ledger, and that
 mistake is invisible in review — so the session refuses to issue the query at
 all rather than trusting each caller to remember.
 
+The tenant is carried on `Session.info`, not in a ContextVar. FastAPI runs sync
+dependencies and endpoints in a threadpool with copied contexts, so a
+context-local would be reset in a different context than it was set in — and,
+worse, could be invisible to the endpoint while looking perfectly correct here.
+The session is the thing the event listeners are handed, so the session is
+where the tenant lives.
+
 Raw SQL bypasses this guard by definition (SQLAlchemy cannot see inside a
 text() clause). Anything written as raw SQL — `app/services/matching.py`, for
 one — must pass `tenant_id` itself.
@@ -17,7 +24,6 @@ from __future__ import annotations
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from contextvars import ContextVar
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker, with_loader_criteria
@@ -34,22 +40,20 @@ engine = create_engine(
 
 SessionFactory = sessionmaker(bind=engine, expire_on_commit=False)
 
-# ContextVar, not a plain global: FastAPI runs handlers concurrently and a
-# background backfill must not inherit a request's tenant.
-_current_tenant: ContextVar[uuid.UUID | None] = ContextVar("current_tenant", default=None)
+_TENANT_KEY = "tenant_id"
 
 
 class TenantIsolationError(RuntimeError):
     """A query or write would have crossed a tenant boundary."""
 
 
-def current_tenant() -> uuid.UUID | None:
-    """The tenant the calling context is scoped to, if any."""
-    return _current_tenant.get()
-
-
 def _as_uuid(value: uuid.UUID | str) -> uuid.UUID:
     return value if isinstance(value, uuid.UUID) else uuid.UUID(str(value))
+
+
+def session_tenant(db: Session) -> uuid.UUID | None:
+    """The tenant a session is scoped to, if any."""
+    return db.info.get(_TENANT_KEY)
 
 
 @contextmanager
@@ -60,8 +64,7 @@ def tenant_session(tenant_id: uuid.UUID | str) -> Iterator[Session]:
     business code should use.
     """
     tid = _as_uuid(tenant_id)
-    db = SessionFactory()
-    token = _current_tenant.set(tid)
+    db = SessionFactory(info={_TENANT_KEY: tid})
     try:
         yield db
         db.commit()
@@ -69,7 +72,6 @@ def tenant_session(tenant_id: uuid.UUID | str) -> Iterator[Session]:
         db.rollback()
         raise
     finally:
-        _current_tenant.reset(token)
         db.close()
 
 
@@ -95,7 +97,7 @@ def admin_session() -> Iterator[Session]:
 @event.listens_for(Session, "do_orm_execute")
 def _apply_tenant_filter(state) -> None:
     """Inject `tenant_id = :current` into every ORM select/update/delete."""
-    tid = _current_tenant.get()
+    tid = state.session.info.get(_TENANT_KEY)
     if tid is None:
         return
     if state.is_column_load or state.is_relationship_load:
@@ -124,7 +126,7 @@ def _guard_flush(session: Session, flush_context, instances) -> None:
     checked here — before the INSERT is built, so a mismatch fails loudly
     instead of landing in the wrong tenant's data.
     """
-    tid = _current_tenant.get()
+    tid = session.info.get(_TENANT_KEY)
     if tid is None:
         return
 

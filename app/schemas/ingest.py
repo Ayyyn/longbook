@@ -1,0 +1,29 @@
+"""Request/response shapes for ingestion."""
+
+from __future__ import annotations
+
+import uuid
+
+from pydantic import BaseModel
+
+
+class IngestAccepted(BaseModel):
+    """Returned immediately; the pipeline runs behind it."""
+
+    job_id: uuid.UUID
+    interactions: int
+    skipped: int
+    kind: str  # whatsapp_export | excel | image
+    detail: str
+
+
+class JobStatus(BaseModel):
+    job_id: uuid.UUID
+    state: str  # queued | running | done | failed | unknown
+    total: int
+    processed: int
+    committed: int
+    needs_review: int
+    discarded: int
+    logged: int = 0  # enquiries — context, not a business record
+    errors: list[str] = []

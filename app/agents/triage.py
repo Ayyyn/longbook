@@ -14,6 +14,23 @@ from app.agents.base import Agent, Decision
 AUTO_COMMIT_FLOOR = 0.85
 
 
+def _num(value: Any) -> float | None:
+    """Extraction returns fields as the message wrote them — "150", "62 nett".
+
+    The thresholds below are numeric, so anything unreadable becomes None and
+    simply skips its rule rather than raising and killing the message.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    cleaned = "".join(c for c in str(value) if c.isdigit() or c in ".-").rstrip("-.")
+    try:
+        return float(cleaned) if cleaned else None
+    except ValueError:
+        return None
+
+
 class Triage(Agent):
     name = "triage"
     prompt_version = "v1"
@@ -31,11 +48,11 @@ class Triage(Agent):
         if payload.get("party_id") is None:
             flags.append("unresolved_party")
 
-        dev = payload.get("rate_deviation_pct")
+        dev = _num(payload.get("rate_deviation_pct"))
         if dev is not None and abs(dev) > rules.get("rate_deviation_pct", 20):
             flags.append(f"rate_deviation({dev:.0f}%)")
 
-        qty = payload.get("quantity")
+        qty = _num(payload.get("quantity"))
         if qty is not None and qty <= 0:
             flags.append("implausible_quantity")
 
