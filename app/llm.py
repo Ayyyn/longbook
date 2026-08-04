@@ -1,0 +1,100 @@
+"""Gemini wrapper.
+
+Single choke point for model calls so that token accounting, JSON repair, and
+retry policy live in one place. Audio and images are passed to Gemini natively
+rather than running a separate ASR/OCR step — context helps disambiguate trade
+shorthand ("150 mtr @ 62 nett") far better than transcribe-then-parse.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+from typing import Any
+
+from google import genai
+from google.genai import types
+
+_client: genai.Client | None = None
+
+# USD per 1M tokens. Update from the pricing page before relying on cost rollups.
+PRICING = {
+    "gemini-2.5-flash": {"in": 0.30, "out": 2.50},
+    "gemini-2.5-pro": {"in": 1.25, "out": 10.00},
+}
+
+
+def client() -> genai.Client:
+    global _client
+    if _client is None:
+        _client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    return _client
+
+
+def _strip_fences(text: str) -> str:
+    return re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
+
+
+def _cost(model: str, usage: Any) -> float:
+    p = PRICING.get(model)
+    if not p or not usage:
+        return 0.0
+    return round(
+        (getattr(usage, "prompt_token_count", 0) / 1e6) * p["in"]
+        + (getattr(usage, "candidates_token_count", 0) / 1e6) * p["out"],
+        6,
+    )
+
+
+def generate_json(
+    *,
+    model: str,
+    system: str,
+    user: str,
+    media_uri: str | None = None,
+    media_kind: str | None = None,
+    examples: list[dict] | None = None,
+    locale: str = "en",
+    max_retries: int = 2,
+) -> tuple[dict, dict]:
+    """Returns (parsed_json, usage_dict). Raises on unrecoverable parse failure."""
+
+    parts: list[Any] = []
+    if examples:
+        parts.append(types.Part.from_text(
+            text="Examples of correct output for this business:\n"
+                 + "\n".join(json.dumps(e, ensure_ascii=False) for e in examples)
+        ))
+    parts.append(types.Part.from_text(text=user))
+
+    if media_uri and media_kind in {"audio", "image", "document"}:
+        parts.append(types.Part.from_uri(file_uri=media_uri, mime_type=_mime(media_kind)))
+
+    last_err: Exception | None = None
+    for _ in range(max_retries + 1):
+        resp = client().models.generate_content(
+            model=model,
+            contents=[types.Content(role="user", parts=parts)],
+            config=types.GenerateContentConfig(
+                system_instruction=system,
+                response_mime_type="application/json",
+                temperature=0.1,
+            ),
+        )
+        usage_raw = getattr(resp, "usage_metadata", None)
+        usage = {
+            "input_tokens": getattr(usage_raw, "prompt_token_count", 0),
+            "output_tokens": getattr(usage_raw, "candidates_token_count", 0),
+            "cost_usd": _cost(model, usage_raw),
+        }
+        try:
+            return json.loads(_strip_fences(resp.text)), usage
+        except json.JSONDecodeError as exc:
+            last_err = exc
+
+    raise ValueError(f"Model did not return valid JSON after retries: {last_err}")
+
+
+def _mime(kind: str) -> str:
+    return {"audio": "audio/ogg", "image": "image/jpeg", "document": "application/pdf"}[kind]

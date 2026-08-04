@@ -1,0 +1,18 @@
+# Seed profile for fabric wholesalers/traders. The Configurator agent starts
+# from this and overrides it with evidence from the tenant's own messages.
+segments: [wholesaler]
+modules:
+  lots: true
+  dispatch: true
+  job_work: false        # enable only if the sample shows processing challans
+  catalog: false
+  credit_ledger: true
+vocabulary:
+  quantity_units: [meter, thaan, kg]
+  rate_basis: per_meter
+  quality_code_example: "SR-1042"
+  party_terms: [party, customer, buyer]
+rules:
+  overdue_days: 45
+  rate_deviation_pct: 20
+  low_stock_threshold: 200
