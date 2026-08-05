@@ -1,5 +1,7 @@
-{"message":"Bhai 150 mtr SR-1042 blue chahiye, rate 62 nett, delivery friday tak","expect":{"record_type":"order","fields":{"quality":"SR-1042","quantity":"150","unit":"meter","rate":"62"}}}
-{"message":"aaj 50000 rtgs kar diya, check karo","expect":{"record_type":"payment","fields":{"amount":"50000","mode":"neft"}}}
+{"message":"Bhai 150 mtr SR-1042 blue chahiye, rate 62 nett, delivery friday tak","expect":{"record_type":"order","fields":{"quality":"SR-1042","quantity":150,"unit":"meter","rate":62}}}
+{"message":"aaj 50000 rtgs kar diya, check karo","expect":{"record_type":"payment","fields":{"amount":50000,"mode":"neft"}}}
 {"message":"Good morning ji","expect":{"record_type":"noise","fields":{}}}
-{"message":"2 thaan ka sample bhej dena us design ka jo pichli baar liya tha","expect":{"record_type":"enquiry","fields":{"quantity":"2","unit":"thaan"}}}
+{"message":"2 thaan ka sample bhej dena us design ka jo pichli baar liya tha","expect":{"record_type":"enquiry","fields":{"quantity":2,"unit":"thaan"}}}
 {"message":"LR no 448821 se bhej diya, transporter VRL","expect":{"record_type":"dispatch","fields":{"lr_no":"448821","transporter":"VRL"}}}
+{"message":"1,25,000 ka payment aaj neft se bheja hai UTR 998877","expect":{"record_type":"payment","fields":{"amount":125000,"mode":"neft","reference":"998877"}}}
+{"message":"SR-1042 ka 300 meter chahiye @ 58.50 per mtr","expect":{"record_type":"order","fields":{"quality":"SR-1042","quantity":300,"unit":"meter","rate":58.5}}}

@@ -12,13 +12,12 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 import yaml
 from fastapi.testclient import TestClient
 
-import app.pipeline as pipeline_module
-from app.agents.base import Agent, Decision
+import app.agents.extractor as extractor_module
+from app.agents.extractor import UNREADABLE_FIELD_CEILING, coerce_number, normalise_fields
 from app.db import admin_session, tenant_session
 from app.models import BusinessProfile, Extraction, Interaction, Order, Party, Payment, Tenant
 from app.services.commit import accept_correction, commit_record, queue_for_review
@@ -39,48 +38,42 @@ def check(label: str, got, want) -> None:
 # --- a stand-in for the model ---------------------------------------------
 
 
-class StubExtractor(Agent):
-    """Keyword rules standing in for Gemini, so the rest of the loop is real."""
+def fake_generate_json(*, model, system, user, **kwargs) -> tuple[dict, dict]:
+    """Stands in for the Gemini call only.
 
-    name = "extractor"
-    prompt_version = "stub"
-    model = "stub"
+    The real Extractor.run still executes around it — including the numeric
+    normalisation — so the values it emits are exactly what production emits.
+    Strings on purpose: this is the raw shape a model returns.
+    """
+    body = (user or "").lower()
+    usage = {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
 
-    def run(self, payload: dict[str, Any]) -> Decision:
-        body = (payload.get("body") or "").lower()
-        if "rtgs" in body or "paid" in body:
-            return Decision(
-                output={"record_type": "payment",
-                        "fields": {"party": "Ashok Textiles", "amount": "50000", "mode": "neft"}},
-                confidence=0.95,
-            )
-        if "mtr" in body:
-            return Decision(
-                output={"record_type": "order",
-                        "fields": {"party": "Ashok Textiles", "quality": "SR-1042",
-                                   "quantity": "150", "unit": "meter", "rate": "62"}},
-                confidence=0.93,
-            )
-        if "lr no" in body:
-            return Decision(
-                output={"record_type": "dispatch",
-                        "fields": {"party": "Ashok Textiles", "lr_no": "448821",
-                                   "transporter": "VRL"}},
-                confidence=0.91,
-            )
-        if "kitna" in body:
-            # Unknown party and a shaky read — this is what the queue is for.
-            return Decision(
-                output={"record_type": "order",
-                        "fields": {"party": "Naya Trader", "quality": "ZZ-9999",
-                                   "quantity": "20", "unit": "meter"}},
-                confidence=0.55,
-                rationale="Party and quality both unfamiliar.",
-            )
-        return Decision(output={"record_type": "noise", "fields": {}}, confidence=1.0)
+    if "rtgs" in body:
+        return {"record_type": "payment", "confidence": 0.95, "reason": "",
+                "fields": {"party": "Ashok Textiles", "amount": "50000", "mode": "neft"}}, usage
+    if "mtr" in body:
+        return {"record_type": "order", "confidence": 0.93, "reason": "",
+                "fields": {"party": "Ashok Textiles", "quality": "SR-1042",
+                           "quantity": "150", "unit": "meter", "rate": "62 nett"}}, usage
+    if "lr no" in body:
+        return {"record_type": "dispatch", "confidence": 0.91, "reason": "",
+                "fields": {"party": "Ashok Textiles", "lr_no": "448821",
+                           "transporter": "VRL"}}, usage
+    if "kitna" in body:
+        # Unknown party and a shaky read — this is what the queue is for.
+        return {"record_type": "order", "confidence": 0.55,
+                "reason": "Party and quality both unfamiliar.",
+                "fields": {"party": "Naya Trader", "quality": "ZZ-9999",
+                           "quantity": "20", "unit": "meter"}}, usage
+    if "thoda" in body:
+        # High confidence from the model, but the quantity is not a number.
+        return {"record_type": "order", "confidence": 0.97, "reason": "",
+                "fields": {"party": "Ashok Textiles", "quality": "SR-1042",
+                           "quantity": "thoda sa", "unit": "meter"}}, usage
+    return {"record_type": "noise", "confidence": 1.0, "reason": "", "fields": {}}, usage
 
 
-pipeline_module.Extractor = StubExtractor
+extractor_module.generate_json = fake_generate_json
 
 # --- fixtures -------------------------------------------------------------
 
@@ -90,6 +83,7 @@ EXPORT = """[04/06/26, 10:12:03 AM] Ashok Bhai: Bhai 150 mtr SR-1042 blue chahiy
 [04/06/26, 11:02:45 AM] Ashok Bhai: aaj 50000 rtgs kar diya, check karo
 [05/06/26, 09:30:00 AM] Ashok Bhai: LR no 448821 se bhej diya, transporter VRL
 [05/06/26, 09:45:00 AM] +91 90000 11111: bhai ZZ-9999 ka rate kitna hai
+[05/06/26, 10:00:00 AM] Ashok Bhai: SR-1042 thoda sa bhej dena
 """
 
 seed = yaml.safe_load(Path("app/profiles/wholesaler.yaml").read_text(encoding="utf-8"))
@@ -102,6 +96,46 @@ with tenant_session(TENANT) as db:
                            vocabulary=seed["vocabulary"], rules=seed["rules"], examples=[]))
     db.add(Party(tenant_id=TENANT, name="Ashok Textiles", aliases=["Ashok Bhai"],
                  phone="+91 98765 43210"))
+
+# --- numeric coercion -----------------------------------------------------
+
+print("\n-- coerce_number --")
+
+for label, raw, want in [
+    ("plain string", "150", 150.0),
+    ("int passthrough", 150, 150.0),
+    ("float passthrough", 58.5, 58.5),
+    ("indian grouping", "1,25,000", 125000.0),
+    ("trailing shorthand", "62 nett", 62.0),
+    ("unit suffix", "150 mtr", 150.0),
+    ("currency prefix", "₹ 62.50", 62.5),
+    ("negative", "-5", -5.0),
+    ("not a number", "thoda sa", None),
+    ("empty", "", None),
+    ("none", None, None),
+    ("bool is not a number", True, None),
+]:
+    check(label, coerce_number(raw), want)
+
+print("\n-- normalise_fields --")
+
+fields, unreadable = normalise_fields(
+    {"quality": "SR-1042", "quantity": "150", "rate": "62 nett", "unit": "meter"}
+)
+check("numeric fields typed", (fields["quantity"], fields["rate"]), (150.0, 62.0))
+check("non-numeric fields untouched", fields["quality"], "SR-1042")
+check("nothing unreadable", unreadable, [])
+
+fields, unreadable = normalise_fields({"quantity": "thoda sa", "rate": "62"})
+check("unreadable becomes None", fields["quantity"], None)
+check("  and is reported", unreadable, ["quantity"])
+
+fields, unreadable = normalise_fields(
+    {"lines": [{"quality": "A", "quantity": "10"}, {"quality": "B", "quantity": "paanch"}]}
+)
+check("lines are normalised too", fields["lines"][0]["quantity"], 10.0)
+check("unreadable line field reported", unreadable, ["lines[1].quantity"])
+check("empty string is not 'unreadable'", normalise_fields({"rate": ""})[1], [])
 
 # --- commit.py, directly --------------------------------------------------
 
@@ -235,16 +269,25 @@ resp = client.post("/api/ingest", headers=headers,
                    files={"file": ("chat.txt", EXPORT.encode(), "text/plain")})
 check("upload accepted", resp.status_code, 202)
 body = resp.json()
-check("all five messages stored", body["interactions"], 5)
+check("all six messages stored", body["interactions"], 6)
 job_id = body["job_id"]
 
 status = client.get(f"/api/ingest/jobs/{job_id}", headers=headers).json()
 check("job completed", status["state"], "done")
-check("every message processed", status["processed"], 5)
+check("every message processed", status["processed"], 6)
 check("three auto-committed", status["committed"], 3)
-check("one needs review", status["needs_review"], 1)
+check("two need review", status["needs_review"], 2)
 check("one discarded as noise", status["discarded"], 1)
 check("no errors", status["errors"], [])
+
+unreadable = [
+    i for i in client.get("/api/review/queue", headers=headers).json()["items"]
+    if i["message"] and "thoda" in i["message"]
+]
+check("unreadable quantity went to review despite 0.97", len(unreadable), 1)
+check("  confidence was pulled down", unreadable[0]["confidence"], UNREADABLE_FIELD_CEILING)
+check("  field left blank for the owner", unreadable[0]["fields"]["quantity"], None)
+check("  and the reason says which field", "quantity" in unreadable[0]["reason"], True)
 
 queue = client.get("/api/review/queue", headers=headers).json()
 pending = [i for i in queue["items"] if i["message"] and "kitna" in i["message"]]
@@ -290,7 +333,7 @@ with tenant_session(TENANT) as db:
 
 run_backfill(TENANT, uuid.UUID(job_id))
 again = client.get(f"/api/ingest/jobs/{job_id}", headers=headers).json()
-check("still five processed, not ten", again["processed"], 5)
+check("still six processed, not twelve", again["processed"], 6)
 with tenant_session(TENANT) as db:
     check("no duplicate orders", db.query(Order).count(), orders_before)
 
