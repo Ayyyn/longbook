@@ -6,3 +6,6 @@ venv/
 *.zip
 .ruff_cache/
 var/
+node_modules/
+.next/
+out/

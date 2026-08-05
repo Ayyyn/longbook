@@ -420,6 +420,38 @@ check("  with a bearer challenge",
 check("tenant id header alone is not enough",
       client.get("/api/review/queue", headers={"X-Tenant-Id": str(TENANT)}).status_code, 401)
 
+print("\n-- today --")
+
+from datetime import date  # noqa: E402
+
+with tenant_session(TENANT) as db:
+    party = db.query(Party).filter_by(name="Ashok Textiles").one()
+    commit_record(db, {
+        "trace_id": uuid.uuid4(),
+        "tenant_id": TENANT,
+        "interaction": {"id": None, "channel": "manual"},
+        "extraction": {"record_type": "payment", "confidence": 0.99, "reason": "",
+                       "fields": {"amount": "2,50,000", "mode": "upi",
+                                  "received_on": date.today().isoformat()}},
+        "resolution": {"party_id": party.id, "method": "alias"},
+    })
+
+digest = client.get("/api/today", headers=headers).json()
+check("money in today", digest["money_in"]["today"], 250000.0)
+check("one payment today", digest["money_in"]["payments_today"], 1)
+check("week total includes it", digest["money_in"]["last_7_days"], 250000.0)
+check("open orders counted", digest["orders"]["open_total"] >= 1, True)
+check("drafts flagged for confirmation", digest["orders"]["awaiting_confirmation"] >= 1, True)
+check("review count matches the queue",
+      digest["needs_review"],
+      client.get("/api/review/queue", headers=headers).json()["total"])
+check("agent decisions counted", digest["agent_decisions_today"] > 0, True)
+check("recent payments listed", digest["recent_payments"][0]["amount"], 250000.0)
+check("  with the party name", digest["recent_payments"][0]["party_name"], "Ashok Textiles")
+check("ledger facts are named, not zeroed", digest["unavailable"],
+      ["newly_overdue", "low_stock"])
+check("today needs a token", client.get("/api/today").status_code, 401)
+
 print("\n-- re-running a finished job --")
 
 from app.services.backfill import run_backfill  # noqa: E402
