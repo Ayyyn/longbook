@@ -20,6 +20,7 @@ import app.agents.extractor as extractor_module
 from app.agents.extractor import UNREADABLE_FIELD_CEILING, coerce_number, normalise_fields
 from app.db import admin_session, tenant_session
 from app.models import BusinessProfile, Extraction, Interaction, Order, Party, Payment, Tenant
+from app.services.auth import issue_token
 from app.services.commit import accept_correction, commit_record, queue_for_review
 
 ok = fail = 0
@@ -89,7 +90,10 @@ EXPORT = """[04/06/26, 10:12:03 AM] Ashok Bhai: Bhai 150 mtr SR-1042 blue chahiy
 seed = yaml.safe_load(Path("app/profiles/wholesaler.yaml").read_text(encoding="utf-8"))
 
 with admin_session() as db:
-    db.add(Tenant(id=TENANT, business_name="Verify Mills", owner_phone=f"98{uuid.uuid4().int % 10**8:08d}"))
+    tenant = Tenant(id=TENANT, business_name="Verify Mills",
+                    owner_phone=f"98{uuid.uuid4().int % 10**8:08d}")
+    TOKEN = issue_token(tenant)
+    db.add(tenant)
 
 with tenant_session(TENANT) as db:
     db.add(BusinessProfile(tenant_id=TENANT, segments=seed["segments"], modules=seed["modules"],
@@ -187,6 +191,30 @@ try:
 finally:
     settings().gcs_bucket = ""
     storage_module._bucket = real_bucket
+
+# --- tokens ---------------------------------------------------------------
+
+print("\n-- auth --")
+
+from app.services.auth import hash_token, tenant_for_token  # noqa: E402
+
+check("token is prefixed", TOKEN.startswith("tex_"), True)
+check("token has real entropy", len(TOKEN) > 40, True)
+
+with admin_session() as db:
+    stored = db.get(Tenant, TENANT).api_token_hash
+    check("only the digest is stored", stored, hash_token(TOKEN))
+    check("  plaintext is nowhere in the row", TOKEN in str(stored), False)
+
+    check("token resolves to its tenant", tenant_for_token(db, TOKEN), TENANT)
+    check("wrong token resolves to nothing", tenant_for_token(db, "tex_wrong"), None)
+    check("empty token resolves to nothing", tenant_for_token(db, ""), None)
+    check("whitespace is tolerated", tenant_for_token(db, f"  {TOKEN}  "), TENANT)
+
+    db.get(Tenant, TENANT).is_active = False
+    db.flush()
+    check("deactivated tenant cannot authenticate", tenant_for_token(db, TOKEN), None)
+    db.get(Tenant, TENANT).is_active = True
 
 # --- commit.py, directly --------------------------------------------------
 
@@ -314,7 +342,7 @@ print("\n-- ingest + review API --")
 from app.main import app  # noqa: E402 - imported after the Extractor swap
 
 client = TestClient(app)
-headers = {"X-Tenant-Id": str(TENANT)}
+headers = {"Authorization": f"Bearer {TOKEN}"}
 
 resp = client.post("/api/ingest", headers=headers,
                    files={"file": ("chat.txt", EXPORT.encode(), "text/plain")})
@@ -371,9 +399,14 @@ resp = client.post("/api/ingest", headers=headers,
                    files={"file": ("book.pdf", b"%PDF-", "application/pdf")})
 check("unsupported type rejected", resp.status_code, 415)
 
-check("unknown tenant header rejected",
-      client.get("/api/review/queue", headers={"X-Tenant-Id": str(uuid.uuid4())}).status_code, 200)
-check("missing tenant header rejected", client.get("/api/review/queue").status_code, 422)
+check("unknown token rejected",
+      client.get("/api/review/queue", headers={"Authorization": "Bearer tex_nonsense"}).status_code,
+      401)
+check("missing token rejected", client.get("/api/review/queue").status_code, 401)
+check("  with a bearer challenge",
+      client.get("/api/review/queue").headers.get("www-authenticate"), "Bearer")
+check("tenant id header alone is not enough",
+      client.get("/api/review/queue", headers={"X-Tenant-Id": str(TENANT)}).status_code, 401)
 
 print("\n-- re-running a finished job --")
 
@@ -394,19 +427,22 @@ print("\n-- isolation --")
 
 OTHER = uuid.uuid4()
 with admin_session() as db:
-    db.add(Tenant(id=OTHER, business_name="Other Mills",
-                  owner_phone=f"97{uuid.uuid4().int % 10**8:08d}"))
+    other = Tenant(id=OTHER, business_name="Other Mills",
+                   owner_phone=f"97{uuid.uuid4().int % 10**8:08d}")
+    OTHER_TOKEN = issue_token(other)
+    db.add(other)
 with tenant_session(OTHER) as db:
     db.add(BusinessProfile(tenant_id=OTHER, segments=[], modules={}, vocabulary={}, rules={},
                            examples=[]))
 
-other_queue = client.get("/api/review/queue", headers={"X-Tenant-Id": str(OTHER)}).json()
+other_headers = {"Authorization": f"Bearer {OTHER_TOKEN}"}
+other_queue = client.get("/api/review/queue", headers=other_headers).json()
 check("another tenant sees an empty queue", other_queue["total"], 0)
 check("another tenant cannot fetch our extraction",
       client.get(f"/api/review/{item['extraction_id']}",
-                 headers={"X-Tenant-Id": str(OTHER)}).status_code, 404)
+                 headers=other_headers).status_code, 404)
 check("another tenant cannot see our job",
-      client.get(f"/api/ingest/jobs/{job_id}", headers={"X-Tenant-Id": str(OTHER)}).status_code,
+      client.get(f"/api/ingest/jobs/{job_id}", headers=other_headers).status_code,
       404)
 
 # The checks above would pass on explicit .where() clauses alone. This one only

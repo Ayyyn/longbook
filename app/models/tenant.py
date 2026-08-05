@@ -29,6 +29,10 @@ class Tenant(Base, TimestampMixin):
     onboarded_at = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)
 
+    # SHA-256 of the tenant's bearer token. The plaintext is shown once, at
+    # onboarding, and never stored — see app/services/auth.py.
+    api_token_hash = Column(String(64), unique=True, index=True, nullable=True)
+
     # Billing — prepaid annual is the default for the launch cohort.
     plan = Column(String(32), default="annual_prepaid")
     paid_until = Column(DateTime, nullable=True)
