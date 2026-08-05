@@ -30,6 +30,7 @@ def _to_item(
     resolved = extraction.resolved or {}
     return QueueItem(
         extraction_id=extraction.id,
+        trace_id=extraction.trace_id,
         record_type=extraction.record_type,
         confidence=float(extraction.confidence) if extraction.confidence is not None else None,
         reason=extraction.reason,

@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 class QueueItem(BaseModel):
     extraction_id: uuid.UUID
+    trace_id: uuid.UUID | None = None  # joins to agent_run
     record_type: str | None
     confidence: float | None
     reason: str | None

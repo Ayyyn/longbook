@@ -35,6 +35,10 @@ class Extraction(Base, TenantScoped):
 
     interaction_id = Column(UUID(as_uuid=True), ForeignKey("interaction.id"), index=True)
 
+    # Ties this candidate to the agent_run rows that produced it, so Agent
+    # Activity is a join rather than a JSONB lookup.
+    trace_id = Column(UUID(as_uuid=True), index=True)
+
     record_type = Column(String(32), index=True)   # order|payment|enquiry|dispatch|noise
     payload = Column(JSONB, default=dict)          # candidate fields, pre-resolution
     resolved = Column(JSONB, default=dict)         # after Resolver links entities

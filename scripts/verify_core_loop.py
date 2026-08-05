@@ -19,7 +19,9 @@ from fastapi.testclient import TestClient
 import app.agents.extractor as extractor_module
 from app.agents.extractor import UNREADABLE_FIELD_CEILING, coerce_number, normalise_fields
 from app.db import admin_session, tenant_session
-from app.models import BusinessProfile, Extraction, Interaction, Order, Party, Payment, Tenant
+from app.models import (
+    AgentRun, BusinessProfile, Extraction, Interaction, Order, Party, Payment, Tenant,
+)
 from app.services.auth import issue_token
 from app.services.commit import accept_correction, commit_record, queue_for_review
 
@@ -308,8 +310,10 @@ with tenant_session(TENANT) as db:
     check("  input is the original message", profile.examples[0]["input"], "200 mtr SR-1042 @ 65")
     check("  output is the correction", profile.examples[0]["output"]["fields"]["quantity"], "200")
 
-    runs = db.query(Extraction).filter_by(id=extraction_id).one()
-    check("extraction points at what it produced", str(runs.committed_id), result["id"])
+    stored = db.query(Extraction).filter_by(id=extraction_id).one()
+    check("extraction points at what it produced", str(stored.committed_id), result["id"])
+    check("trace_id is a column, not JSONB", stored.trace_id is not None, True)
+    check("  and is gone from resolved", "trace_id" in (stored.resolved or {}), False)
 
 print("\n-- examples cap --")
 
@@ -383,10 +387,18 @@ corrected = client.post(
           "party_name": "Naya Trader"},
 ).json()
 check("correct returns corrected", corrected["status"], "corrected")
+check("queue item exposes its trace", item["trace_id"] is not None, True)
 
 with tenant_session(TENANT) as db:
     check("party created from the correction",
           db.query(Party).filter_by(name="Naya Trader").count(), 1)
+
+    # The whole point of the column: Agent Activity is a join.
+    runs = db.query(AgentRun).filter_by(trace_id=uuid.UUID(item["trace_id"])).all()
+    check("every agent run behind the item is reachable by trace", len(runs) >= 2, True)
+    check("  and all are flagged as human-overridden",
+          [r.human_override for r in runs], [True] * len(runs))
+    check("  with a review timestamp", all(r.reviewed_at is not None for r in runs), True)
 
 check("item leaves the queue",
       len(client.get("/api/review/queue", headers=headers).json()["items"]),

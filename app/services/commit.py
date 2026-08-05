@@ -115,11 +115,19 @@ def _lines(fields: dict[str, Any]) -> list[dict[str, Any]]:
 # --- helpers --------------------------------------------------------------
 
 
-def _interaction_id(state: dict[str, Any]) -> uuid.UUID | None:
-    raw = (state.get("interaction") or {}).get("id")
+def _uuid_or_none(raw: Any) -> uuid.UUID | None:
     if raw is None:
         return None
-    return raw if isinstance(raw, uuid.UUID) else uuid.UUID(str(raw))
+    if isinstance(raw, uuid.UUID):
+        return raw
+    try:
+        return uuid.UUID(str(raw))
+    except ValueError:
+        return None
+
+
+def _interaction_id(state: dict[str, Any]) -> uuid.UUID | None:
+    return _uuid_or_none((state.get("interaction") or {}).get("id"))
 
 
 def _occurred_on(state: dict[str, Any]) -> date | None:
@@ -151,16 +159,13 @@ def _record_extraction(
     extraction = state.get("extraction") or {}
     resolution = dict(state.get("resolution") or {})
 
-    # Extraction has no trace_id column, but the review screen needs to reach
-    # the agent_run rows behind the decision, so it rides along in `resolved`.
-    if state.get("trace_id"):
-        resolution["trace_id"] = str(state["trace_id"])
     if state.get("flags"):
         resolution["flags"] = state["flags"]
 
     row = Extraction(
         tenant_id=state.get("tenant_id"),
         interaction_id=_interaction_id(state),
+        trace_id=_uuid_or_none(state.get("trace_id")),
         record_type=extraction.get("record_type"),
         payload=_jsonable(extraction.get("fields", {}) or {}),
         resolved=_jsonable(resolution),
@@ -420,7 +425,7 @@ def accept_correction(db, extraction_id, corrected: dict[str, Any]) -> dict[str,
     }
     state = {
         "tenant_id": extraction.tenant_id,
-        "trace_id": original_resolved.get("trace_id"),
+        "trace_id": extraction.trace_id,
         "interaction": interaction,
         # A human vouched for these fields; they clear the confidence gate.
         "extraction": {"record_type": record_type, "fields": fields, "confidence": 1.0,
@@ -445,7 +450,7 @@ def accept_correction(db, extraction_id, corrected: dict[str, Any]) -> dict[str,
         if order is not None:
             order.status = "confirmed"
 
-    _mark_human_override(db, extraction, original_resolved.get("trace_id"))
+    _mark_human_override(db, extraction, extraction.trace_id)
     if was_edited:
         _harvest_example(db, extraction, record_type, fields)
 
@@ -453,7 +458,7 @@ def accept_correction(db, extraction_id, corrected: dict[str, Any]) -> dict[str,
     return {**result, "extraction_id": str(extraction.id), "status": extraction.status}
 
 
-def _mark_human_override(db, extraction: Extraction, trace_id: str | None) -> None:
+def _mark_human_override(db, extraction: Extraction, trace_id: uuid.UUID | None) -> None:
     """Flag the agent runs behind this decision — this is the override rate the
     Agent Activity screen reports and the submission evidence measures."""
     if not trace_id:
@@ -461,7 +466,7 @@ def _mark_human_override(db, extraction: Extraction, trace_id: str | None) -> No
     runs = db.execute(
         select(AgentRun).where(
             AgentRun.tenant_id == extraction.tenant_id,
-            AgentRun.trace_id == uuid.UUID(str(trace_id)),
+            AgentRun.trace_id == trace_id,
         )
     ).scalars().all()
     for run in runs:
