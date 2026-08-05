@@ -39,7 +39,7 @@ def _party_hints(db, tenant_id: uuid.UUID) -> list[str]:
     return list(rows)
 
 
-def _pending(db, tenant_id: uuid.UUID, job_id: uuid.UUID) -> list[Interaction]:
+def _pending(db, tenant_id: uuid.UUID, job_id: uuid.UUID | None) -> list[Interaction]:
     """Interactions in this job the pipeline has not reached yet.
 
     Progress is marked on the interaction rather than inferred from whether an
@@ -50,19 +50,25 @@ def _pending(db, tenant_id: uuid.UUID, job_id: uuid.UUID) -> list[Interaction]:
     Resuming a half-finished job is the same query as starting a fresh one,
     which is what makes a retry after a crash safe.
     """
+    where = [
+        Interaction.tenant_id == tenant_id,
+        Interaction.attributes["outcome"].astext.is_(None),
+    ]
+    # No job id means everything still pending — onboarding backfills whatever
+    # was uploaded before the profile existed.
+    if job_id is not None:
+        where.append(Interaction.attributes["job_id"].astext == str(job_id))
+
     return db.execute(
-        select(Interaction)
-        .where(
-            Interaction.tenant_id == tenant_id,
-            Interaction.attributes["job_id"].astext == str(job_id),
-            Interaction.attributes["outcome"].astext.is_(None),
-        )
-        .order_by(Interaction.occurred_at.asc())
+        select(Interaction).where(*where).order_by(Interaction.occurred_at.asc())
     ).scalars().all()
 
 
-def run_backfill(tenant_id: uuid.UUID, job_id: uuid.UUID) -> None:
-    """Push every pending interaction in the job through extract → apply."""
+def run_backfill(tenant_id: uuid.UUID, job_id: uuid.UUID | None = None) -> None:
+    """Push every pending interaction in the job through extract → apply.
+
+    With no job id, everything still pending for the tenant is processed.
+    """
     _RUNS[job_id] = {
         "tenant_id": tenant_id,
         "state": "running",

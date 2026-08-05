@@ -25,6 +25,9 @@ class PipelineState(TypedDict, total=False):
     extraction: dict[str, Any]
     resolution: dict[str, Any]
     action: str
+    # Triage's reasons, carried to the review queue. Keys absent from this
+    # schema are dropped by LangGraph rather than passed along.
+    flags: list[str]
     result: dict[str, Any]
 
 
@@ -57,7 +60,13 @@ def build_pipeline(db, tenant_id, profile):
             **state["extraction"].get("fields", {}),
         }
         d = tr.execute(payload, trace_id=state["trace_id"])
-        return {**state, "action": d.output.get("action", "review")}
+        # Carry the flags, not just the verdict: they are what the review
+        # screen shows the owner as the reason this item is in front of them.
+        return {
+            **state,
+            "action": d.output.get("action", "review"),
+            "flags": d.output.get("flags", []),
+        }
 
     def n_apply(state: PipelineState) -> PipelineState:
         action = state.get("action")

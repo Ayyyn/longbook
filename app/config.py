@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     # fine for the launch cohort; on Cloud Run it is per-instance and ephemeral.
     upload_dir: str = "var/uploads"
 
+    # Gates tenant creation. Required outside dev — without it, anyone who can
+    # reach the service can mint a tenant and its token.
+    admin_token: str = ""
+
     auto_commit_floor: float = 0.85
     default_overdue_days: int = 45
     env: str = "dev"
