@@ -137,6 +137,57 @@ check("lines are normalised too", fields["lines"][0]["quantity"], 10.0)
 check("unreadable line field reported", unreadable, ["lines[1].quantity"])
 check("empty string is not 'unreadable'", normalise_fields({"rate": ""})[1], [])
 
+# --- media storage --------------------------------------------------------
+
+print("\n-- store_media --")
+
+import app.services.storage as storage_module  # noqa: E402
+from app.config import settings  # noqa: E402
+from app.services.storage import store_media  # noqa: E402
+
+uri = store_media(TENANT, "voice.opus", b"fake-audio")
+check("local fallback returns a file uri", uri.startswith("file://"), True)
+check("  and the bytes are on disk",
+      Path(uri.replace("file:///", "").replace("file://", "")).read_bytes(), b"fake-audio")
+check("  under the tenant's prefix", str(TENANT) in uri, True)
+
+
+class FakeBlob:
+    def __init__(self):
+        self.data = self.content_type = None
+
+    def upload_from_string(self, data, content_type=None):
+        self.data, self.content_type = data, content_type
+
+
+class FakeBucket:
+    def __init__(self):
+        self.blobs = {}
+
+    def blob(self, key):
+        self.blobs[key] = FakeBlob()
+        return self.blobs[key]
+
+
+fake_bucket = FakeBucket()
+real_bucket = storage_module._bucket
+settings().gcs_bucket = "textile-media"
+storage_module._bucket = lambda: fake_bucket
+try:
+    uri = store_media(TENANT, "note.opus", b"voice-note-bytes")
+    check("gcs uri returned when a bucket is set", uri.startswith("gs://textile-media/"), True)
+    key = uri.removeprefix("gs://textile-media/")
+    check("  uploaded the bytes", fake_bucket.blobs[key].data, b"voice-note-bytes")
+    check("  with an audio content type", fake_bucket.blobs[key].content_type, "audio/ogg")
+    check("  tenant-prefixed key", key.startswith(f"{TENANT}/"), True)
+
+    photo = store_media(TENANT, "order.jpg", b"jpeg")
+    check("  jpeg content type detected",
+          fake_bucket.blobs[photo.removeprefix("gs://textile-media/")].content_type, "image/jpeg")
+finally:
+    settings().gcs_bucket = ""
+    storage_module._bucket = real_bucket
+
 # --- commit.py, directly --------------------------------------------------
 
 print("\n-- commit_record --")

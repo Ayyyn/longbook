@@ -19,11 +19,11 @@ from typing import Any
 from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 
 from app.api.deps import Profile, TenantDB, TenantId
-from app.config import settings
 from app.ingestion.whatsapp_export import ParsedMessage, parse_text
 from app.models.ingestion import Interaction
 from app.schemas.ingest import IngestAccepted, JobStatus
 from app.services.backfill import job_status, run_backfill
+from app.services.storage import store_media
 
 router = APIRouter()
 
@@ -35,21 +35,6 @@ IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 # A 90-day group export is a few thousand messages; well past that and the
 # upload is more likely a mistake than a business.
 MAX_MESSAGES = 50_000
-
-
-def _media_dir(tenant_id: uuid.UUID) -> Path:
-    path = Path(settings().upload_dir) / str(tenant_id)
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
-def _store_media(tenant_id: uuid.UUID, filename: str, blob: bytes) -> str:
-    """Local disk for now. Swap the body for a GCS upload when a bucket exists;
-    the rest of the system only ever sees the returned URI."""
-    safe = Path(filename).name
-    target = _media_dir(tenant_id) / f"{uuid.uuid4().hex[:8]}-{safe}"
-    target.write_bytes(blob)
-    return target.resolve().as_uri()
 
 
 def _messages_from_zip(path: Path, tenant_id: uuid.UUID) -> list[tuple[ParsedMessage, str | None]]:
@@ -66,7 +51,7 @@ def _messages_from_zip(path: Path, tenant_id: uuid.UUID) -> list[tuple[ParsedMes
         for msg in messages:
             uri = None
             if msg.media_file and Path(msg.media_file).name in by_name:
-                uri = _store_media(
+                uri = store_media(
                     tenant_id, msg.media_file, z.read(by_name[Path(msg.media_file).name])
                 )
             out.append((msg, uri))
@@ -188,7 +173,7 @@ def ingest_upload(
 
         elif suffix in IMAGE_SUFFIXES:
             kind = "image"
-            uri = _store_media(tid, file.filename or "photo.jpg", tmp_path.read_bytes())
+            uri = store_media(tid, file.filename or "photo.jpg", tmp_path.read_bytes())
             interactions.append(
                 Interaction(
                     tenant_id=tid,

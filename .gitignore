@@ -5,3 +5,4 @@ venv/
 .env
 *.zip
 .ruff_cache/
+var/
