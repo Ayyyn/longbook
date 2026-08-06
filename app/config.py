@@ -5,6 +5,19 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/textileops"
     gemini_api_key: str = ""
+
+    # Model ids are configuration, not constants: Google retires aliases (the
+    # pinned gemini-2.5-flash became 404 for new keys), and a free-tier key has
+    # no pro quota at all. Overridable so a deployment can move without a
+    # code change.
+    model_fast: str = "gemini-flash-latest"      # per-message extraction
+    model_deep: str = "gemini-pro-latest"        # once-per-tenant configuration
+    # Free-tier keys 429 on the pro models; fall back rather than fail onboarding.
+    model_deep_fallback: str = "gemini-flash-latest"
+
+    # Requests per minute to stay under. Free tier is ~10-15 RPM; a backfill
+    # that ignores this gets 429s halfway through a customer's history.
+    llm_rpm: int = 10
     gcs_bucket: str = ""
     bq_dataset: str = "textile_ops"
 

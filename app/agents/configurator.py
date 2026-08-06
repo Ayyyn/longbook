@@ -14,6 +14,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.agents.base import Agent, Decision
+from app.config import settings
 from app.llm import generate_json
 
 SYSTEM = """You are configuring an operations system for an Indian business.
@@ -43,7 +44,13 @@ set credit_ledger=false. Do not apply defaults you cannot see evidence for.
 class Configurator(Agent):
     name = "configurator"
     prompt_version = "v1"
-    model = "gemini-2.5-pro"   # runs once per tenant; quality over cost
+    # Runs once per tenant, so quality over cost — but a free-tier key has no
+    # pro quota at all, and onboarding must not die on that. See run() below.
+    model_override = None
+
+    @property
+    def model(self) -> str:
+        return settings().model_deep
 
     def run(self, payload: dict[str, Any]) -> Decision:
         user = (
@@ -51,7 +58,12 @@ class Configurator(Agent):
             f"MESSAGE SAMPLE ({len(payload['sample'])} messages):\n"
             + "\n".join(payload["sample"][:300])
         )
-        result, usage = generate_json(model=self.model, system=SYSTEM, user=user)
+        try:
+            result, usage = generate_json(model=self.model, system=SYSTEM, user=user)
+        except Exception:  # noqa: BLE001 - fall back a tier rather than fail onboarding
+            result, usage = generate_json(
+                model=settings().model_deep_fallback, system=SYSTEM, user=user
+            )
         conf = float(result.get("confidence", 0.0))
         return Decision(
             output=result,

@@ -49,12 +49,39 @@ Return JSON only, no prose:
   "reason": "<why you are unsure, empty if confident>"
 }}
 
+FIELD NAMES ARE FIXED. Use exactly these keys and no others. Omit any you
+cannot fill; never rename one, never invent a new one.
+
+  order     party, quality, quantity, unit, rate, order_no, delivery_date,
+            notes, lines
+  payment   party, amount, mode, reference, received_on, cheque_date
+            (mode is one of: cash, upi, neft, rtgs, cheque)
+  dispatch  party, order_no, challan_no, transporter, lr_no, dispatched_on
+  enquiry   party, quality, quantity, unit, notes
+  noise     (no fields)
+
+When one message orders several things, put each in "lines" — NOT "items" —
+and give every line its own quality, quantity, unit and rate:
+  "lines": [{{"quality": "...", "quantity": 500, "unit": "m", "rate": 88}}]
+A colour or shade with no separate design code goes in that line's "quality".
+
 Rules:
 - Never invent a party or quality that is not in the message.
 - Amounts in INR. Quantities keep the unit the message used.
 - Trade shorthand: "nett" = no further discount, "thaan"/"than" = roll/piece.
-- If the message is chit-chat, greetings, or a photo with no order intent,
-  return record_type "noise" with confidence 1.0.
+- Classify by what the message DOES, not by the words it contains:
+    * A price the seller quotes is an enquiry, not a payment.
+    * An order total or invoice value is not a payment. Only money that has
+      actually moved is a payment.
+    * Asking for something to be sent is an order, not a dispatch. Only a
+      consignment that has actually left is a dispatch.
+    * A confirmation, correction or amendment of an earlier order is an order.
+- Messages are part of a running conversation and are shown one at a time. If
+  a message only makes sense alongside earlier ones — a bare quantity, a bare
+  price, "ok done", "make it 250" — extract what it does say and set
+  confidence at or below 0.6 so a human joins it up.
+- If the message is chit-chat, greetings, thanks, emoji, or a photo with no
+  order intent, return record_type "noise" with confidence 1.0.
 """
 
 
@@ -111,10 +138,57 @@ def normalise_fields(fields: dict[str, Any]) -> tuple[dict[str, Any], list[str]]
     return normalise(fields), unreadable
 
 
+# The model reaches for a synonym often enough that the write boundary cannot
+# assume the prompt was obeyed. Measured on a real export: it returned "items"
+# for a three-colour order and every line was silently dropped, because
+# commit.py looks for "lines". Renaming here keeps that failure impossible
+# rather than merely unlikely.
+FIELD_ALIASES = {
+    "items": "lines",
+    "line_items": "lines",
+    "products": "lines",
+    "party_name": "party",
+    "customer": "party",
+    "buyer": "party",
+    "price": "rate",
+    "rate_per_unit": "rate",
+    "quality_or_design": "quality",
+    "design": "quality",
+    "quality_code": "quality",
+    "qty": "quantity",
+    "meters": "quantity",
+    "payment_mode": "mode",
+    "utr": "reference",
+    "transaction_id": "reference",
+    "lr_number": "lr_no",
+    "lr": "lr_no",
+    "challan": "challan_no",
+    "order_number": "order_no",
+    "delivery_by": "delivery_date",
+    "promised_date": "delivery_date",
+    "payment_date": "received_on",
+    "date": "received_on",
+}
+
+
+def apply_aliases(fields: dict[str, Any]) -> dict[str, Any]:
+    """Map known synonyms onto the contract, top level and per line."""
+    if not isinstance(fields, dict):
+        return {}
+    out: dict[str, Any] = {}
+    for key, value in fields.items():
+        target = FIELD_ALIASES.get(key, key)
+        if target == "lines" and isinstance(value, list):
+            value = [apply_aliases(v) if isinstance(v, dict) else v for v in value]
+        # A correctly-named key already present wins over a renamed one.
+        if target not in out or out[target] in (None, "", [], {}):
+            out[target] = value
+    return out
+
+
 class Extractor(Agent):
     name = "extractor"
-    prompt_version = "v1"
-    model = "gemini-2.5-flash"
+    prompt_version = "v2"
 
     def run(self, payload: dict[str, Any]) -> Decision:
         vocab = (self.profile.vocabulary if self.profile else {}) or {}
@@ -134,7 +208,7 @@ class Extractor(Agent):
         )
 
         conf = float(result.get("confidence", 0.0))
-        fields, unreadable = normalise_fields(result.get("fields", {}))
+        fields, unreadable = normalise_fields(apply_aliases(result.get("fields", {})))
         rationale = result.get("reason", "")
 
         if unreadable:

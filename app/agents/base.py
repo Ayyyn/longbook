@@ -19,6 +19,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.models.observability import AgentRun
 from app.models.tenant import BusinessProfile
 
@@ -37,7 +38,13 @@ class Decision:
 class Agent:
     name: str = "unnamed"
     prompt_version: str = "v1"
-    model: str = "gemini-2.5-flash"
+    # None means "the configured fast model". Subclasses override with a
+    # literal only when they genuinely need a different tier.
+    model_override: str | None = None
+
+    @property
+    def model(self) -> str:
+        return self.model_override or settings().model_fast
 
     def __init__(self, db: Session, tenant_id: uuid.UUID, profile: BusinessProfile | None = None):
         self.db = db

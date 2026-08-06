@@ -1,7 +1,67 @@
-{"message":"Bhai 150 mtr SR-1042 blue chahiye, rate 62 nett, delivery friday tak","expect":{"record_type":"order","fields":{"quality":"SR-1042","quantity":150,"unit":"meter","rate":62}}}
-{"message":"aaj 50000 rtgs kar diya, check karo","expect":{"record_type":"payment","fields":{"amount":50000,"mode":"neft"}}}
-{"message":"Good morning ji","expect":{"record_type":"noise","fields":{}}}
-{"message":"2 thaan ka sample bhej dena us design ka jo pichli baar liya tha","expect":{"record_type":"enquiry","fields":{"quantity":2,"unit":"thaan"}}}
-{"message":"LR no 448821 se bhej diya, transporter VRL","expect":{"record_type":"dispatch","fields":{"lr_no":"448821","transporter":"VRL"}}}
-{"message":"1,25,000 ka payment aaj neft se bheja hai UTR 998877","expect":{"record_type":"payment","fields":{"amount":125000,"mode":"neft","reference":"998877"}}}
-{"message":"SR-1042 ka 300 meter chahiye @ 58.50 per mtr","expect":{"record_type":"order","fields":{"quality":"SR-1042","quantity":300,"unit":"meter","rate":58.5}}}
+{"id":"chat-001","message":"Good morning Mahesh bhai 🙏","tags":["real","noise","greeting"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-002","message":"Morning Ravi bhai","tags":["real","noise","greeting"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-003","message":"Need fresh stock of cotton slub.","tags":["real","enquiry"],"expect":{"record_type":"enquiry","fields":{"quality":"cotton slub"}}}
+{"id":"chat-004","message":"Which quality?","tags":["real","noise","conversational"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-005","message":"60x60 cotton slub\n145 gsm\n58 inch width","tags":["real","enquiry","spec"],"expect":{"record_type":"enquiry","fields":{"quality":"60x60 cotton slub"}}}
+{"id":"chat-006","message":"Available.","tags":["real","noise","conversational"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-007","message":"₹88/mtr","tags":["real","enquiry","fragment","quote"],"expect":{"record_type":"enquiry","fields":{"rate":88}}}
+{"id":"chat-008","message":"Color card?","tags":["real","noise","conversational"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-009","message":"New shades also added.","tags":["real","noise"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-010","message":"Need\n500 m White\n300 m Beige\n300 m Olive","tags":["real","order","multiline"],"expect":{"record_type":"order","fields":{"lines":[{"quality":"White","quantity":500,"unit":"m"},{"quality":"Beige","quantity":300,"unit":"m"},{"quality":"Olive","quantity":300,"unit":"m"}]}}}
+{"id":"chat-011","message":"White available immediately.\nOlive only 250 m ready.","tags":["real","enquiry","availability"],"expect":{"record_type":"enquiry","fields":{}}}
+{"id":"chat-012","message":"Okay make Olive 250.","tags":["real","order","fragment","amendment"],"expect":{"record_type":"order","fields":{"quality":"Olive","quantity":250}}}
+{"id":"chat-013","message":"Total 1050 meters.","tags":["real","fragment","summary"],"expect":{"record_type":"order","fields":{"quantity":1050}}}
+{"id":"chat-014","message":"Amount\n₹92,400 + GST","tags":["real","enquiry","not-a-payment","step1-failure"],"expect":{"record_type":"enquiry","fields":{}}}
+{"id":"chat-015","message":"Transport extra?","tags":["real","noise","conversational"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-016","message":"Yes actual.","tags":["real","noise","conversational"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-017","message":"Dispatch today please.","tags":["real","order","not-a-dispatch","step1-failure"],"expect":{"record_type":"order","fields":{}}}
+{"id":"chat-018","message":"Will try before 5pm.","tags":["real","noise","conversational"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-019","message":"Dispatched through Shree Maruti Courier","tags":["real","dispatch"],"expect":{"record_type":"dispatch","fields":{"transporter":"Shree Maruti Courier"}}}
+{"id":"chat-020","message":"LR No 483917","tags":["real","dispatch","lr"],"expect":{"record_type":"dispatch","fields":{"lr_no":"483917"}}}
+{"id":"chat-021","message":"Expected Monday.","tags":["real","noise","conversational"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-022","message":"Received.","tags":["real","noise","conversational"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-023","message":"White roll no. 7 has weaving defect.","tags":["real","complaint","no-record-type"],"expect":{"record_type":"enquiry","fields":{}}}
+{"id":"chat-024","message":"Around how many meters?","tags":["real","noise","conversational"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-025","message":"Around 18-20 m.","tags":["real","fragment","noise"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-026","message":"Next dispatch me adjustment kar denge.","tags":["real","hinglish","noise"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-027","message":"New Rayon Flex launched.","tags":["real","noise","catalog"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-028","message":"Rate?","tags":["real","noise","conversational"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-029","message":"140 gsm\n56\"\n₹96/mtr","tags":["real","enquiry","quote"],"expect":{"record_type":"enquiry","fields":{"rate":96}}}
+{"id":"chat-030","message":"MOQ?","tags":["real","noise","conversational"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-031","message":"300 m per shade.","tags":["real","fragment","enquiry"],"expect":{"record_type":"enquiry","fields":{"quantity":300}}}
+{"id":"chat-032","message":"Need quotation for\n\nRayon Flex\nBlack - 600m\nWine - 400m\nBottle Green - 300m","tags":["real","enquiry","multiline"],"expect":{"record_type":"enquiry","fields":{"lines":[{"quality":"Black","quantity":600},{"quality":"Wine","quantity":400},{"quality":"Bottle Green","quantity":300}]}}}
+{"id":"chat-033","message":"Total 1300 m","tags":["real","fragment","summary"],"expect":{"record_type":"enquiry","fields":{"quantity":1300}}}
+{"id":"chat-034","message":"₹96 x 1300","tags":["real","fragment","calculation"],"expect":{"record_type":"enquiry","fields":{"rate":96}}}
+{"id":"chat-035","message":"₹1,24,800 + GST","tags":["real","enquiry","not-a-payment","lakh"],"expect":{"record_type":"enquiry","fields":{}}}
+{"id":"chat-036","message":"Best rate?","tags":["real","noise","negotiation"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-037","message":"₹94 final.","tags":["real","enquiry","negotiation"],"expect":{"record_type":"enquiry","fields":{"rate":94}}}
+{"id":"chat-038","message":"Done.","tags":["real","order","confirmation","fragment"],"expect":{"record_type":"order","fields":{}}}
+{"id":"chat-039","message":"Please dispatch by Friday.","tags":["real","order","not-a-dispatch"],"expect":{"record_type":"order","fields":{}}}
+{"id":"chat-040","message":"Advance 30% please.","tags":["real","enquiry","not-a-payment"],"expect":{"record_type":"enquiry","fields":{}}}
+{"id":"chat-041","message":"UPI okay?","tags":["real","noise","conversational"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-042","message":"Paid ₹37,440","tags":["real","payment","part-payment"],"expect":{"record_type":"payment","fields":{"amount":37440}}}
+{"id":"chat-043","message":"Received 👍","tags":["real","noise","emoji"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-044","message":"Dispatch completed.","tags":["real","dispatch"],"expect":{"record_type":"dispatch","fields":{}}}
+{"id":"chat-045","message":"Invoice Value ₹1,47,264 including GST.","tags":["real","enquiry","not-a-payment","lakh"],"expect":{"record_type":"enquiry","fields":{}}}
+{"id":"chat-046","message":"One correction.","tags":["real","noise","conversational"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-047","message":"Wine should be 350m only","tags":["real","order","amendment"],"expect":{"record_type":"order","fields":{"quality":"Wine","quantity":350}}}
+{"id":"chat-048","message":"Already packed 😅","tags":["real","noise","emoji"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-049","message":"Keep for next order.","tags":["real","noise","conversational"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-050","message":"Payment pending ₹1,09,824","tags":["real","enquiry","not-a-payment","lakh"],"expect":{"record_type":"enquiry","fields":{}}}
+{"id":"chat-051","message":"Will clear by Saturday.","tags":["real","noise","conversational"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-052","message":"Paid full.","tags":["real","payment","fragment"],"expect":{"record_type":"payment","fields":{}}}
+{"id":"chat-053","message":"UTR 56293819271","tags":["real","payment","reference"],"expect":{"record_type":"payment","fields":{"reference":"56293819271"}}}
+{"id":"chat-054","message":"Payment received.","tags":["real","noise","acknowledgement"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-055","message":"Thank you Mahesh bhai 🙏","tags":["real","noise","greeting"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-056","message":"Next week denim enquiry bhejunga.","tags":["real","hinglish","noise"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"chat-057","message":"Sure 👍","tags":["real","noise","emoji"],"expect":{"record_type":"noise","fields":{}}}
+{"id":"seed-001","message":"Bhai 150 mtr SR-1042 blue chahiye, rate 62 nett, delivery friday tak","tags":["seed","order","hinglish"],"expect":{"record_type":"order","fields":{"quality":"SR-1042","quantity":150,"unit":"meter","rate":62}}}
+{"id":"seed-002","message":"aaj 50000 rtgs kar diya, check karo","tags":["seed","payment","hinglish"],"expect":{"record_type":"payment","fields":{"amount":50000,"mode":"rtgs"}}}
+{"id":"seed-003","message":"2 thaan ka sample bhej dena us design ka jo pichli baar liya tha","tags":["seed","enquiry","hinglish","thaan"],"expect":{"record_type":"enquiry","fields":{"quantity":2,"unit":"thaan"}}}
+{"id":"seed-004","message":"LR no 448821 se bhej diya, transporter VRL","tags":["seed","dispatch","hinglish","lr"],"expect":{"record_type":"dispatch","fields":{"lr_no":"448821","transporter":"VRL"}}}
+{"id":"seed-005","message":"1,25,000 ka payment aaj neft se bheja hai UTR 998877","tags":["seed","payment","lakh","hinglish"],"expect":{"record_type":"payment","fields":{"amount":125000,"mode":"neft","reference":"998877"}}}
+{"id":"seed-006","message":"SR-1042 ka 300 meter chahiye @ 58.50 per mtr","tags":["seed","order","decimal-rate"],"expect":{"record_type":"order","fields":{"quality":"SR-1042","quantity":300,"unit":"meter","rate":58.5}}}
+{"id":"seed-007","message":"cheque no 774112 diya hai 45000 ka, date 15 ko","tags":["seed","payment","cheque"],"expect":{"record_type":"payment","fields":{"amount":45000,"mode":"cheque","reference":"774112"}}}
+{"id":"seed-008","message":"aadha payment aaj 25000 baaki agle hafte","tags":["seed","payment","part-payment","hinglish"],"expect":{"record_type":"payment","fields":{"amount":25000}}}
+{"id":"seed-009","message":"KRT-BLU-M 40 piece aur KRT-RED-L 25 piece bhej do","tags":["seed","order","multiline","retail"],"expect":{"record_type":"order","fields":{"lines":[{"quality":"KRT-BLU-M","quantity":40,"unit":"piece"},{"quality":"KRT-RED-L","quantity":25,"unit":"piece"}]}}}
+{"id":"seed-010","message":"maal kab tak aayega bhai","tags":["seed","noise","hinglish"],"expect":{"record_type":"noise","fields":{}}}

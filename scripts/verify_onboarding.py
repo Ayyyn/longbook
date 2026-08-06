@@ -170,7 +170,7 @@ check("interview text reached the agent",
       "cotton and poly-cotton shirting" in configurator_calls[0]["user"], True)
 check("  along with the message sample",
       "SR-1042" in configurator_calls[0]["user"], True)
-check("  on the pro model", configurator_calls[0]["model"], "gemini-2.5-pro")
+check("  on the configured deep model", configurator_calls[0]["model"], settings().model_deep)
 
 with tenant_session(TENANT) as db:
     stored = db.query(BusinessProfile).filter_by(tenant_id=TENANT).one()

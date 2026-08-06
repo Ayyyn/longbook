@@ -123,6 +123,28 @@ for label, raw, want in [
 ]:
     check(label, coerce_number(raw), want)
 
+print("\n-- field aliases --")
+
+from app.agents.extractor import apply_aliases  # noqa: E402
+
+# Measured on the real export: the model returned "items" for a three-colour
+# order and commit.py, which looks for "lines", dropped every line silently.
+aliased = apply_aliases({
+    "items": [{"color": "White", "qty": "500", "price": "88"}],
+    "party_name": "Shree Krishna Textiles",
+})
+check("items becomes lines", "lines" in aliased and "items" not in aliased, True)
+check("  and line keys are mapped too",
+      (aliased["lines"][0]["quantity"], aliased["lines"][0]["rate"]), ("500", "88"))
+check("party_name becomes party", aliased["party"], "Shree Krishna Textiles")
+check("quality_or_design becomes quality",
+      apply_aliases({"quality_or_design": "Olive"})["quality"], "Olive")
+check("utr becomes reference", apply_aliases({"utr": "998877"})["reference"], "998877")
+check("a correct key is left alone", apply_aliases({"lines": [1]})["lines"], [1])
+check("a correct key beats an alias",
+      apply_aliases({"quantity": 5, "qty": 9})["quantity"], 5)
+check("unknown keys pass through", apply_aliases({"gsm": "145"})["gsm"], "145")
+
 print("\n-- normalise_fields --")
 
 fields, unreadable = normalise_fields(
@@ -255,6 +277,19 @@ with tenant_session(TENANT) as db:
                                       confidence=0.60, party=party.id))
     check("unknown quality at low confidence goes to review", res["status"], "needs_review")
     check("  and says why", res["flags"], ["unknown_quality(NEW-0001)"])
+
+    # The end-to-end consequence of the aliases: a multi-line order the model
+    # labelled "items" must still commit every line. On the real export it
+    # committed none, because commit.py only looks for "lines".
+    res = commit_record(db, state_for(
+        "order",
+        apply_aliases({"items": [
+            {"quality": "SR-1042", "qty": "500", "unit": "m", "price": "88"},
+            {"quality": "SR-1188", "qty": "300", "unit": "m", "price": "88"},
+        ]}),
+        party=party.id,
+    ))
+    check("an aliased multi-line order commits every line", res.get("lines"), 2)
 
     res = commit_record(db, state_for("payment", {"amount": "1,25,000", "mode": "neft",
                                                   "reference": "UTR99"}, party=party.id))
