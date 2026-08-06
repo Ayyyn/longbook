@@ -23,6 +23,7 @@ class Tenant(Base, TimestampMixin):
     business_name = Column(String(200), nullable=False)
     owner_name = Column(String(120))
     owner_phone = Column(String(20), unique=True, nullable=False)
+    owner_email = Column(String(200))  # where the close-of-business digest goes
     city = Column(String(80))
     locale = Column(String(10), default="en")  # en | hi | gu | mr
 

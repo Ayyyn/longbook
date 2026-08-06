@@ -23,7 +23,7 @@ class LedgerAnalyst(Agent):
         rules = (self.profile.rules if self.profile else {}) or {}
         overdue_days = rules.get("overdue_days", 45)
 
-        buckets = ageing_buckets(self.db, self.tenant_id, as_of)
+        buckets = ageing_buckets(self.db, self.tenant_id, as_of, overdue_days)
         crossings = overdue_crossings(self.db, self.tenant_id, as_of, overdue_days)
         risky = payment_trend(self.db, self.tenant_id, lookback_days=180)
 

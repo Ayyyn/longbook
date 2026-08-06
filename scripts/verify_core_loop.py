@@ -448,8 +448,8 @@ check("review count matches the queue",
 check("agent decisions counted", digest["agent_decisions_today"] > 0, True)
 check("recent payments listed", digest["recent_payments"][0]["amount"], 250000.0)
 check("  with the party name", digest["recent_payments"][0]["party_name"], "Ashok Textiles")
-check("ledger facts are named, not zeroed", digest["unavailable"],
-      ["newly_overdue", "low_stock"])
+check("overdue is computed now", "newly_overdue" in digest["unavailable"], False)
+check("stock is still named, not zeroed", digest["unavailable"], ["low_stock"])
 check("today needs a token", client.get("/api/today").status_code, 401)
 
 print("\n-- re-running a finished job --")

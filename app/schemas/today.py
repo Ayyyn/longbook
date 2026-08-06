@@ -29,10 +29,28 @@ class RecentPayment(BaseModel):
     received_on: date | None
 
 
+class Overdue(BaseModel):
+    total: float
+    parties: int
+    worst_party: str | None = None
+    worst_days: int = 0
+    overdue_days: int = 45  # the tenant's own threshold, so the UI can say it
+
+
+class ExceptionCounts(BaseModel):
+    rate_deviations: int = 0
+    stalled_orders: int = 0
+    slowing_payers: int = 0
+    total: int = 0
+    headline: str | None = None  # the single most worth-reading one
+
+
 class TodayDigest(BaseModel):
     date: date
     money_in: MoneyIn
     orders: OrdersToday
+    overdue: Overdue
+    exceptions: ExceptionCounts
     dispatches_today: int
     needs_review: int
     agent_decisions_today: int

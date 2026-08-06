@@ -65,6 +65,20 @@ function Today() {
           </div>
         </div>
 
+        <div className={`stat wide${data.overdue.total ? " pending" : ""}`}>
+          <div className="label">Overdue</div>
+          <div className="value">{money(data.overdue.total)}</div>
+          <div className="note">
+            {data.overdue.parties
+              ? `${data.overdue.parties} ${
+                  data.overdue.parties === 1 ? "party" : "parties"
+                } past ${data.overdue.overdue_days} days · worst ${
+                  data.overdue.worst_party
+                } at ${data.overdue.worst_days}d`
+              : `nobody past ${data.overdue.overdue_days} days`}
+          </div>
+        </div>
+
         <div className="stat">
           <div className="label">New orders</div>
           <div className="value">{formatNumber(data.orders.new_today)}</div>
@@ -91,6 +105,24 @@ function Today() {
           </div>
         </div>
       </div>
+
+      {data.exceptions.total > 0 && (
+        <div className="card">
+          <strong>Needs a look</strong>
+          {data.exceptions.headline && <p style={{ margin: "6px 0" }}>{data.exceptions.headline}</p>}
+          <div className="chips">
+            {data.exceptions.slowing_payers > 0 && (
+              <span className="chip">{data.exceptions.slowing_payers} paying slower</span>
+            )}
+            {data.exceptions.stalled_orders > 0 && (
+              <span className="chip">{data.exceptions.stalled_orders} orders overdue to send</span>
+            )}
+            {data.exceptions.rate_deviations > 0 && (
+              <span className="chip">{data.exceptions.rate_deviations} odd rates</span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <strong>Recent payments</strong>

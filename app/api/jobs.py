@@ -1,0 +1,91 @@
+"""Scheduled job triggers.
+
+Cloud Run has no in-process cron worth trusting — an instance that scales to
+zero takes its timers with it — so the schedule lives in Cloud Scheduler and
+hits this endpoint. Authentication is a shared scheduler token rather than a
+tenant token, because the run is deliberately cross-tenant.
+
+The endpoint runs every tenant whose local close of business is *now*, which
+is what makes "close of business" mean the owner's evening rather than UTC's.
+"""
+
+from __future__ import annotations
+
+import secrets
+import uuid
+from datetime import date
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from sqlalchemy import select
+
+from app.config import settings
+from app.db import admin_session, tenant_session
+from app.models.tenant import BusinessProfile, Tenant
+from app.services.digest import DEFAULT_DIGEST_HOUR, run_digest_for_tenant, tenant_local_hour
+
+router = APIRouter()
+
+
+def require_scheduler(x_scheduler_token: Annotated[str | None, Header()] = None) -> None:
+    expected = settings().scheduler_token
+    if not expected:
+        if settings().env != "dev":
+            raise HTTPException(503, "SCHEDULER_TOKEN is not configured on this deployment.")
+        return
+    if not x_scheduler_token or not secrets.compare_digest(x_scheduler_token, expected):
+        raise HTTPException(401, "Invalid scheduler token.")
+
+
+def _digest_hour(profile: BusinessProfile | None) -> int:
+    rules = (profile.rules if profile else {}) or {}
+    return int(rules.get("digest_hour", DEFAULT_DIGEST_HOUR))
+
+
+@router.post("/digest", dependencies=[Depends(require_scheduler)])
+def run_digests(
+    tenant_id: uuid.UUID | None = Query(None, description="Run one tenant, ignoring the hour"),
+    force: bool = Query(False, description="Run regardless of the tenant's local hour"),
+    as_of: date | None = Query(None),
+) -> dict[str, Any]:
+    """Run the close-of-business digest for every tenant that is due."""
+    hour = tenant_local_hour()
+
+    with admin_session() as db:
+        candidates = db.execute(
+            select(Tenant.id).where(Tenant.is_active.is_(True))
+            if tenant_id is None
+            else select(Tenant.id).where(Tenant.id == tenant_id)
+        ).scalars().all()
+
+    results: list[dict[str, Any]] = []
+    skipped = 0
+
+    for candidate in candidates:
+        with tenant_session(candidate) as db:
+            tenant = db.get(Tenant, candidate)
+            if tenant is None:
+                continue
+            profile = db.execute(
+                select(BusinessProfile).where(BusinessProfile.tenant_id == candidate)
+            ).scalars().first()
+
+            if not (force or tenant_id) and _digest_hour(profile) != hour:
+                skipped += 1
+                continue
+
+            # Each tenant in its own session and its own transaction: one
+            # tenant's failure must not roll back another's watermark.
+            try:
+                results.append(run_digest_for_tenant(db, tenant, as_of).as_dict())
+            except Exception as exc:  # noqa: BLE001 - reported, never fatal to the run
+                results.append(
+                    {"tenant_id": str(candidate), "error": f"{type(exc).__name__}: {exc}"}
+                )
+
+    return {
+        "local_hour": hour,
+        "ran": len(results),
+        "skipped_not_due": skipped,
+        "results": results,
+    }
