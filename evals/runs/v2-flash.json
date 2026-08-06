@@ -1,0 +1,1633 @@
+{
+  "cases": 67,
+  "type_accuracy": 0.6418,
+  "field_accuracy": 0.9024,
+  "types_ok": 43,
+  "field_hits": 37,
+  "field_total": 41,
+  "errors": 0,
+  "median_confidence": 0.5,
+  "median_latency_ms": 4356,
+  "per_type": {
+    "noise": {
+      "n": 29,
+      "ok": 14,
+      "f_hit": 0,
+      "f_total": 0
+    },
+    "enquiry": {
+      "n": 17,
+      "ok": 8,
+      "f_hit": 8,
+      "f_total": 11
+    },
+    "order": {
+      "n": 10,
+      "ok": 10,
+      "f_hit": 14,
+      "f_total": 15
+    },
+    "dispatch": {
+      "n": 4,
+      "ok": 4,
+      "f_hit": 4,
+      "f_total": 4
+    },
+    "payment": {
+      "n": 7,
+      "ok": 7,
+      "f_hit": 11,
+      "f_total": 11
+    }
+  },
+  "per_field": {
+    "quality": {
+      "n": 6,
+      "ok": 5
+    },
+    "rate": {
+      "n": 6,
+      "ok": 4
+    },
+    "lines": {
+      "n": 3,
+      "ok": 2
+    },
+    "quantity": {
+      "n": 8,
+      "ok": 8
+    },
+    "transporter": {
+      "n": 2,
+      "ok": 2
+    },
+    "lr_no": {
+      "n": 2,
+      "ok": 2
+    },
+    "amount": {
+      "n": 5,
+      "ok": 5
+    },
+    "reference": {
+      "n": 3,
+      "ok": 3
+    },
+    "unit": {
+      "n": 3,
+      "ok": 3
+    },
+    "mode": {
+      "n": 3,
+      "ok": 3
+    }
+  },
+  "confusion": {
+    "noise -> enquiry": 9,
+    "enquiry -> order": 7,
+    "noise -> order": 4,
+    "enquiry -> noise": 2,
+    "noise -> payment": 2
+  },
+  "results": [
+    {
+      "id": "chat-001",
+      "message": "Good morning Mahesh bhai 🙏",
+      "tags": [
+        "real",
+        "noise",
+        "greeting"
+      ],
+      "expected_type": "noise",
+      "got_type": "noise",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 1.0,
+      "latency_ms": 2242,
+      "error": null
+    },
+    {
+      "id": "chat-002",
+      "message": "Morning Ravi bhai",
+      "tags": [
+        "real",
+        "noise",
+        "greeting"
+      ],
+      "expected_type": "noise",
+      "got_type": "noise",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 1.0,
+      "latency_ms": 2288,
+      "error": null
+    },
+    {
+      "id": "chat-003",
+      "message": "Need fresh stock of cotton slub.",
+      "tags": [
+        "real",
+        "enquiry"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "enquiry",
+      "type_ok": true,
+      "expected_fields": {
+        "quality": "cotton slub"
+      },
+      "got_fields": {
+        "quality": "cotton slub"
+      },
+      "field_hits": 1,
+      "field_total": 1,
+      "confidence": 0.6,
+      "latency_ms": 4115,
+      "error": null
+    },
+    {
+      "id": "chat-004",
+      "message": "Which quality?",
+      "tags": [
+        "real",
+        "noise",
+        "conversational"
+      ],
+      "expected_type": "noise",
+      "got_type": "enquiry",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {
+        "notes": "Which quality?"
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 3813,
+      "error": null
+    },
+    {
+      "id": "chat-005",
+      "message": "60x60 cotton slub\n145 gsm\n58 inch width",
+      "tags": [
+        "real",
+        "enquiry",
+        "spec"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "enquiry",
+      "type_ok": true,
+      "expected_fields": {
+        "quality": "60x60 cotton slub"
+      },
+      "got_fields": {
+        "quality": "60x60 cotton slub",
+        "notes": "145 gsm, 58 inch width"
+      },
+      "field_hits": 1,
+      "field_total": 1,
+      "confidence": 0.5,
+      "latency_ms": 4126,
+      "error": null
+    },
+    {
+      "id": "chat-006",
+      "message": "Available.",
+      "tags": [
+        "real",
+        "noise",
+        "conversational"
+      ],
+      "expected_type": "noise",
+      "got_type": "noise",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 1.0,
+      "latency_ms": 2853,
+      "error": null
+    },
+    {
+      "id": "chat-007",
+      "message": "₹88/mtr",
+      "tags": [
+        "real",
+        "enquiry",
+        "fragment",
+        "quote"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "enquiry",
+      "type_ok": true,
+      "expected_fields": {
+        "rate": 88
+      },
+      "got_fields": {
+        "unit": "meter",
+        "notes": "₹88/mtr"
+      },
+      "field_hits": 0,
+      "field_total": 1,
+      "confidence": 0.5,
+      "latency_ms": 9377,
+      "error": null
+    },
+    {
+      "id": "chat-008",
+      "message": "Color card?",
+      "tags": [
+        "real",
+        "noise",
+        "conversational"
+      ],
+      "expected_type": "noise",
+      "got_type": "enquiry",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {
+        "notes": "Color card requested"
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.6,
+      "latency_ms": 4356,
+      "error": null
+    },
+    {
+      "id": "chat-009",
+      "message": "New shades also added.",
+      "tags": [
+        "real",
+        "noise"
+      ],
+      "expected_type": "noise",
+      "got_type": "noise",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 1.0,
+      "latency_ms": 2819,
+      "error": null
+    },
+    {
+      "id": "chat-010",
+      "message": "Need\n500 m White\n300 m Beige\n300 m Olive",
+      "tags": [
+        "real",
+        "order",
+        "multiline"
+      ],
+      "expected_type": "order",
+      "got_type": "order",
+      "type_ok": true,
+      "expected_fields": {
+        "lines": [
+          {
+            "quality": "White",
+            "quantity": 500,
+            "unit": "m"
+          },
+          {
+            "quality": "Beige",
+            "quantity": 300,
+            "unit": "m"
+          },
+          {
+            "quality": "Olive",
+            "quantity": 300,
+            "unit": "m"
+          }
+        ]
+      },
+      "got_fields": {
+        "lines": [
+          {
+            "quality": "White",
+            "quantity": 500.0,
+            "unit": "m"
+          },
+          {
+            "quality": "Beige",
+            "quantity": 300.0,
+            "unit": "m"
+          },
+          {
+            "quality": "Olive",
+            "quantity": 300.0,
+            "unit": "m"
+          }
+        ]
+      },
+      "field_hits": 1,
+      "field_total": 1,
+      "confidence": 0.6,
+      "latency_ms": 4798,
+      "error": null
+    },
+    {
+      "id": "chat-011",
+      "message": "White available immediately.\nOlive only 250 m ready.",
+      "tags": [
+        "real",
+        "enquiry",
+        "availability"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "enquiry",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {
+        "quality": "Olive",
+        "quantity": 250.0,
+        "unit": "meter",
+        "notes": "White available immediately"
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.6,
+      "latency_ms": 10029,
+      "error": null
+    },
+    {
+      "id": "chat-012",
+      "message": "Okay make Olive 250.",
+      "tags": [
+        "real",
+        "order",
+        "fragment",
+        "amendment"
+      ],
+      "expected_type": "order",
+      "got_type": "order",
+      "type_ok": true,
+      "expected_fields": {
+        "quality": "Olive",
+        "quantity": 250
+      },
+      "got_fields": {
+        "quality": "Olive",
+        "quantity": 250.0
+      },
+      "field_hits": 2,
+      "field_total": 2,
+      "confidence": 0.5,
+      "latency_ms": 5447,
+      "error": null
+    },
+    {
+      "id": "chat-013",
+      "message": "Total 1050 meters.",
+      "tags": [
+        "real",
+        "fragment",
+        "summary"
+      ],
+      "expected_type": "order",
+      "got_type": "order",
+      "type_ok": true,
+      "expected_fields": {
+        "quantity": 1050
+      },
+      "got_fields": {
+        "quantity": 1050.0,
+        "unit": "meter"
+      },
+      "field_hits": 1,
+      "field_total": 1,
+      "confidence": 0.5,
+      "latency_ms": 4529,
+      "error": null
+    },
+    {
+      "id": "chat-014",
+      "message": "Amount\n₹92,400 + GST",
+      "tags": [
+        "real",
+        "enquiry",
+        "not-a-payment",
+        "step1-failure"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "enquiry",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {
+        "notes": "Amount ₹92,400 + GST"
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.4,
+      "latency_ms": 8402,
+      "error": null
+    },
+    {
+      "id": "chat-015",
+      "message": "Transport extra?",
+      "tags": [
+        "real",
+        "noise",
+        "conversational"
+      ],
+      "expected_type": "noise",
+      "got_type": "enquiry",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {
+        "notes": "Transport extra?"
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.6,
+      "latency_ms": 3026,
+      "error": null
+    },
+    {
+      "id": "chat-016",
+      "message": "Yes actual.",
+      "tags": [
+        "real",
+        "noise",
+        "conversational"
+      ],
+      "expected_type": "noise",
+      "got_type": "noise",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 1.0,
+      "latency_ms": 3486,
+      "error": null
+    },
+    {
+      "id": "chat-017",
+      "message": "Dispatch today please.",
+      "tags": [
+        "real",
+        "order",
+        "not-a-dispatch",
+        "step1-failure"
+      ],
+      "expected_type": "order",
+      "got_type": "order",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {
+        "notes": "Dispatch today please"
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 3583,
+      "error": null
+    },
+    {
+      "id": "chat-018",
+      "message": "Will try before 5pm.",
+      "tags": [
+        "real",
+        "noise",
+        "conversational"
+      ],
+      "expected_type": "noise",
+      "got_type": "noise",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 1.0,
+      "latency_ms": 2719,
+      "error": null
+    },
+    {
+      "id": "chat-019",
+      "message": "Dispatched through Shree Maruti Courier",
+      "tags": [
+        "real",
+        "dispatch"
+      ],
+      "expected_type": "dispatch",
+      "got_type": "dispatch",
+      "type_ok": true,
+      "expected_fields": {
+        "transporter": "Shree Maruti Courier"
+      },
+      "got_fields": {
+        "transporter": "Shree Maruti Courier"
+      },
+      "field_hits": 1,
+      "field_total": 1,
+      "confidence": 0.5,
+      "latency_ms": 4378,
+      "error": null
+    },
+    {
+      "id": "chat-020",
+      "message": "LR No 483917",
+      "tags": [
+        "real",
+        "dispatch",
+        "lr"
+      ],
+      "expected_type": "dispatch",
+      "got_type": "dispatch",
+      "type_ok": true,
+      "expected_fields": {
+        "lr_no": "483917"
+      },
+      "got_fields": {
+        "lr_no": "483917"
+      },
+      "field_hits": 1,
+      "field_total": 1,
+      "confidence": 0.5,
+      "latency_ms": 4135,
+      "error": null
+    },
+    {
+      "id": "chat-021",
+      "message": "Expected Monday.",
+      "tags": [
+        "real",
+        "noise",
+        "conversational"
+      ],
+      "expected_type": "noise",
+      "got_type": "order",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {
+        "delivery_date": "Monday"
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 4261,
+      "error": null
+    },
+    {
+      "id": "chat-022",
+      "message": "Received.",
+      "tags": [
+        "real",
+        "noise",
+        "conversational"
+      ],
+      "expected_type": "noise",
+      "got_type": "noise",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 1.0,
+      "latency_ms": 3277,
+      "error": null
+    },
+    {
+      "id": "chat-023",
+      "message": "White roll no. 7 has weaving defect.",
+      "tags": [
+        "real",
+        "complaint",
+        "no-record-type"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "noise",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 1.0,
+      "latency_ms": 4244,
+      "error": null
+    },
+    {
+      "id": "chat-024",
+      "message": "Around how many meters?",
+      "tags": [
+        "real",
+        "noise",
+        "conversational"
+      ],
+      "expected_type": "noise",
+      "got_type": "enquiry",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {
+        "unit": "meter"
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 3714,
+      "error": null
+    },
+    {
+      "id": "chat-025",
+      "message": "Around 18-20 m.",
+      "tags": [
+        "real",
+        "fragment",
+        "noise"
+      ],
+      "expected_type": "noise",
+      "got_type": "order",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {
+        "quantity": 18.0,
+        "unit": "meter"
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 6013,
+      "error": null
+    },
+    {
+      "id": "chat-026",
+      "message": "Next dispatch me adjustment kar denge.",
+      "tags": [
+        "real",
+        "hinglish",
+        "noise"
+      ],
+      "expected_type": "noise",
+      "got_type": "noise",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 1.0,
+      "latency_ms": 5001,
+      "error": null
+    },
+    {
+      "id": "chat-027",
+      "message": "New Rayon Flex launched.",
+      "tags": [
+        "real",
+        "noise",
+        "catalog"
+      ],
+      "expected_type": "noise",
+      "got_type": "noise",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 1.0,
+      "latency_ms": 3495,
+      "error": null
+    },
+    {
+      "id": "chat-028",
+      "message": "Rate?",
+      "tags": [
+        "real",
+        "noise",
+        "conversational"
+      ],
+      "expected_type": "noise",
+      "got_type": "enquiry",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.4,
+      "latency_ms": 3599,
+      "error": null
+    },
+    {
+      "id": "chat-029",
+      "message": "140 gsm\n56\"\n₹96/mtr",
+      "tags": [
+        "real",
+        "enquiry",
+        "quote"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "enquiry",
+      "type_ok": true,
+      "expected_fields": {
+        "rate": 96
+      },
+      "got_fields": {
+        "quality": "140 gsm 56\"",
+        "unit": "meter",
+        "notes": "Rate: ₹96/mtr"
+      },
+      "field_hits": 0,
+      "field_total": 1,
+      "confidence": 0.5,
+      "latency_ms": 5358,
+      "error": null
+    },
+    {
+      "id": "chat-030",
+      "message": "MOQ?",
+      "tags": [
+        "real",
+        "noise",
+        "conversational"
+      ],
+      "expected_type": "noise",
+      "got_type": "enquiry",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {
+        "notes": "MOQ?"
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 3167,
+      "error": null
+    },
+    {
+      "id": "chat-031",
+      "message": "300 m per shade.",
+      "tags": [
+        "real",
+        "fragment",
+        "enquiry"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "order",
+      "type_ok": false,
+      "expected_fields": {
+        "quantity": 300
+      },
+      "got_fields": {
+        "quantity": 300.0,
+        "unit": "meter",
+        "notes": "per shade"
+      },
+      "field_hits": 1,
+      "field_total": 1,
+      "confidence": 0.5,
+      "latency_ms": 4040,
+      "error": null
+    },
+    {
+      "id": "chat-032",
+      "message": "Need quotation for\n\nRayon Flex\nBlack - 600m\nWine - 400m\nBottle Green - 300m",
+      "tags": [
+        "real",
+        "enquiry",
+        "multiline"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "enquiry",
+      "type_ok": true,
+      "expected_fields": {
+        "lines": [
+          {
+            "quality": "Black",
+            "quantity": 600
+          },
+          {
+            "quality": "Wine",
+            "quantity": 400
+          },
+          {
+            "quality": "Bottle Green",
+            "quantity": 300
+          }
+        ]
+      },
+      "got_fields": {
+        "quality": "Rayon Flex",
+        "quantity": 1300.0,
+        "unit": "m",
+        "notes": "Black - 600m, Wine - 400m, Bottle Green - 300m"
+      },
+      "field_hits": 0,
+      "field_total": 1,
+      "confidence": 1.0,
+      "latency_ms": 7075,
+      "error": null
+    },
+    {
+      "id": "chat-033",
+      "message": "Total 1300 m",
+      "tags": [
+        "real",
+        "fragment",
+        "summary"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "order",
+      "type_ok": false,
+      "expected_fields": {
+        "quantity": 1300
+      },
+      "got_fields": {
+        "quantity": 1300.0,
+        "unit": "meter"
+      },
+      "field_hits": 1,
+      "field_total": 1,
+      "confidence": 0.5,
+      "latency_ms": 4558,
+      "error": null
+    },
+    {
+      "id": "chat-034",
+      "message": "₹96 x 1300",
+      "tags": [
+        "real",
+        "fragment",
+        "calculation"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "order",
+      "type_ok": false,
+      "expected_fields": {
+        "rate": 96
+      },
+      "got_fields": {
+        "quantity": 1300.0,
+        "rate": 96.0
+      },
+      "field_hits": 1,
+      "field_total": 1,
+      "confidence": 0.5,
+      "latency_ms": 4391,
+      "error": null
+    },
+    {
+      "id": "chat-035",
+      "message": "₹1,24,800 + GST",
+      "tags": [
+        "real",
+        "enquiry",
+        "not-a-payment",
+        "lakh"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "enquiry",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {
+        "notes": "₹1,24,800 + GST"
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 6020,
+      "error": null
+    },
+    {
+      "id": "chat-036",
+      "message": "Best rate?",
+      "tags": [
+        "real",
+        "noise",
+        "negotiation"
+      ],
+      "expected_type": "noise",
+      "got_type": "enquiry",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 3693,
+      "error": null
+    },
+    {
+      "id": "chat-037",
+      "message": "₹94 final.",
+      "tags": [
+        "real",
+        "enquiry",
+        "negotiation"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "order",
+      "type_ok": false,
+      "expected_fields": {
+        "rate": 94
+      },
+      "got_fields": {
+        "rate": 94.0,
+        "notes": "final"
+      },
+      "field_hits": 1,
+      "field_total": 1,
+      "confidence": 0.5,
+      "latency_ms": 6766,
+      "error": null
+    },
+    {
+      "id": "chat-038",
+      "message": "Done.",
+      "tags": [
+        "real",
+        "order",
+        "confirmation",
+        "fragment"
+      ],
+      "expected_type": "order",
+      "got_type": "order",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 5011,
+      "error": null
+    },
+    {
+      "id": "chat-039",
+      "message": "Please dispatch by Friday.",
+      "tags": [
+        "real",
+        "order",
+        "not-a-dispatch"
+      ],
+      "expected_type": "order",
+      "got_type": "order",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {
+        "delivery_date": "Friday"
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 4251,
+      "error": null
+    },
+    {
+      "id": "chat-040",
+      "message": "Advance 30% please.",
+      "tags": [
+        "real",
+        "enquiry",
+        "not-a-payment"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "order",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {
+        "notes": "Advance 30% please"
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 6448,
+      "error": null
+    },
+    {
+      "id": "chat-041",
+      "message": "UPI okay?",
+      "tags": [
+        "real",
+        "noise",
+        "conversational"
+      ],
+      "expected_type": "noise",
+      "got_type": "enquiry",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {
+        "notes": "UPI okay?"
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 5014,
+      "error": null
+    },
+    {
+      "id": "chat-042",
+      "message": "Paid ₹37,440",
+      "tags": [
+        "real",
+        "payment",
+        "part-payment"
+      ],
+      "expected_type": "payment",
+      "got_type": "payment",
+      "type_ok": true,
+      "expected_fields": {
+        "amount": 37440
+      },
+      "got_fields": {
+        "amount": 37440.0
+      },
+      "field_hits": 1,
+      "field_total": 1,
+      "confidence": 0.5,
+      "latency_ms": 3925,
+      "error": null
+    },
+    {
+      "id": "chat-043",
+      "message": "Received 👍",
+      "tags": [
+        "real",
+        "noise",
+        "emoji"
+      ],
+      "expected_type": "noise",
+      "got_type": "noise",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 1.0,
+      "latency_ms": 2726,
+      "error": null
+    },
+    {
+      "id": "chat-044",
+      "message": "Dispatch completed.",
+      "tags": [
+        "real",
+        "dispatch"
+      ],
+      "expected_type": "dispatch",
+      "got_type": "dispatch",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.4,
+      "latency_ms": 4032,
+      "error": null
+    },
+    {
+      "id": "chat-045",
+      "message": "Invoice Value ₹1,47,264 including GST.",
+      "tags": [
+        "real",
+        "enquiry",
+        "not-a-payment",
+        "lakh"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "order",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {
+        "notes": "Invoice Value ₹1,47,264 including GST"
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 8861,
+      "error": null
+    },
+    {
+      "id": "chat-046",
+      "message": "One correction.",
+      "tags": [
+        "real",
+        "noise",
+        "conversational"
+      ],
+      "expected_type": "noise",
+      "got_type": "order",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.4,
+      "latency_ms": 4480,
+      "error": null
+    },
+    {
+      "id": "chat-047",
+      "message": "Wine should be 350m only",
+      "tags": [
+        "real",
+        "order",
+        "amendment"
+      ],
+      "expected_type": "order",
+      "got_type": "order",
+      "type_ok": true,
+      "expected_fields": {
+        "quality": "Wine",
+        "quantity": 350
+      },
+      "got_fields": {
+        "quality": "Wine",
+        "quantity": 350.0,
+        "unit": "m"
+      },
+      "field_hits": 2,
+      "field_total": 2,
+      "confidence": 0.5,
+      "latency_ms": 5463,
+      "error": null
+    },
+    {
+      "id": "chat-048",
+      "message": "Already packed 😅",
+      "tags": [
+        "real",
+        "noise",
+        "emoji"
+      ],
+      "expected_type": "noise",
+      "got_type": "noise",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 1.0,
+      "latency_ms": 5571,
+      "error": null
+    },
+    {
+      "id": "chat-049",
+      "message": "Keep for next order.",
+      "tags": [
+        "real",
+        "noise",
+        "conversational"
+      ],
+      "expected_type": "noise",
+      "got_type": "order",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {
+        "notes": "Keep for next order."
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 5114,
+      "error": null
+    },
+    {
+      "id": "chat-050",
+      "message": "Payment pending ₹1,09,824",
+      "tags": [
+        "real",
+        "enquiry",
+        "not-a-payment",
+        "lakh"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "noise",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 1.0,
+      "latency_ms": 10334,
+      "error": null
+    },
+    {
+      "id": "chat-051",
+      "message": "Will clear by Saturday.",
+      "tags": [
+        "real",
+        "noise",
+        "conversational"
+      ],
+      "expected_type": "noise",
+      "got_type": "payment",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 5770,
+      "error": null
+    },
+    {
+      "id": "chat-052",
+      "message": "Paid full.",
+      "tags": [
+        "real",
+        "payment",
+        "fragment"
+      ],
+      "expected_type": "payment",
+      "got_type": "payment",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 3474,
+      "error": null
+    },
+    {
+      "id": "chat-053",
+      "message": "UTR 56293819271",
+      "tags": [
+        "real",
+        "payment",
+        "reference"
+      ],
+      "expected_type": "payment",
+      "got_type": "payment",
+      "type_ok": true,
+      "expected_fields": {
+        "reference": "56293819271"
+      },
+      "got_fields": {
+        "reference": "56293819271"
+      },
+      "field_hits": 1,
+      "field_total": 1,
+      "confidence": 0.5,
+      "latency_ms": 4258,
+      "error": null
+    },
+    {
+      "id": "chat-054",
+      "message": "Payment received.",
+      "tags": [
+        "real",
+        "noise",
+        "acknowledgement"
+      ],
+      "expected_type": "noise",
+      "got_type": "payment",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.4,
+      "latency_ms": 3582,
+      "error": null
+    },
+    {
+      "id": "chat-055",
+      "message": "Thank you Mahesh bhai 🙏",
+      "tags": [
+        "real",
+        "noise",
+        "greeting"
+      ],
+      "expected_type": "noise",
+      "got_type": "noise",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 1.0,
+      "latency_ms": 2288,
+      "error": null
+    },
+    {
+      "id": "chat-056",
+      "message": "Next week denim enquiry bhejunga.",
+      "tags": [
+        "real",
+        "hinglish",
+        "noise"
+      ],
+      "expected_type": "noise",
+      "got_type": "noise",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 1.0,
+      "latency_ms": 5652,
+      "error": null
+    },
+    {
+      "id": "chat-057",
+      "message": "Sure 👍",
+      "tags": [
+        "real",
+        "noise",
+        "emoji"
+      ],
+      "expected_type": "noise",
+      "got_type": "noise",
+      "type_ok": true,
+      "expected_fields": {},
+      "got_fields": {},
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 1.0,
+      "latency_ms": 2389,
+      "error": null
+    },
+    {
+      "id": "seed-001",
+      "message": "Bhai 150 mtr SR-1042 blue chahiye, rate 62 nett, delivery friday tak",
+      "tags": [
+        "seed",
+        "order",
+        "hinglish"
+      ],
+      "expected_type": "order",
+      "got_type": "order",
+      "type_ok": true,
+      "expected_fields": {
+        "quality": "SR-1042",
+        "quantity": 150,
+        "unit": "meter",
+        "rate": 62
+      },
+      "got_fields": {
+        "quality": "SR-1042 blue",
+        "quantity": 150.0,
+        "unit": "meter",
+        "rate": 62.0,
+        "delivery_date": "friday",
+        "notes": "nett"
+      },
+      "field_hits": 3,
+      "field_total": 4,
+      "confidence": 0.9,
+      "latency_ms": 5574,
+      "error": null
+    },
+    {
+      "id": "seed-002",
+      "message": "aaj 50000 rtgs kar diya, check karo",
+      "tags": [
+        "seed",
+        "payment",
+        "hinglish"
+      ],
+      "expected_type": "payment",
+      "got_type": "payment",
+      "type_ok": true,
+      "expected_fields": {
+        "amount": 50000,
+        "mode": "rtgs"
+      },
+      "got_fields": {
+        "amount": 50000.0,
+        "mode": "rtgs"
+      },
+      "field_hits": 2,
+      "field_total": 2,
+      "confidence": 0.6,
+      "latency_ms": 4454,
+      "error": null
+    },
+    {
+      "id": "seed-003",
+      "message": "2 thaan ka sample bhej dena us design ka jo pichli baar liya tha",
+      "tags": [
+        "seed",
+        "enquiry",
+        "hinglish",
+        "thaan"
+      ],
+      "expected_type": "enquiry",
+      "got_type": "order",
+      "type_ok": false,
+      "expected_fields": {
+        "quantity": 2,
+        "unit": "thaan"
+      },
+      "got_fields": {
+        "quantity": 2.0,
+        "unit": "thaan",
+        "notes": "Sample request for design taken last time"
+      },
+      "field_hits": 2,
+      "field_total": 2,
+      "confidence": 0.5,
+      "latency_ms": 5116,
+      "error": null
+    },
+    {
+      "id": "seed-004",
+      "message": "LR no 448821 se bhej diya, transporter VRL",
+      "tags": [
+        "seed",
+        "dispatch",
+        "hinglish",
+        "lr"
+      ],
+      "expected_type": "dispatch",
+      "got_type": "dispatch",
+      "type_ok": true,
+      "expected_fields": {
+        "lr_no": "448821",
+        "transporter": "VRL"
+      },
+      "got_fields": {
+        "lr_no": "448821",
+        "transporter": "VRL"
+      },
+      "field_hits": 2,
+      "field_total": 2,
+      "confidence": 0.9,
+      "latency_ms": 4260,
+      "error": null
+    },
+    {
+      "id": "seed-005",
+      "message": "1,25,000 ka payment aaj neft se bheja hai UTR 998877",
+      "tags": [
+        "seed",
+        "payment",
+        "lakh",
+        "hinglish"
+      ],
+      "expected_type": "payment",
+      "got_type": "payment",
+      "type_ok": true,
+      "expected_fields": {
+        "amount": 125000,
+        "mode": "neft",
+        "reference": "998877"
+      },
+      "got_fields": {
+        "amount": 125000.0,
+        "mode": "neft",
+        "reference": "998877"
+      },
+      "field_hits": 3,
+      "field_total": 3,
+      "confidence": 0.9,
+      "latency_ms": 5768,
+      "error": null
+    },
+    {
+      "id": "seed-006",
+      "message": "SR-1042 ka 300 meter chahiye @ 58.50 per mtr",
+      "tags": [
+        "seed",
+        "order",
+        "decimal-rate"
+      ],
+      "expected_type": "order",
+      "got_type": "order",
+      "type_ok": true,
+      "expected_fields": {
+        "quality": "SR-1042",
+        "quantity": 300,
+        "unit": "meter",
+        "rate": 58.5
+      },
+      "got_fields": {
+        "quality": "SR-1042",
+        "quantity": 300.0,
+        "unit": "meter",
+        "rate": 58.5
+      },
+      "field_hits": 4,
+      "field_total": 4,
+      "confidence": 0.95,
+      "latency_ms": 4385,
+      "error": null
+    },
+    {
+      "id": "seed-007",
+      "message": "cheque no 774112 diya hai 45000 ka, date 15 ko",
+      "tags": [
+        "seed",
+        "payment",
+        "cheque"
+      ],
+      "expected_type": "payment",
+      "got_type": "payment",
+      "type_ok": true,
+      "expected_fields": {
+        "amount": 45000,
+        "mode": "cheque",
+        "reference": "774112"
+      },
+      "got_fields": {
+        "amount": 45000.0,
+        "mode": "cheque",
+        "reference": "774112",
+        "cheque_date": "15"
+      },
+      "field_hits": 3,
+      "field_total": 3,
+      "confidence": 0.6,
+      "latency_ms": 5985,
+      "error": null
+    },
+    {
+      "id": "seed-008",
+      "message": "aadha payment aaj 25000 baaki agle hafte",
+      "tags": [
+        "seed",
+        "payment",
+        "part-payment",
+        "hinglish"
+      ],
+      "expected_type": "payment",
+      "got_type": "payment",
+      "type_ok": true,
+      "expected_fields": {
+        "amount": 25000
+      },
+      "got_fields": {
+        "amount": 25000.0
+      },
+      "field_hits": 1,
+      "field_total": 1,
+      "confidence": 0.6,
+      "latency_ms": 3595,
+      "error": null
+    },
+    {
+      "id": "seed-009",
+      "message": "KRT-BLU-M 40 piece aur KRT-RED-L 25 piece bhej do",
+      "tags": [
+        "seed",
+        "order",
+        "multiline",
+        "retail"
+      ],
+      "expected_type": "order",
+      "got_type": "order",
+      "type_ok": true,
+      "expected_fields": {
+        "lines": [
+          {
+            "quality": "KRT-BLU-M",
+            "quantity": 40,
+            "unit": "piece"
+          },
+          {
+            "quality": "KRT-RED-L",
+            "quantity": 25,
+            "unit": "piece"
+          }
+        ]
+      },
+      "got_fields": {
+        "lines": [
+          {
+            "quality": "KRT-BLU-M",
+            "quantity": 40.0,
+            "unit": "piece"
+          },
+          {
+            "quality": "KRT-RED-L",
+            "quantity": 25.0,
+            "unit": "piece"
+          }
+        ]
+      },
+      "field_hits": 1,
+      "field_total": 1,
+      "confidence": 0.9,
+      "latency_ms": 4380,
+      "error": null
+    },
+    {
+      "id": "seed-010",
+      "message": "maal kab tak aayega bhai",
+      "tags": [
+        "seed",
+        "noise",
+        "hinglish"
+      ],
+      "expected_type": "noise",
+      "got_type": "enquiry",
+      "type_ok": false,
+      "expected_fields": {},
+      "got_fields": {
+        "notes": "maal kab tak aayega bhai"
+      },
+      "field_hits": 0,
+      "field_total": 0,
+      "confidence": 0.5,
+      "latency_ms": 4345,
+      "error": null
+    }
+  ]
+}

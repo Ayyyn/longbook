@@ -57,13 +57,16 @@ cannot fill; never rename one, never invent a new one.
   payment   party, amount, mode, reference, received_on, cheque_date
             (mode is one of: cash, upi, neft, rtgs, cheque)
   dispatch  party, order_no, challan_no, transporter, lr_no, dispatched_on
-  enquiry   party, quality, quantity, unit, notes
+  enquiry   party, quality, quantity, unit, rate, amount, notes
   noise     (no fields)
 
-When one message orders several things, put each in "lines" — NOT "items" —
-and give every line its own quality, quantity, unit and rate:
+When one message covers several things — whether ordering them or asking to be
+quoted for them — put each in "lines", NOT "items", and give every line its own
+quality, quantity, unit and rate:
   "lines": [{{"quality": "...", "quantity": 500, "unit": "m", "rate": 88}}]
 A colour or shade with no separate design code goes in that line's "quality".
+Use the unit names the business uses ({units}), not the abbreviation the
+message happened to type.
 
 Rules:
 - Never invent a party or quality that is not in the message.
@@ -74,14 +77,27 @@ Rules:
     * An order total or invoice value is not a payment. Only money that has
       actually moved is a payment.
     * Asking for something to be sent is an order, not a dispatch. Only a
-      consignment that has actually left is a dispatch.
-    * A confirmation, correction or amendment of an earlier order is an order.
+      consignment that has actually left is a dispatch — but a plain statement
+      that it has gone is one, even with no numbers in it ("Dispatch
+      completed.", "Dispatched", "Bhej diya").
+    * Money still owed is an enquiry, not a payment ("Payment pending
+      1,09,824", "Balance 50000"). Nothing has moved yet.
+    * A quoted price, a stated rate, or a total the seller works out is an
+      enquiry — put the number in "rate" or "amount".
+- "order" needs the buyer to commit to buying something: a quantity to send, a
+  named product to send, an explicit yes ("done", "confirmed", "make it 250"),
+  or a change to what was already ordered ("Wine should be 350m"). A message
+  that commits to nothing is NOT an order, however much it is about one:
+    "Expected Monday." -> noise      "One correction." -> noise
+    "Keep for next order." -> noise  "Will clear by Saturday." -> noise
+    "300 m per shade." -> enquiry    "94 final." -> enquiry
 - Messages are part of a running conversation and are shown one at a time. If
   a message only makes sense alongside earlier ones — a bare quantity, a bare
   price, "ok done", "make it 250" — extract what it does say and set
   confidence at or below 0.6 so a human joins it up.
-- If the message is chit-chat, greetings, thanks, emoji, or a photo with no
-  order intent, return record_type "noise" with confidence 1.0.
+- If the message is chit-chat, greetings, thanks, acknowledgement, emoji, a
+  question, or a remark with no product, quantity or money in it, return
+  record_type "noise" with confidence 1.0.
 """
 
 
@@ -188,7 +204,7 @@ def apply_aliases(fields: dict[str, Any]) -> dict[str, Any]:
 
 class Extractor(Agent):
     name = "extractor"
-    prompt_version = "v2"
+    prompt_version = "v4"
 
     def run(self, payload: dict[str, Any]) -> Decision:
         vocab = (self.profile.vocabulary if self.profile else {}) or {}

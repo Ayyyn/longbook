@@ -52,8 +52,34 @@ def _norm(value: Any) -> str:
         return text
 
 
+def _lines_match(expected: list, got: Any) -> bool:
+    """Line items match on what they mean: the same set of quality+quantity.
+
+    Exact dict equality would score a perfect extraction as a miss for adding a
+    `rate` key or ordering the list differently, which measures the model's
+    formatting rather than whether it read the order correctly.
+    """
+    if not isinstance(got, list):
+        return False
+
+    def key(line: Any) -> tuple[str, str]:
+        if not isinstance(line, dict):
+            return (_norm(line), "")
+        return (
+            _norm(line.get("quality") or line.get("color") or line.get("shade")),
+            _norm(line.get("quantity")),
+        )
+
+    return sorted(key(x) for x in expected) == sorted(key(x) for x in got)
+
+
 def field_match(expected: dict, got: dict) -> tuple[int, int]:
-    hit = sum(1 for k, v in expected.items() if _norm(got.get(k)) == _norm(v))
+    hit = 0
+    for key, want in expected.items():
+        if key == "lines" and isinstance(want, list):
+            hit += int(_lines_match(want, got.get("lines")))
+        elif _norm(got.get(key)) == _norm(want):
+            hit += 1
     return hit, len(expected)
 
 
@@ -65,14 +91,33 @@ def load_cases() -> list[dict]:
     ]
 
 
-def run_cases(tenant_id: uuid.UUID, cases: list[dict], limit: int | None = None) -> dict:
-    """Run every case through the real Extractor, with the tenant's profile."""
+def run_cases(
+    tenant_id: uuid.UUID,
+    cases: list[dict],
+    limit: int | None = None,
+    prompt_file: str | None = None,
+    model: str | None = None,
+) -> dict:
+    """Run every case through the real Extractor, with the tenant's profile.
+
+    `prompt_file` swaps the system prompt so an old one can be re-measured from
+    git rather than argued about from memory; `model` swaps the tier so
+    accuracy and cost can be traded off against each other with numbers.
+    """
     from sqlalchemy import select
 
+    import app.agents.extractor as extractor_module
     from app.agents import Extractor
     from app.db import tenant_session
     from app.models.party import Party
     from app.models.tenant import BusinessProfile
+
+    if prompt_file:
+        extractor_module.SYSTEM = Path(prompt_file).read_text(encoding="utf-8")
+        print(f"prompt: {prompt_file}")
+    if model:
+        Extractor.model_override = model
+        print(f"model : {model}")
 
     results: list[dict] = []
 
@@ -157,7 +202,9 @@ def summarise(results: list[dict]) -> dict:
         for key, want in r["expected_fields"].items():
             stat = per_field.setdefault(key, {"n": 0, "ok": 0})
             stat["n"] += 1
-            stat["ok"] += int(_norm(r["got_fields"].get(key)) == _norm(want))
+            # Same comparison the headline uses, so the two cannot disagree.
+            hit, _ = field_match({key: want}, r["got_fields"])
+            stat["ok"] += hit
 
     return {
         "cases": len(results),
@@ -174,6 +221,17 @@ def summarise(results: list[dict]) -> dict:
         "confusion": {f"{a} -> {b}": n for (a, b), n in confusion.most_common()},
         "results": results,
     }
+
+
+def rescore(saved: dict) -> dict:
+    """Re-apply the current metric to a saved run, without calling the model.
+
+    A metric change would otherwise invalidate every stored baseline and cost a
+    full re-run to restore.
+    """
+    for r in saved["results"]:
+        r["field_hits"], r["field_total"] = field_match(r["expected_fields"], r["got_fields"])
+    return summarise(saved["results"])
 
 
 def report(summary: dict) -> None:
@@ -263,19 +321,35 @@ def compare(current: dict, baseline: dict) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--tenant", required=True, help="tenant whose profile shapes the prompt")
+    ap.add_argument("--tenant", help="tenant whose profile shapes the prompt")
     ap.add_argument("--limit", type=int, help="run only the first N cases")
     ap.add_argument("--save", help="save this run under evals/runs/<name>.json")
     ap.add_argument("--compare", help="compare against a saved run")
     ap.add_argument("--tag", help="only cases carrying this tag")
+    ap.add_argument("--prompt", help="system prompt file to use instead of the current one")
+    ap.add_argument("--model", help="model id to use instead of the configured one")
+    ap.add_argument("--rescore", help="re-score a saved run with the current metric, no API calls")
     args = ap.parse_args()
+
+    if args.rescore:
+        path = RUNS / f"{args.rescore}.json"
+        summary = rescore(json.loads(path.read_text(encoding="utf-8")))
+        report(summary)
+        if args.save:
+            (RUNS / f"{args.save}.json").write_text(
+                json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+            print(f"\nsaved {RUNS / (args.save + '.json')}")
+        return 0
 
     cases = load_cases()
     if args.tag:
         cases = [c for c in cases if args.tag in c.get("tags", [])]
     print(f"{len(cases)} cases\n")
 
-    summary = run_cases(uuid.UUID(args.tenant), cases, args.limit)
+    summary = run_cases(
+        uuid.UUID(args.tenant), cases, args.limit, args.prompt, args.model
+    )
     report(summary)
 
     if args.save:
