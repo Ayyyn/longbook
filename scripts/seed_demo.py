@@ -3,6 +3,12 @@
 For looking at the dashboard without running a Gemini-backed backfill first.
 
     DATABASE_URL=... PYTHONPATH=. python scripts/seed_demo.py
+
+The Agent Activity screen will be empty afterwards, and deliberately so: this
+writes records through `commit.py` directly, so no agent ever runs. Populating
+`agent_run` here would put fabricated rows in the same table
+`scripts/export_logs.py` exports as submission evidence. To get real activity,
+upload an export through /api/ingest with GEMINI_API_KEY set.
 """
 
 from __future__ import annotations
@@ -14,7 +20,7 @@ from pathlib import Path
 import yaml
 
 from app.db import admin_session, tenant_session
-from app.models import BusinessProfile, Interaction, Party, Tenant
+from app.models import BusinessProfile, Interaction, Invoice, Party, Tenant
 from app.services.auth import issue_token
 from app.services.commit import commit_record, queue_for_review
 
@@ -33,9 +39,23 @@ PAYMENTS = [
 ]
 
 ORDERS = [
-    ("Ashok Textiles", "SR-1042", "150", "62", TODAY),
-    ("Bharat Fabrics", "SR-1188", "300", "58.50", TODAY),
-    ("Kishore Silk Mills", "KR-2201", "80", "145", TODAY - timedelta(days=3)),
+    ("Ashok Textiles", "SR-1042", "150", "62", TODAY, None),
+    ("Bharat Fabrics", "SR-1042", "300", "61", TODAY, None),
+    ("Kishore Silk Mills", "SR-1042", "80", "63", TODAY - timedelta(days=3), None),
+    # Priced far below the usual rate for this quality — flagged as a deviation.
+    ("Bharat Fabrics", "SR-1042", "500", "31", TODAY - timedelta(days=2), None),
+    # Promised a fortnight ago and never dispatched — flagged as stalled.
+    ("Kishore Silk Mills", "KR-2201", "120", "145", TODAY - timedelta(days=30),
+     TODAY - timedelta(days=14)),
+]
+
+# Billed and unpaid, so the ageing buckets and overdue alerts have something
+# real to show. Ashok is well past 45 days; Kishore is not due yet.
+INVOICES = [
+    ("Ashok Textiles", "INV-1001", 180000, TODAY - timedelta(days=95)),
+    ("Ashok Textiles", "INV-1042", 95000, TODAY - timedelta(days=52)),
+    ("Bharat Fabrics", "INV-1103", 60000, TODAY - timedelta(days=20)),
+    ("Kishore Silk Mills", "INV-1155", 140000, TODAY + timedelta(days=25)),
 ]
 
 # Left in the queue on purpose — this is the screen being demonstrated.
@@ -99,12 +119,18 @@ def main() -> None:
                  "received_on": when.isoformat()},
                 0.96, party_id=by_name[party]))
 
-        for party, quality, qty, rate, when in ORDERS:
+        for party, quality, qty, rate, when, promised in ORDERS:
+            fields = {"quality": quality, "quantity": qty, "unit": "meter", "rate": rate,
+                      "order_date": when.isoformat()}
+            if promised:
+                fields["delivery_date"] = promised.isoformat()
             commit_record(db, state(
-                tenant_id, None, "order",
-                {"quality": quality, "quantity": qty, "unit": "meter", "rate": rate,
-                 "order_date": when.isoformat()},
-                0.94, party_id=by_name[party]))
+                tenant_id, None, "order", fields, 0.94, party_id=by_name[party]))
+
+        for party, number, amount, due in INVOICES:
+            db.add(Invoice(tenant_id=tenant_id, party_id=by_name[party], invoice_no=number,
+                           invoice_date=due - timedelta(days=1), due_date=due,
+                           amount=amount, status="open", source="manual"))
 
         for body, fields, reason, flags in QUEUED:
             interaction = Interaction(tenant_id=tenant_id, channel="whatsapp_export",

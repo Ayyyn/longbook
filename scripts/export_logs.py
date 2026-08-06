@@ -215,7 +215,9 @@ def main() -> int:
         print(f"{out_dir / name}: {count} rows")
 
     if not any(written.values()):
-        print("No agent runs matched — nothing to submit yet.", file=sys.stderr)
+        # ASCII: this gets run from a Windows console, where cp1252 mangles
+        # anything else and a garbled warning reads like a bug.
+        print("No agent runs matched - nothing to submit yet.", file=sys.stderr)
     return 0
 
 

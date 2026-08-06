@@ -37,6 +37,14 @@ async function request(path, options = {}) {
     },
   });
 
+  if (res.status === 401) {
+    // The stored token is dead — a rotated token, or a database that was
+    // rebuilt under it. Drop it and send them back to sign-in rather than
+    // leaving every screen showing the same red banner forever.
+    clearToken();
+    window.dispatchEvent(new Event("auth-expired"));
+  }
+
   if (!res.ok) {
     let detail = `Request failed (${res.status})`;
     try {

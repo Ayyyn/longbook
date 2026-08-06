@@ -13,6 +13,10 @@ export default function TokenGate({ children }) {
   useEffect(() => {
     setHasToken(Boolean(getToken()));
     setReady(true);
+
+    const expired = () => setHasToken(false);
+    window.addEventListener("auth-expired", expired);
+    return () => window.removeEventListener("auth-expired", expired);
   }, []);
 
   if (!ready) return null; // avoids a flash of the sign-in card on every load
