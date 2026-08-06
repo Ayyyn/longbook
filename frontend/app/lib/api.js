@@ -62,6 +62,16 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ reason: reason || null }),
     }),
+
+  agentSummary: (days = 30) => request(`/api/agents/summary?days=${days}`),
+  agentRuns: (options = {}) => {
+    const query = new URLSearchParams({ limit: "30" });
+    if (options.overrides_only) query.set("overrides_only", "true");
+    if (options.outcome) query.set("outcome", options.outcome);
+    if (options.agent) query.set("agent", options.agent);
+    return request(`/api/agents/runs?${query}`);
+  },
+  agentTrace: (traceId) => request(`/api/agents/trace/${traceId}`),
 };
 
 // ₹1,25,000 — lakh grouping, not thousands. Getting this wrong is the fastest

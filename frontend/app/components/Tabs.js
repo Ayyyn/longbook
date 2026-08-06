@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// Two screens for now. Parties, Orders and Agent Activity join them in
-// BUILD_PROMPT section 5.
+// Parties and Orders join these in BUILD_PROMPT section 5.
 const TABS = [
   { href: "/", label: "Today" },
   { href: "/review", label: "Review" },
+  { href: "/activity", label: "Activity" },
 ];
 
 export default function Tabs() {
