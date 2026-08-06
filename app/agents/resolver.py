@@ -9,6 +9,12 @@ one customer. Strategy is cheap-first:
 
 Ambiguity is escalated rather than guessed. A wrongly-attributed payment is
 worse than a review-queue item.
+
+Most trade messages name nobody at all — "150 mtr SR-1042 chahiye" is a
+complete order in a chat where both sides already know who they are. For those
+the sender *is* the party, which is why step 3 exists. It only runs when the
+message named nobody: if the text does name a party, that party wins even when
+somebody else forwarded the message.
 """
 
 from __future__ import annotations
@@ -34,6 +40,15 @@ class Resolver(Agent):
         hit = phone_match(self.db, self.tenant_id, phone)
         if hit:
             return Decision(output={"party_id": str(hit.id), "method": "phone"}, confidence=0.95)
+
+        if not raw_name.strip():
+            hit = exact_alias_match(self.db, self.tenant_id, payload.get("sender_name") or "")
+            if hit:
+                return Decision(
+                    output={"party_id": str(hit.id), "method": "sender"},
+                    confidence=0.9,
+                    rationale="Message named no party; attributed to the sender.",
+                )
 
         candidates = shortlist_parties(self.db, self.tenant_id, raw_name, limit=5)
         if not candidates:

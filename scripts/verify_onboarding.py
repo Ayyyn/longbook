@@ -190,25 +190,18 @@ check("profile now visible", me["profile"]["segments"], ["wholesaler"])
 check("interactions counted", me["interactions"], 4)
 
 queue = client.get("/api/review/queue", headers=headers).json()
-check("backfill produced review items", queue["total"] >= 1, True)
 
-# Documents a real onboarding consequence rather than asserting a wish: a fresh
-# tenant has no Party rows, so the Resolver cannot resolve anyone and nothing
-# auto-commits on the first backfill. See the note in the handover.
+# Party seeding runs before the backfill, so the Resolver has somebody to
+# attribute records to and the first backfill commits instead of queueing.
 with tenant_session(TENANT) as db:
     from app.models import Order, Party, Payment
 
-    check("no parties exist on a fresh tenant", db.query(Party).count(), 0)
-    check("  so nothing auto-commits", (db.query(Order).count(), db.query(Payment).count()), (0, 0))
+    check("the counterparty was seeded from the chat", db.query(Party).count(), 1)
+    check("  named after the sender", db.query(Party).one().name, "Ashok Bhai")
+    check("the order auto-committed", db.query(Order).count(), 1)
+    check("the payment auto-committed", db.query(Payment).count(), 1)
 
-check("  everything waits on party resolution",
-      all("unresolved_party" in i["flags"] for i in queue["items"]), True)
-# Confidence is the minimum across the pipeline, so a failed resolution drags
-# the whole record down even when the extraction itself was confident.
-check("  and the failed resolution drags confidence down",
-      all(any(f.startswith("low_confidence") for f in i["flags"]) for i in queue["items"]), True)
-check("  and the queue offers the name to create",
-      {i["suggest_create"] for i in queue["items"]}, {"Ashok Bhai"})
+check("nothing was left in the queue", queue["total"], 0)
 
 check("ingest works now that a profile exists",
       client.post("/api/ingest", headers=headers,

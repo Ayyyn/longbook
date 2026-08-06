@@ -68,6 +68,18 @@ class SampleAccepted(BaseModel):
     detail: str
 
 
+class PartyImportResult(BaseModel):
+    source: str  # tally | excel | messages
+    created: int
+    merged: int
+    skipped: int
+    opening_invoices: int
+    total_outstanding: float
+    parties_total: int
+    preview: list[str] = Field(default_factory=list)
+    detail: str
+
+
 class ProfileOut(BaseModel):
     segments: list[str]
     modules: dict[str, Any]
@@ -83,6 +95,8 @@ class ConfigureResult(BaseModel):
     tenant_id: uuid.UUID
     profile: ProfileOut
     pending_interactions: int
+    parties: int
+    parties_seeded_from: str | None = None
     detail: str
 
 

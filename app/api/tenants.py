@@ -31,6 +31,7 @@ from app.models.party import Party
 from app.models.tenant import BusinessProfile, Tenant
 from app.schemas.tenants import (
     ConfigureResult,
+    PartyImportResult,
     Interview,
     ProfileOut,
     SampleAccepted,
@@ -42,6 +43,11 @@ from app.services.auth import issue_token
 from app.services.backfill import run_backfill
 from app.services.intake import IntakeError, interactions_from_upload
 from app.services.onboarding import build_profile
+from app.services.party_import import (
+    import_parties,
+    parse_upload,
+    seeds_from_messages,
+)
 
 router = APIRouter()
 
@@ -122,6 +128,50 @@ def upload_sample(
     )
 
 
+@router.post("/parties", response_model=PartyImportResult, status_code=202)
+def import_party_list(
+    tid: TenantId,
+    db: TenantDB,
+    file: UploadFile = File(...),
+) -> PartyImportResult:
+    """Import the party list from Tally XML or an .xlsx customer list.
+
+    Runs before /configure so the backfill has somebody to attribute records
+    to. Without it the chat export is used instead, which is a worse list.
+    """
+    tmp_path = save_upload(file)
+    try:
+        source, seeds = parse_upload(file.filename, tmp_path)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+    if not seeds:
+        raise HTTPException(400, "No parties found in that file.")
+
+    result = import_parties(db, tid, seeds, source)
+    total = db.execute(
+        select(func.count()).select_from(Party).where(Party.tenant_id == tid)
+    ).scalar_one()
+
+    return PartyImportResult(
+        **result.as_dict(),
+        parties_total=total,
+        preview=[seed.name for seed in seeds[:PREVIEW_LINES]],
+        detail=(
+            f"{result.created} parties added, {result.merged} matched existing"
+            + (
+                f", {result.opening_invoices} opening balances totalling "
+                f"{result.total_outstanding:,.0f}"
+                if result.opening_invoices
+                else ""
+            )
+            + "."
+        ),
+    )
+
+
 @router.post("/configure", response_model=ConfigureResult)
 def configure(
     interview: Interview,
@@ -157,6 +207,30 @@ def configure(
     if tenant.onboarded_at is None:
         tenant.onboarded_at = datetime.utcnow()
 
+    # The Resolver cannot attribute anything without a party list, and an
+    # unattributed record cannot auto-commit — an empty party table sends the
+    # whole 90-day history to review, which is where onboarding dies.
+    #
+    # Chat senders top up whatever was imported rather than replacing it.
+    # Source priority is per party, not per import: `import_parties` merges
+    # into an existing row and never overwrites what Tally already said, so a
+    # counterparty the accountant's ledger has never heard of still becomes
+    # somebody the backfill can attribute records to.
+    before = db.execute(
+        select(func.count()).select_from(Party).where(Party.tenant_id == tid)
+    ).scalar_one()
+
+    seeded_from = None
+    seeds = seeds_from_messages(db, tid, tenant.owner_phone)
+    if seeds:
+        added = import_parties(db, tid, seeds, "messages").created
+        if added:
+            seeded_from = "messages" if before == 0 else "messages (topped up import)"
+
+    parties = db.execute(
+        select(func.count()).select_from(Party).where(Party.tenant_id == tid)
+    ).scalar_one()
+
     pending = db.execute(
         select(func.count())
         .select_from(Interaction)
@@ -186,7 +260,12 @@ def configure(
             rationale=built["rationale"],
         ),
         pending_interactions=pending,
-        detail=f"Profile written from the {built['source']}; {pending} messages queued.",
+        parties=parties,
+        parties_seeded_from=seeded_from,
+        detail=(
+            f"Profile written from the {built['source']}; "
+            f"{pending} messages queued against {parties} parties."
+        ),
     )
 
 

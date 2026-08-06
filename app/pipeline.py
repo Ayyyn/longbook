@@ -45,7 +45,8 @@ def build_pipeline(db, tenant_id, profile):
         if state["extraction"].get("record_type") == "noise":
             return {**state, "resolution": {}, "action": "discard"}
         payload = {**state["extraction"],
-                   "sender_phone": state["interaction"].get("sender_phone")}
+                   "sender_phone": state["interaction"].get("sender_phone"),
+                   "sender_name": state["interaction"].get("sender")}
         d = rs.execute(payload, trace_id=state["trace_id"])
         return {**state, "resolution": {**d.output, "confidence": d.confidence}}
 
