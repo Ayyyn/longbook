@@ -22,6 +22,10 @@ class JobStatus(BaseModel):
     state: str  # queued | running | done | failed | unknown
     total: int
     processed: int
+    # Conversation windows, which is what the backfill actually works
+    # through — the owner watches this move during onboarding.
+    windows_total: int = 0
+    windows_done: int = 0
     committed: int
     needs_review: int
     discarded: int

@@ -22,14 +22,16 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
-def include_object(object_, name, type_, reflected, compare_to) -> bool:
-    """Keep hand-written index DDL out of autogenerate's diff.
+# Indexes that exist only in migrations. Expression indexes (pg_trgm, JSONB
+# containment) cannot be declared on the models — `TenantScoped` owns
+# `__table_args__` — so autogenerate sees them only in the database and would
+# emit a drop on every subsequent revision.
+_HAND_WRITTEN_INDEX_SUFFIXES = ("_trgm", "_pending_fields")
 
-    The pg_trgm GIN index cannot be declared on the model — `TenantScoped`
-    owns `__table_args__` — so autogenerate sees it only in the database and
-    would emit a drop on every subsequent revision.
-    """
-    if type_ == "index" and name and name.endswith("_trgm"):
+
+def include_object(object_, name, type_, reflected, compare_to) -> bool:
+    """Keep hand-written index DDL out of autogenerate's diff."""
+    if type_ == "index" and name and name.endswith(_HAND_WRITTEN_INDEX_SUFFIXES):
         return False
     return True
 

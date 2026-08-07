@@ -21,6 +21,7 @@ from langgraph.graph import END, StateGraph
 
 from app.agents import Extractor, Resolver, Triage
 from app.services.commit import commit_record, queue_for_review
+from app.services.gating import strip_pending
 
 
 class PipelineState(TypedDict, total=False):
@@ -76,6 +77,9 @@ def build_pipeline(db, tenant_id, profile):
                     record.get("confidence", 0), resolution.get("confidence", 1)
                 ),
                 "party_id": resolution.get("party_id"),
+                # The whole record, so Triage can run the deterministic checks
+                # rather than re-deriving them from flattened fields.
+                "record": record,
                 **(record.get("fields") or {}),
             }
             d = tr.execute(payload, trace_id=state["trace_id"])
@@ -83,6 +87,9 @@ def build_pipeline(db, tenant_id, profile):
                 **record,
                 "action": d.output.get("action", "review"),
                 "flags": d.output.get("flags", []),
+                "validations": d.output.get("validations", []),
+                "pending_fields": d.output.get("pending_fields", []),
+                "pending_reasons": d.output.get("pending_reasons", {}),
             })
         return {**state, "records": triaged}
 
@@ -108,9 +115,22 @@ def build_pipeline(db, tenant_id, profile):
                 },
                 "resolution": record.get("resolution", {}),
                 "flags": record.get("flags", []),
+                "validations": record.get("validations", []),
+                "pending_reasons": record.get("pending_reasons", {}),
             }
             action = record.get("action")
             if action == "commit":
+                results.append(commit_record(db, record_state))
+            elif action == "commit_partial":
+                # Write what is certain, blank what is not, and queue the
+                # question. The row exists so the owner can see it; the ledger
+                # ignores it until they answer.
+                pending = record.get("pending_fields", [])
+                record_state["pending_fields"] = pending
+                record_state["extraction"] = {
+                    **record_state["extraction"],
+                    "fields": strip_pending(record.get("fields") or {}, pending),
+                }
                 results.append(commit_record(db, record_state))
             elif action == "review":
                 results.append(queue_for_review(db, record_state))

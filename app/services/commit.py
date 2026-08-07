@@ -147,6 +147,40 @@ def _source(state: dict[str, Any]) -> tuple[str, str | None]:
     return source, (str(iid) if iid else None)
 
 
+def _pending(state: dict[str, Any]) -> list[str]:
+    return list(state.get("pending_fields") or [])
+
+
+def _status(state: dict[str, Any]) -> str:
+    """A record with anything outstanding is queued even though it was written.
+
+    This is the whole point of field-level gating: the row exists so the owner
+    can see it, and it sits in the queue so they are asked the one question
+    that is actually open.
+    """
+    return "needs_review" if _pending(state) else "auto_committed"
+
+
+def _mark(row, state: dict[str, Any], extraction_id: uuid.UUID | None = None) -> None:
+    """Record on the business row what is still unconfirmed.
+
+    Stored in `attributes` rather than a new column on five tables — that bag
+    exists for exactly this. Ledger reads consult it, so a half-known payment
+    cannot become a number the owner acts on.
+    """
+    pending = _pending(state)
+    attributes = dict(getattr(row, "attributes", None) or {})
+    if pending:
+        attributes["pending_fields"] = pending
+        attributes["pending_reasons"] = state.get("pending_reasons") or {}
+    else:
+        attributes.pop("pending_fields", None)
+        attributes.pop("pending_reasons", None)
+    if extraction_id:
+        attributes["extraction_id"] = str(extraction_id)
+    row.attributes = attributes
+
+
 def _record_extraction(
     db,
     state: dict[str, Any],
@@ -161,6 +195,8 @@ def _record_extraction(
 
     if state.get("flags"):
         resolution["flags"] = state["flags"]
+    if state.get("pending_reasons"):
+        resolution["pending_reasons"] = state["pending_reasons"]
 
     row = Extraction(
         tenant_id=state.get("tenant_id"),
@@ -176,6 +212,8 @@ def _record_extraction(
         status=status,
         committed_type=committed_type,
         committed_id=committed_id,
+        validations=_jsonable(state.get("validations") or []),
+        pending_fields=_pending(state),
     )
     db.add(row)
     db.flush()
@@ -253,7 +291,7 @@ def _commit_order(
     db, state, fields, confidence, tenant_id, party_id, source, source_ref
 ) -> dict[str, Any]:
     lines = _lines(fields)
-    if not lines:
+    if not lines and not _pending(state):
         return queue_for_review(db, state, flags=["order_without_lines"])
 
     # Resolve every quality first: one unknown code sends the whole order to
@@ -299,8 +337,9 @@ def _commit_order(
 
     db.flush()
     row = _record_extraction(
-        db, state, status="auto_committed", committed_type="order", committed_id=order.id
+        db, state, status=_status(state), committed_type="order", committed_id=order.id
     )
+    _mark(order, state, row.id)
     return {
         "status": "committed",
         "record_type": "order",
@@ -312,7 +351,9 @@ def _commit_order(
 
 def _commit_payment(db, state, fields, tenant_id, party_id, source, source_ref) -> dict[str, Any]:
     amount = _num(fields.get("amount"))
-    if amount is None or amount <= 0:
+    # A missing amount is only acceptable when field-level gating has already
+    # decided to ask the owner for it. Otherwise there is nothing to write.
+    if (amount is None or amount <= 0) and "amount" not in _pending(state):
         return queue_for_review(db, state, flags=["missing_amount"])
 
     payment = Payment(
@@ -330,8 +371,9 @@ def _commit_payment(db, state, fields, tenant_id, party_id, source, source_ref) 
     db.flush()
 
     row = _record_extraction(
-        db, state, status="auto_committed", committed_type="payment", committed_id=payment.id
+        db, state, status=_status(state), committed_type="payment", committed_id=payment.id
     )
+    _mark(payment, state, row.id)
     return {
         "status": "committed",
         "record_type": "payment",
@@ -362,8 +404,9 @@ def _commit_dispatch(db, state, fields, tenant_id, party_id, source, source_ref)
     db.flush()
 
     row = _record_extraction(
-        db, state, status="auto_committed", committed_type="dispatch", committed_id=dispatch.id
+        db, state, status=_status(state), committed_type="dispatch", committed_id=dispatch.id
     )
+    _mark(dispatch, state, row.id)
     return {
         "status": "committed",
         "record_type": "dispatch",
@@ -384,6 +427,65 @@ def queue_for_review(
         "extraction_id": str(row.id),
         "record_type": row.record_type,
         "flags": (row.resolved or {}).get("flags", []),
+    }
+
+
+_COMMITTED_MODELS = {"order": Order, "payment": Payment, "dispatch": Dispatch}
+
+
+def _existing_record(db, extraction: Extraction):
+    """The business row a partial commit already wrote, if there is one."""
+    model = _COMMITTED_MODELS.get(extraction.committed_type or "")
+    if model is None or not extraction.committed_id:
+        return None
+    return db.get(model, extraction.committed_id)
+
+
+def _complete_record(db, extraction, row, record_type, fields, party_id) -> dict[str, Any]:
+    """Fill in the fields the owner has now confirmed, in place.
+
+    Only the fields that were pending are written — the rest were already
+    committed and the owner has not been asked about them. Clearing
+    `pending_fields` is what readmits the record to the ledger.
+    """
+    pending = set(extraction.pending_fields or [])
+    if party_id is not None and hasattr(row, "party_id"):
+        row.party_id = party_id
+
+    if record_type == "payment":
+        if "amount" in pending and _num(fields.get("amount")) is not None:
+            row.amount = _num(fields.get("amount"))
+        row.mode = row.mode or _text(fields.get("mode"))
+        row.reference = row.reference or _text(fields.get("reference") or fields.get("utr"))
+        row.received_on = row.received_on or _date(fields.get("received_on"))
+    elif record_type == "order":
+        row.order_no = row.order_no or _text(fields.get("order_no"))
+        row.promised_date = row.promised_date or _date(fields.get("delivery_date"))
+        # A single-line order can have its quantity or rate answered directly.
+        if row.lines and len(row.lines) == 1:
+            line = row.lines[0]
+            if "quantity" in pending and _num(fields.get("quantity")) is not None:
+                line.quantity = _num(fields.get("quantity"))
+            if "rate" in pending and _num(fields.get("rate")) is not None:
+                line.rate = _num(fields.get("rate"))
+            if "unit" in pending and _text(fields.get("unit")):
+                line.unit = _text(fields.get("unit"))
+    elif record_type == "dispatch":
+        row.lr_no = row.lr_no or _text(fields.get("lr_no"))
+        row.transporter = row.transporter or _text(fields.get("transporter"))
+        row.challan_no = row.challan_no or _text(fields.get("challan_no"))
+
+    attributes = dict(row.attributes or {})
+    attributes.pop("pending_fields", None)
+    attributes.pop("pending_reasons", None)
+    row.attributes = attributes
+
+    db.flush()
+    return {
+        "status": "committed",
+        "record_type": record_type,
+        "id": str(row.id),
+        "completed": sorted(pending),
     }
 
 
@@ -435,13 +537,20 @@ def accept_correction(db, extraction_id, corrected: dict[str, Any]) -> dict[str,
         "resolution": {**original_resolved, "party_id": party_id, "method": "human"},
     }
 
-    result = commit_record(db, state)
+    # A partially-committed record already exists; the owner is answering the
+    # one field that was pending, not creating a second copy of the record.
+    existing = _existing_record(db, extraction)
+    if existing is not None:
+        result = _complete_record(db, extraction, existing, record_type, fields, party_id)
+    else:
+        result = commit_record(db, state)
 
     was_edited = fields != original_fields or record_type != extraction.record_type
     extraction.status = "corrected" if was_edited else "accepted"
     extraction.record_type = record_type
     extraction.payload = _jsonable(fields)
     extraction.resolved = _jsonable({**original_resolved, "party_id": party_id})
+    extraction.pending_fields = []
     if result.get("id"):
         extraction.committed_type = result.get("record_type")
         extraction.committed_id = uuid.UUID(result["id"])

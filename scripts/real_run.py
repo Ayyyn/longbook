@@ -91,11 +91,19 @@ def main(path: Path) -> int:
         print(f"\nparties seeded: {result.created} "
               f"({', '.join(s.name for s in seeds)})")
 
-    # 4. Backfill — one live extraction per message.
-    print("\nbackfill running (live model calls, paced)...")
+    # 4. Backfill — one live extraction per conversation window, concurrently.
+    print("\nbackfill running (live model calls, paced, concurrent)...")
     backfill_started = time.time()
-    run_backfill(tenant_id, job_id)
+
+    def progress(done: int, total: int, outcome: str) -> None:
+        elapsed = time.time() - backfill_started
+        filled = int(24 * done / max(total, 1))
+        print(f"\r  [{'=' * filled:<24}] {done}/{total} windows  {elapsed:5.1f}s",
+              end="", flush=True)
+
+    run_backfill(tenant_id, job_id, on_progress=progress)
     backfill_seconds = time.time() - backfill_started
+    print()
 
     # 5. Measure.
     with tenant_session(tenant_id) as db:
@@ -124,6 +132,8 @@ def main(path: Path) -> int:
                 "flags": (extraction.resolved or {}).get("flags", []),
                 "party_id": (extraction.resolved or {}).get("party_id"),
                 "method": (extraction.resolved or {}).get("method"),
+                "pending_fields": list(extraction.pending_fields or []),
+                "committed_type": extraction.committed_type,
             })
 
     (OUT / "records.json").write_text(
@@ -148,12 +158,25 @@ def main(path: Path) -> int:
     committed = by_status.get("auto_committed", 0)
     queued = by_status.get("needs_review", 0)
 
+    # What the owner actually has to do. A queued item that already exists as a
+    # record with one blank is a very different amount of work from an empty
+    # form, and the auto-commit rate alone cannot tell them apart.
+    review_items = [r for r in records if r["status"] == "needs_review"]
+    partial = [r for r in review_items if r["committed_type"]]
+
     summary = {
         "messages_parsed": len(records),
         "by_status": by_status,
         "by_record_type": by_type,
         "auto_commit_rate": round(committed / business, 3) if business else 0,
         "review_rate": round(queued / business, 3) if business else 0,
+        "records_written": committed + len(partial),
+        "written_rate": round((committed + len(partial)) / business, 3) if business else 0,
+        "review_items_partial": len(partial),
+        "fields_per_review_item": (
+            round(sum(len(r["pending_fields"]) for r in partial) / len(partial), 2)
+            if partial else None
+        ),
         "orders_created": orders,
         "payments_created": payments,
         "parties": parties,

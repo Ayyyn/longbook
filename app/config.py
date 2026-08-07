@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     window_gap_minutes: int = 120
     window_max_messages: int = 40
     window_max_chars: int = 6000
+
+    # Concurrent windows during a backfill. Higher than the RPM allows
+    # simply queues on the pacer, so this is about hiding network latency,
+    # not about outrunning the quota.
+    backfill_workers: int = 8
     gcs_bucket: str = ""
     bq_dataset: str = "textile_ops"
 

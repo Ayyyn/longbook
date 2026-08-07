@@ -23,6 +23,13 @@ class SourceMessage(BaseModel):
     cited: bool = False  # the model said this record came from this line
 
 
+class ValidationResult(BaseModel):
+    rule: str
+    status: str  # pass | fail | not_applicable
+    detail: str = ""
+    fields: list[str] = []
+
+
 class QueueItem(BaseModel):
     extraction_id: uuid.UUID
     trace_id: uuid.UUID | None = None  # joins to agent_run
@@ -32,6 +39,14 @@ class QueueItem(BaseModel):
     flags: list[str] = []
 
     fields: dict[str, Any] = {}
+    # Field-level gating: everything else on this record is already committed.
+    # These are the only things the owner is being asked about.
+    pending_fields: list[str] = []
+    pending_reasons: dict[str, str] = {}
+    validations: list[ValidationResult] = []
+    committed_type: str | None = None
+    committed_id: uuid.UUID | None = None
+
     party_id: uuid.UUID | None = None
     party_name: str | None = None
     party_candidates: list[dict[str, Any]] = []

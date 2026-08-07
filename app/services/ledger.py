@@ -17,7 +17,9 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
+import sqlalchemy as sa
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import JSONB
 
 from app.models.finance import Invoice, Payment
 from app.models.ledger_state import LedgerWatermark
@@ -29,6 +31,32 @@ TREND_WORSENING_DAYS = 14
 MIN_SETTLEMENTS_PER_HALF = 2
 
 NOT_DUE = "current"
+
+# Money fields that, while unconfirmed, make a row unsafe to count. A payment
+# whose amount nobody has confirmed must not reduce what a customer owes.
+_UNCONFIRMED_MONEY = ("amount", "rate", "balance")
+
+
+def _confirmed(model):
+    """Rows whose money the owner has actually confirmed.
+
+    Field-level gating writes a record as soon as *some* of it is certain, so
+    a partially-known payment exists in the table. It is excluded here rather
+    than at write time, because the owner still needs to see it in the queue —
+    it just must not move a total until they answer.
+    """
+    pending = model.attributes["pending_fields"]
+    # The right-hand side needs an explicit JSONB cast: psycopg sends a bare
+    # string as varchar, and `jsonb @> varchar` is not an operator.
+    return sa.or_(
+        pending.is_(None),
+        sa.not_(
+            sa.or_(*[
+                pending.contains(sa.cast(f'["{field}"]', JSONB))
+                for field in _UNCONFIRMED_MONEY
+            ])
+        ),
+    )
 
 
 @dataclass
@@ -104,6 +132,7 @@ def party_positions(db, tenant_id, as_of: date) -> dict[uuid.UUID, PartyPosition
             Invoice.party_id.isnot(None),
             Invoice.invoice_date <= as_of,
             Invoice.status != "written_off",
+            _confirmed(Invoice),
         )
         .order_by(Invoice.due_date.asc().nullsfirst(), Invoice.invoice_date.asc())
     ).scalars().all()
@@ -130,6 +159,7 @@ def party_positions(db, tenant_id, as_of: date) -> dict[uuid.UUID, PartyPosition
             Payment.tenant_id == tenant_id,
             Payment.party_id.isnot(None),
             Payment.received_on <= as_of,
+            _confirmed(Payment),
         )
         .order_by(Payment.received_on.asc().nullsfirst(), Payment.created_at.asc())
     ).scalars().all()
@@ -348,6 +378,7 @@ def party_ledger(db, tenant_id, party_id, as_of: date) -> dict:
             Invoice.tenant_id == tenant_id,
             Invoice.party_id == party_id,
             Invoice.invoice_date <= as_of,
+            _confirmed(Invoice),
         )
     ).scalars().all()
     payments = db.execute(
@@ -355,6 +386,7 @@ def party_ledger(db, tenant_id, party_id, as_of: date) -> dict:
             Payment.tenant_id == tenant_id,
             Payment.party_id == party_id,
             Payment.received_on <= as_of,
+            _confirmed(Payment),
         )
     ).scalars().all()
 

@@ -58,5 +58,11 @@ class Extraction(Base, TenantScoped):
     status = Column(String(24), default="pending", index=True)
     # pending | auto_committed | needs_review | accepted | corrected | rejected
 
+    # Deterministic checks and their verdicts, so the review screen can say
+    # which rule disagreed rather than only that something did.
+    validations = Column(JSONB, default=list)
+    # Fields the owner still has to confirm. Empty means fully committed.
+    pending_fields = Column(JSONB, default=list)
+
     committed_type = Column(String(32), nullable=True)
     committed_id = Column(UUID(as_uuid=True), nullable=True)

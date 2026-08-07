@@ -23,6 +23,7 @@ from app.schemas.review import (
     Rejection,
     ReviewResult,
     SourceMessage,
+    ValidationResult,
 )
 from app.services.commit import accept_correction
 
@@ -83,6 +84,14 @@ def _to_item(
         reason=extraction.reason,
         flags=resolved.get("flags", []),
         fields=extraction.payload or {},
+        pending_fields=list(extraction.pending_fields or []),
+        pending_reasons=(extraction.resolved or {}).get("pending_reasons", {}),
+        validations=[
+            ValidationResult(**v) for v in (extraction.validations or [])
+            if isinstance(v, dict)
+        ],
+        committed_type=extraction.committed_type,
+        committed_id=extraction.committed_id,
         party_id=party.id if party else None,
         party_name=party.name if party else None,
         party_candidates=resolved.get("candidates", []),
