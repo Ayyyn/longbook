@@ -56,16 +56,22 @@ def fake_configurator(*, model, system, user, **kwargs):
 
 
 def fake_extractor(*, model, system, user, **kwargs):
-    body = (user or "").lower()
-    usage = {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
-    if "rtgs" in body:
-        return {"record_type": "payment", "confidence": 0.95, "reason": "",
-                "fields": {"party": "Ashok Bhai", "amount": "50000", "mode": "neft"}}, usage
-    if "mtr" in body:
-        return {"record_type": "order", "confidence": 0.93, "reason": "",
-                "fields": {"party": "Ashok Bhai", "quality": "SR-1042",
-                           "quantity": "150", "unit": "meter", "rate": "62"}}, usage
-    return {"record_type": "noise", "confidence": 1.0, "reason": "", "fields": {}}, usage
+    """One conversation window in, the records it settled on out."""
+    text = (user or "").lower()
+    usage = {"input_tokens": 400, "output_tokens": 80, "cost_usd": 0.0004}
+    records = []
+    if "mtr" in text:
+        records.append({
+            "record_type": "order", "confidence": 0.93, "reason": "", "source_lines": [1],
+            "fields": {"party": "Ashok Bhai", "quality": "SR-1042",
+                       "quantity": "150", "unit": "meter", "rate": "62"},
+        })
+    if "rtgs" in text:
+        records.append({
+            "record_type": "payment", "confidence": 0.95, "reason": "", "source_lines": [3],
+            "fields": {"party": "Ashok Bhai", "amount": "50000", "mode": "neft"},
+        })
+    return {"records": records}, usage
 
 
 configurator_module.generate_json = fake_configurator

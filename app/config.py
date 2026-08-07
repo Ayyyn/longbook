@@ -21,6 +21,13 @@ class Settings(BaseSettings):
     # Requests per minute to stay under. Free tier is ~10-15 RPM; a backfill
     # that ignores this gets 429s halfway through a customer's history.
     llm_rpm: int = 10
+
+    # Conversation windowing. A window is the extraction unit; these decide
+    # where one conversation ends and the next begins. Overridable per tenant
+    # through BusinessProfile.rules.
+    window_gap_minutes: int = 120
+    window_max_messages: int = 40
+    window_max_chars: int = 6000
     gcs_bucket: str = ""
     bq_dataset: str = "textile_ops"
 

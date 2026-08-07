@@ -7,9 +7,10 @@ from app.models.finance import Invoice, Payment, LedgerEntry
 from app.models.ingestion import Interaction, Extraction
 from app.models.ledger_state import LedgerWatermark
 from app.models.observability import AgentRun
+from app.models.window import ExtractionWindow
 
 __all__ = [
     "Base", "Tenant", "BusinessProfile", "Party", "Quality", "Lot",
     "Order", "OrderLine", "Dispatch", "Invoice", "Payment", "LedgerEntry",
-    "Interaction", "Extraction", "AgentRun", "LedgerWatermark",
+    "Interaction", "Extraction", "AgentRun", "LedgerWatermark", "ExtractionWindow",
 ]

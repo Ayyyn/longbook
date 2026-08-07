@@ -29,6 +29,11 @@ class Interaction(Base, TenantScoped):
 
     thread_key = Column(String(200), index=True)   # chat/group identifier
 
+    # Which conversation window this message was segmented into. Set by
+    # app/services/windowing.py, and re-pointed if a later message joins
+    # two runs together.
+    window_id = Column(UUID(as_uuid=True), ForeignKey("extraction_window.id"), index=True)
+
 
 class Extraction(Base, TenantScoped):
     __tablename__ = "extraction"
@@ -38,6 +43,11 @@ class Extraction(Base, TenantScoped):
     # Ties this candidate to the agent_run rows that produced it, so Agent
     # Activity is a join rather than a JSONB lookup.
     trace_id = Column(UUID(as_uuid=True), index=True)
+
+    window_id = Column(UUID(as_uuid=True), ForeignKey("extraction_window.id"), index=True)
+    # The messages this record was actually drawn from, so the review
+    # screen can show the owner the conversation behind the number.
+    source_message_ids = Column(JSONB, default=list)
 
     record_type = Column(String(32), index=True)   # order|payment|enquiry|dispatch|noise
     payload = Column(JSONB, default=dict)          # candidate fields, pre-resolution

@@ -166,6 +166,8 @@ def _record_extraction(
         tenant_id=state.get("tenant_id"),
         interaction_id=_interaction_id(state),
         trace_id=_uuid_or_none(state.get("trace_id")),
+        window_id=_uuid_or_none(state.get("window_id")),
+        source_message_ids=[str(i) for i in (state.get("source_message_ids") or [])],
         record_type=extraction.get("record_type"),
         payload=_jsonable(extraction.get("fields", {}) or {}),
         resolved=_jsonable(resolution),

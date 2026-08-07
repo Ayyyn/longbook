@@ -26,6 +26,17 @@ class Triage(Agent):
         if payload.get("record_type") == "noise":
             return Decision(output={"action": "discard"}, confidence=1.0)
 
+        # A defect or shortage claim always reaches a human. It leads to a
+        # credit note or a replacement, and neither is a decision the system
+        # should take on the owner's behalf however sure it is.
+        if payload.get("record_type") == "complaint":
+            return Decision(
+                output={"action": "review", "flags": ["complaint"]},
+                confidence=conf,
+                rationale="Complaints are always reviewed.",
+                escalate=True,
+            )
+
         if conf < AUTO_COMMIT_FLOOR:
             flags.append(f"low_confidence({conf:.2f})")
         if payload.get("party_id") is None:

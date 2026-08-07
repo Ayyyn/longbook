@@ -16,7 +16,14 @@ from sqlalchemy import func, select
 from app.api.deps import TenantDB, TenantId
 from app.models.ingestion import Extraction, Interaction
 from app.models.party import Party
-from app.schemas.review import Correction, QueueItem, QueuePage, Rejection, ReviewResult
+from app.schemas.review import (
+    Correction,
+    QueueItem,
+    QueuePage,
+    Rejection,
+    ReviewResult,
+    SourceMessage,
+)
 from app.services.commit import accept_correction
 
 router = APIRouter()
@@ -24,10 +31,50 @@ router = APIRouter()
 REVIEWABLE = "needs_review"
 
 
+def _conversation(db, extraction: Extraction) -> list[SourceMessage]:
+    """The window this record came from, with the cited lines marked.
+
+    The owner is confirming a record drawn from a conversation, so they need
+    the conversation — not just the one message the extraction happens to be
+    anchored to.
+    """
+    cited = {str(i) for i in (extraction.source_message_ids or [])}
+
+    rows: list[Interaction] = []
+    if extraction.window_id:
+        rows = db.execute(
+            select(Interaction)
+            .where(Interaction.window_id == extraction.window_id)
+            .order_by(Interaction.occurred_at.asc().nullslast(), Interaction.id.asc())
+        ).scalars().all()
+    elif extraction.interaction_id:
+        one = db.get(Interaction, extraction.interaction_id)
+        rows = [one] if one else []
+
+    return [
+        SourceMessage(
+            id=row.id,
+            sender=row.sender,
+            occurred_at=row.occurred_at,
+            body=row.body,
+            cited=str(row.id) in cited,
+        )
+        for row in rows
+    ]
+
+
 def _to_item(
-    extraction: Extraction, interaction: Interaction | None, party: Party | None
+    extraction: Extraction,
+    interaction: Interaction | None,
+    party: Party | None,
+    conversation: list[SourceMessage] | None = None,
 ) -> QueueItem:
     resolved = extraction.resolved or {}
+    conversation = conversation or []
+    # Prefer the lines the model actually cited; fall back to the whole window
+    # so the card is never blank.
+    quoted = [m for m in conversation if m.cited] or conversation
+    flattened = "\n".join(f"{m.sender}: {m.body}" for m in quoted if m.body) or None
     return QueueItem(
         extraction_id=extraction.id,
         trace_id=extraction.trace_id,
@@ -40,9 +87,13 @@ def _to_item(
         party_name=party.name if party else None,
         party_candidates=resolved.get("candidates", []),
         suggest_create=resolved.get("suggest_create"),
-        message=interaction.body if interaction else None,
-        sender=interaction.sender if interaction else None,
-        occurred_at=interaction.occurred_at if interaction else None,
+        message=flattened or (interaction.body if interaction else None),
+        conversation=conversation,
+        sender=(quoted[0].sender if quoted else (interaction.sender if interaction else None)),
+        occurred_at=(
+            quoted[-1].occurred_at if quoted
+            else (interaction.occurred_at if interaction else None)
+        ),
         created_at=extraction.created_at,
     )
 
@@ -114,7 +165,7 @@ def list_queue(
     for extraction, interaction in rows:
         pid = (extraction.resolved or {}).get("party_id")
         party = parties.get(uuid.UUID(str(pid))) if pid else None
-        items.append(_to_item(extraction, interaction, party))
+        items.append(_to_item(extraction, interaction, party, _conversation(db, extraction)))
 
     return QueuePage(items=items, total=total, limit=limit, offset=offset)
 
@@ -127,7 +178,7 @@ def get_item(extraction_id: uuid.UUID, tid: TenantId, db: TenantDB) -> QueueItem
     )
     pid = (extraction.resolved or {}).get("party_id")
     party = db.get(Party, uuid.UUID(str(pid))) if pid else None
-    return _to_item(extraction, interaction, party)
+    return _to_item(extraction, interaction, party, _conversation(db, extraction))
 
 
 @router.post("/{extraction_id}/accept", response_model=ReviewResult)

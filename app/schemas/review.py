@@ -13,6 +13,16 @@ from typing import Any
 from pydantic import BaseModel
 
 
+class SourceMessage(BaseModel):
+    """One line of the conversation behind a record."""
+
+    id: uuid.UUID
+    sender: str | None
+    occurred_at: datetime | None
+    body: str | None
+    cited: bool = False  # the model said this record came from this line
+
+
 class QueueItem(BaseModel):
     extraction_id: uuid.UUID
     trace_id: uuid.UUID | None = None  # joins to agent_run
@@ -27,8 +37,11 @@ class QueueItem(BaseModel):
     party_candidates: list[dict[str, Any]] = []
     suggest_create: str | None = None
 
-    # The original message, so the owner judges the source, not our guess.
+    # The conversation this record was drawn from, so the owner judges the
+    # source rather than our guess. `message` is the flattened form the card
+    # shows; `conversation` is the line-by-line detail.
     message: str | None = None
+    conversation: list[SourceMessage] = []
     sender: str | None = None
     occurred_at: datetime | None = None
     created_at: datetime | None = None

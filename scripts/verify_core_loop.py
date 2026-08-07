@@ -44,36 +44,53 @@ def check(label: str, got, want) -> None:
 def fake_generate_json(*, model, system, user, **kwargs) -> tuple[dict, dict]:
     """Stands in for the Gemini call only.
 
-    The real Extractor.run still executes around it — including the numeric
-    normalisation — so the values it emits are exactly what production emits.
-    Strings on purpose: this is the raw shape a model returns.
+    Receives a rendered conversation window and returns the records it settled
+    on, the way the real model now does. The real Extractor.run still executes
+    around it — including alias mapping and numeric normalisation — so the
+    values it emits are exactly what production emits.
     """
-    body = (user or "").lower()
-    usage = {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
+    text = (user or "").lower()
+    usage = {"input_tokens": 400, "output_tokens": 90, "cost_usd": 0.0004}
+    records = []
 
-    if "rtgs" in body:
-        return {"record_type": "payment", "confidence": 0.95, "reason": "",
-                "fields": {"party": "Ashok Textiles", "amount": "50000", "mode": "neft"}}, usage
-    if "mtr" in body:
-        return {"record_type": "order", "confidence": 0.93, "reason": "",
-                "fields": {"party": "Ashok Textiles", "quality": "SR-1042",
-                           "quantity": "150", "unit": "meter", "rate": "62 nett"}}, usage
-    if "lr no" in body:
-        return {"record_type": "dispatch", "confidence": 0.91, "reason": "",
-                "fields": {"party": "Ashok Textiles", "lr_no": "448821",
-                           "transporter": "VRL"}}, usage
-    if "kitna" in body:
+    if "mtr" in text:
+        records.append({
+            "record_type": "order", "confidence": 0.93, "reason": "",
+            "source_lines": [1],
+            "fields": {"party": "Ashok Textiles", "quality": "SR-1042",
+                       "quantity": "150", "unit": "meter", "rate": "62 nett"},
+        })
+    if "rtgs" in text:
+        records.append({
+            "record_type": "payment", "confidence": 0.95, "reason": "",
+            "source_lines": [3],
+            "fields": {"party": "Ashok Textiles", "amount": "50000", "mode": "neft"},
+        })
+    if "lr no" in text:
+        records.append({
+            "record_type": "dispatch", "confidence": 0.91, "reason": "",
+            "source_lines": [4],
+            "fields": {"party": "Ashok Textiles", "lr_no": "448821",
+                       "transporter": "VRL"},
+        })
+    if "kitna" in text:
         # Unknown party and a shaky read — this is what the queue is for.
-        return {"record_type": "order", "confidence": 0.55,
-                "reason": "Party and quality both unfamiliar.",
-                "fields": {"party": "Naya Trader", "quality": "ZZ-9999",
-                           "quantity": "20", "unit": "meter"}}, usage
-    if "thoda" in body:
+        records.append({
+            "record_type": "order", "confidence": 0.55,
+            "reason": "Party and quality both unfamiliar.",
+            "source_lines": [5],
+            "fields": {"party": "Naya Trader", "quality": "ZZ-9999",
+                       "quantity": "20", "unit": "meter"},
+        })
+    if "thoda" in text:
         # High confidence from the model, but the quantity is not a number.
-        return {"record_type": "order", "confidence": 0.97, "reason": "",
-                "fields": {"party": "Ashok Textiles", "quality": "SR-1042",
-                           "quantity": "thoda sa", "unit": "meter"}}, usage
-    return {"record_type": "noise", "confidence": 1.0, "reason": "", "fields": {}}, usage
+        records.append({
+            "record_type": "order", "confidence": 0.97, "reason": "",
+            "source_lines": [6],
+            "fields": {"party": "Ashok Textiles", "quality": "SR-1042",
+                       "quantity": "thoda sa", "unit": "meter"},
+        })
+    return {"records": records}, usage
 
 
 extractor_module.generate_json = fake_generate_json
@@ -393,25 +410,27 @@ job_id = body["job_id"]
 status = client.get(f"/api/ingest/jobs/{job_id}", headers=headers).json()
 check("job completed", status["state"], "done")
 check("every message processed", status["processed"], 6)
+# One continuous conversation is one window, so the counts are records now,
+# not messages: three confident ones commit, two uncertain ones queue, and the
+# greeting simply never becomes a record.
 check("three auto-committed", status["committed"], 3)
 check("two need review", status["needs_review"], 2)
-check("one discarded as noise", status["discarded"], 1)
+check("chit-chat produces no record at all", status["discarded"], 0)
 check("no errors", status["errors"], [])
 
-unreadable = [
-    i for i in client.get("/api/review/queue", headers=headers).json()["items"]
-    if i["message"] and "thoda" in i["message"]
-]
+queue_items = client.get("/api/review/queue", headers=headers).json()["items"]
+unreadable = [i for i in queue_items if i["fields"].get("quantity") is None
+              and i["record_type"] == "order"]
 check("unreadable quantity went to review despite 0.97", len(unreadable), 1)
 check("  confidence was pulled down", unreadable[0]["confidence"], UNREADABLE_FIELD_CEILING)
 check("  field left blank for the owner", unreadable[0]["fields"]["quantity"], None)
 check("  and the reason says which field", "quantity" in unreadable[0]["reason"], True)
 
 queue = client.get("/api/review/queue", headers=headers).json()
-pending = [i for i in queue["items"] if i["message"] and "kitna" in i["message"]]
+pending = [i for i in queue["items"] if i["fields"].get("quality") == "ZZ-9999"]
 check("queued item is on the queue", len(pending), 1)
 item = pending[0]
-check("  carries the original message", "ZZ-9999" in item["message"], True)
+check("  carries the conversation it came from", "ZZ-9999" in (item["message"] or ""), True)
 check("  carries the agent's doubt", bool(item["reason"]), True)
 check("  suggests creating the unknown party", item["suggest_create"], "Naya Trader")
 
