@@ -9,3 +9,4 @@ var/
 node_modules/
 .next/
 out/
+.claude/settings.local.json*
