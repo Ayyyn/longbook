@@ -122,9 +122,10 @@ def build_brief(db, tenant_id: uuid.UUID, party: Party, since: datetime | None =
         for name, times in sorted(counts.items(), key=lambda kv: -kv[1])[:TOP_QUALITIES]
     ]
 
-    # An accepted quote is a rate this party actually agreed to, which is
-    # exactly what the band is trying to describe — and in a business that
-    # negotiates hard, it may be the only rate evidence there is.
+    # Only an ACCEPTED quote may move the rate band. The band is an input to
+    # validation's historical check, so an asking price nobody agreed to would
+    # quietly redefine "normal" and then be used to judge the next order. Open
+    # and countered quotes are history for the owner to read, nothing more.
     # Quotes are read at any status, unlike everything else here. A quote is
     # a proposal by nature — it never "commits" — and a figure the two sides
     # discussed is real history even before anyone accepts it. Only accepted

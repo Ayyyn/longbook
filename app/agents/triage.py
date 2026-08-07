@@ -33,9 +33,12 @@ AUTO_COMMIT_FLOOR = 0.85
 DEFAULT_HIGH_VALUE = 100_000
 HIGH_VALUE_PREMIUM = 0.05
 
-# An enquiry commits nothing to anybody — it is context for the next order, so
-# it earns a lower bar rather than crowding the queue.
-LOW_STAKES_TYPES = frozenset({"enquiry"})
+# These commit nothing to anybody. An enquiry is context for the next order; a
+# quote is a price under discussion — no money moves and no obligation is
+# created until someone places an order against it. Both earn a lower bar
+# rather than crowding a queue the owner has to work through daily. Quotes are
+# read on the party screen as negotiation history instead.
+LOW_STAKES_TYPES = frozenset({"enquiry", "quote"})
 LOW_STAKES_DISCOUNT = 0.15
 
 # Passing every applicable deterministic check is real evidence, so it buys
@@ -111,13 +114,6 @@ class Triage(Agent):
         gate = gate_record(record, validations, confidence=conf, floor=floor)
 
         # --- the rules that override everything ---------------------------
-        # A price under negotiation is not a commitment. It reaches a human
-        # because accepting it is a commercial decision, and because the
-        # negotiation history attached to it is the thing worth reading.
-        if record_type == "quote":
-            return self._decide("review", conf, ["quote", *flags], validation_dicts,
-                                gate, "Quotes are always reviewed.")
-
         # A defect claim leads to a credit note or a replacement, and neither
         # is a decision the system should take on the owner's behalf.
         if record_type == "complaint":

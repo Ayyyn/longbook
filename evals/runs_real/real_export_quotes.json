@@ -1,0 +1,37 @@
+{
+  "messages_parsed": 37,
+  "by_status": {
+    "auto_committed": 18,
+    "needs_review": 19
+  },
+  "by_record_type": {
+    "quote": 18,
+    "order": 6,
+    "enquiry": 3,
+    "dispatch": 2,
+    "complaint": 6,
+    "payment": 2
+  },
+  "auto_commit_rate": 0.486,
+  "review_rate": 0.514,
+  "records_written": 23,
+  "written_rate": 0.622,
+  "review_items_partial": 5,
+  "fields_per_review_item": 1.2,
+  "orders_created": 5,
+  "payments_created": 2,
+  "parties": 2,
+  "agent_runs": 154,
+  "extractor_calls": 79,
+  "errors": 0,
+  "median_confidence": 1.0,
+  "mean_confidence": 0.964,
+  "median_latency_ms": 8632,
+  "p90_latency_ms": 13956,
+  "input_tokens": 128555,
+  "output_tokens": 5859,
+  "cost_usd": 0.053212,
+  "configurator_seconds": 11.0,
+  "backfill_seconds": 103.7,
+  "wall_seconds": 115.1
+}

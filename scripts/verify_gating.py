@@ -306,7 +306,7 @@ with tenant_session(TENANT) as db:
         "record": {
             "record_type": "quote",
             "resolution": {"party_id": party_id},
-            "fields": {"quality": "Spindle Bolster", "rate": 1427, "unit": "pc",
+            "fields": {"quality": "Spindle Bolster", "rate": 1427, "unit": "meter",
                        "status": "accepted", "quoted_by": "us",
                        "counters": [{"rate": 1440, "by": "us"},
                                     {"rate": 1390, "by": "them"},
@@ -314,21 +314,36 @@ with tenant_session(TENANT) as db:
         },
     }
     decision = triage.run(quote)
-    check("a quote always reaches a human", decision.output["action"], "review")
-    check("  even at full confidence", decision.confidence, 1.0)
-    check("  flagged as a quote", "quote" in decision.output["flags"], True)
+    # A quote commits nothing — no money moves and no obligation is created —
+    # so it is stored as negotiation history rather than queued for approval.
+    check("a quote auto-commits", decision.output["action"], "commit")
+    check("  and asks nothing of the owner", decision.output["pending_fields"], [])
+
+    unsure = {**quote, "confidence": 0.55,
+              "record": {**quote["record"], "fields": dict(quote["record"]["fields"])}}
+    check("an unsure quote still reaches a human",
+          triage.run(unsure).output["action"] in ("review", "commit_partial"), True)
 
     # An accepted quote is the rate this party actually agreed to — in a
     # business that negotiates hard it may be the only rate evidence there is.
-    db.add(Extraction(tenant_id=TENANT, record_type="quote", status="accepted",
+    db.add(Extraction(tenant_id=TENANT, record_type="quote", status="auto_committed",
                       payload={"quality": "Spindle Bolster", "rate": 1427,
                                "status": "accepted"},
+                      resolved={"party_id": str(party_id)}, confidence=1.0))
+    # An asking price nobody agreed to must NOT move the band: it is an input
+    # to validation's historical check, so it would quietly redefine "normal"
+    # and then be used to judge the next order.
+    db.add(Extraction(tenant_id=TENANT, record_type="quote", status="auto_committed",
+                      payload={"quality": "Spindle Bolster", "rate": 9999,
+                               "status": "countered"},
                       resolved={"party_id": str(party_id)}, confidence=1.0))
     db.flush()
     brief = refresh_party(db, TENANT, party_id)
     check("an accepted quote feeds the rate band",
           brief["rate_band"].get("typical"), 1427.0)
-    check("  and the negotiation is kept", brief["quotes"]["accepted"], 1)
+    check("  a countered one does not", brief["rate_band"].get("high"), 1427.0)
+    check("  but both are kept as history", len(brief["quotes"]["latest"]), 2)
+    check("  with only the accepted one counted", brief["quotes"]["accepted"], 1)
 
 print("\n-- validation is recorded, never silently skipped --")
 

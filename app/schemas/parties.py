@@ -40,6 +40,9 @@ class PartyBrief(BaseModel):
     rate_band: dict[str, Any] = Field(default_factory=dict)
     payment_behaviour: dict[str, Any] = Field(default_factory=dict)
     complaints: dict[str, Any] = Field(default_factory=dict)
+    # Negotiation history. Quotes commit nothing, so they live here to be
+    # read rather than in the queue to be approved.
+    quotes: dict[str, Any] = Field(default_factory=dict)
     contact: dict[str, Any] = Field(default_factory=dict)
     totals: dict[str, Any] = Field(default_factory=dict)
     sources: dict[str, Any] = Field(default_factory=dict)
