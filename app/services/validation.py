@@ -268,6 +268,24 @@ def check_rate_band(db, tenant_id: uuid.UUID, party_id, fields: dict[str, Any]) 
     if not rates or party_id is None:
         return RuleResult("rate_band", NA, "no rate or no party", ("rate",))
 
+    # The party brief already holds this, incrementally maintained. Falling
+    # back to a query keeps the rule working for a party whose brief has not
+    # been built yet.
+    party = db.get(Party, party_id if isinstance(party_id, uuid.UUID)
+                   else uuid.UUID(str(party_id)))
+    band = ((party.attributes or {}).get("brief") or {}).get("rate_band") if party else None
+    if band and band.get("observations", 0) >= MIN_HISTORY and band.get("typical"):
+        typical = Decimal(str(band["typical"]))
+        outliers = [r for r in rates if not _within(r, typical, RATE_BAND_PCT)]
+        if not outliers:
+            return RuleResult("rate_band", PASS,
+                              f"within this party's usual {typical:.0f}", ("rate",))
+        return RuleResult(
+            "rate_band", FAIL,
+            f"rate {outliers[0]:.0f} is far from this party's usual {typical:.0f}",
+            ("rate",),
+        )
+
     history = [
         float(r) for r in db.execute(
             select(OrderLine.rate)

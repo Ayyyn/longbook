@@ -147,6 +147,22 @@ def _source(state: dict[str, Any]) -> tuple[str, str | None]:
     return source, (str(iid) if iid else None)
 
 
+def _refresh_brief(db, tenant_id, party_id) -> None:
+    """Keep the party brief current as records land.
+
+    Best-effort: a brief that fails to regenerate must never roll back the
+    record that triggered it, because the record is the thing that matters.
+    """
+    if not party_id:
+        return
+    try:
+        from app.services.party_brief import refresh_party
+
+        refresh_party(db, tenant_id, _uuid_or_none(party_id))
+    except Exception:  # noqa: BLE001 - memory is an optimisation, not a guarantee
+        pass
+
+
 def _pending(state: dict[str, Any]) -> list[str]:
     return list(state.get("pending_fields") or [])
 
@@ -340,6 +356,7 @@ def _commit_order(
         db, state, status=_status(state), committed_type="order", committed_id=order.id
     )
     _mark(order, state, row.id)
+    _refresh_brief(db, tenant_id, party_id)
     return {
         "status": "committed",
         "record_type": "order",
@@ -374,6 +391,7 @@ def _commit_payment(db, state, fields, tenant_id, party_id, source, source_ref) 
         db, state, status=_status(state), committed_type="payment", committed_id=payment.id
     )
     _mark(payment, state, row.id)
+    _refresh_brief(db, tenant_id, party_id)
     return {
         "status": "committed",
         "record_type": "payment",

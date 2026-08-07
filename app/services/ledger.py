@@ -19,7 +19,6 @@ from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import JSONB
 
 from app.models.finance import Invoice, Payment
 from app.models.ledger_state import LedgerWatermark
@@ -46,16 +45,13 @@ def _confirmed(model):
     it just must not move a total until they answer.
     """
     pending = model.attributes["pending_fields"]
-    # The right-hand side needs an explicit JSONB cast: psycopg sends a bare
-    # string as varchar, and `jsonb @> varchar` is not an operator.
+    # `?` (has_key) tests membership of a JSONB array directly. Containment
+    # was the obvious reach but casting a Python string to JSONB serialises it
+    # as a JSON *string*, so `["amount"] @> "[\"amount\"]"` was always false
+    # and every unconfirmed row silently passed the filter.
     return sa.or_(
         pending.is_(None),
-        sa.not_(
-            sa.or_(*[
-                pending.contains(sa.cast(f'["{field}"]', JSONB))
-                for field in _UNCONFIRMED_MONEY
-            ])
-        ),
+        sa.not_(sa.or_(*[pending.has_key(field) for field in _UNCONFIRMED_MONEY])),
     )
 
 
