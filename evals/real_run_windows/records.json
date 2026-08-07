@@ -1,0 +1,215 @@
+[
+  {
+    "message": "Good morning Mahesh bhai 🙏",
+    "sender": "Ravi Fabrics Surat",
+    "occurred_at": "2026-06-12 09:16:00",
+    "media": "none",
+    "record_type": "order",
+    "status": "auto_committed",
+    "confidence": 1.0,
+    "fields": {
+      "rate": 88.0,
+      "unit": "m",
+      "lines": [
+        {
+          "rate": 88.0,
+          "unit": "m",
+          "quality": "60x60 cotton slub White",
+          "quantity": 500.0
+        },
+        {
+          "rate": 88.0,
+          "unit": "m",
+          "quality": "60x60 cotton slub Beige",
+          "quantity": 300.0
+        },
+        {
+          "rate": 88.0,
+          "unit": "m",
+          "quality": "60x60 cotton slub Olive",
+          "quantity": 250.0
+        }
+      ],
+      "notes": "Transport extra",
+      "party": "Shree Krishna Textiles",
+      "quantity": 1050.0
+    },
+    "reason": "",
+    "flags": [],
+    "party_id": "90882ca8-b3f7-49e8-8330-d3a8adabd2bd",
+    "method": "alias"
+  },
+  {
+    "message": "LR",
+    "sender": "Ravi Fabrics Surat",
+    "occurred_at": "2026-06-13 17:42:00",
+    "media": "document",
+    "record_type": "dispatch",
+    "status": "auto_committed",
+    "confidence": 1.0,
+    "fields": {
+      "lr_no": "483917",
+      "party": "Ravi Fabrics Surat",
+      "transporter": "Shree Maruti Courier"
+    },
+    "reason": "",
+    "flags": [],
+    "party_id": "9f863bae-d50b-41a4-a339-3505cdfa503e",
+    "method": "alias"
+  },
+  {
+    "message": "Received.",
+    "sender": "Shree Krishna Textiles",
+    "occurred_at": "2026-06-16 11:06:00",
+    "media": "none",
+    "record_type": "complaint",
+    "status": "needs_review",
+    "confidence": 0.95,
+    "fields": {
+      "unit": "m",
+      "notes": "Roll no. 7 has weaving defect. Seller agreed to adjust in next dispatch.",
+      "party": "Shree Krishna Textiles",
+      "quality": "White",
+      "quantity": 18.0
+    },
+    "reason": "",
+    "flags": [
+      "complaint"
+    ],
+    "party_id": "90882ca8-b3f7-49e8-8330-d3a8adabd2bd",
+    "method": "alias"
+  },
+  {
+    "message": "New Rayon Flex launched.",
+    "sender": "Ravi Fabrics Surat",
+    "occurred_at": "2026-06-18 15:05:00",
+    "media": "none",
+    "record_type": "enquiry",
+    "status": "auto_committed",
+    "confidence": 1.0,
+    "fields": {
+      "rate": 96.0,
+      "unit": "mtr",
+      "notes": "140 gsm / 56\", MOQ 300 m per shade",
+      "party": "Shree Krishna Textiles",
+      "quality": "Rayon Flex"
+    },
+    "reason": "",
+    "flags": [],
+    "party_id": "90882ca8-b3f7-49e8-8330-d3a8adabd2bd",
+    "method": "alias"
+  },
+  {
+    "message": "Need quotation for\nRayon Flex\nBlack - 600m\nWine - 400m\nBottle Green - 300m",
+    "sender": "Shree Krishna Textiles",
+    "occurred_at": "2026-06-20 10:22:00",
+    "media": "none",
+    "record_type": "order",
+    "status": "auto_committed",
+    "confidence": 1.0,
+    "fields": {
+      "rate": 94.0,
+      "unit": "m",
+      "lines": [
+        {
+          "rate": 94.0,
+          "unit": "m",
+          "quality": "Rayon Flex Black",
+          "quantity": 600.0
+        },
+        {
+          "rate": 94.0,
+          "unit": "m",
+          "quality": "Rayon Flex Wine",
+          "quantity": 400.0
+        },
+        {
+          "rate": 94.0,
+          "unit": "m",
+          "quality": "Rayon Flex Bottle Green",
+          "quantity": 300.0
+        }
+      ],
+      "notes": "Dispatch by Friday",
+      "party": "Shree Krishna Textiles",
+      "quality": "Rayon Flex",
+      "quantity": 1300.0
+    },
+    "reason": "",
+    "flags": [],
+    "party_id": "90882ca8-b3f7-49e8-8330-d3a8adabd2bd",
+    "method": "alias"
+  },
+  {
+    "message": "Advance 30% please.",
+    "sender": "Ravi Fabrics Surat",
+    "occurred_at": "2026-06-21 18:20:00",
+    "media": "none",
+    "record_type": "payment",
+    "status": "auto_committed",
+    "confidence": 1.0,
+    "fields": {
+      "mode": "upi",
+      "party": "Shree Krishna Textiles",
+      "amount": 37440.0
+    },
+    "reason": "",
+    "flags": [],
+    "party_id": "90882ca8-b3f7-49e8-8330-d3a8adabd2bd",
+    "method": "alias"
+  },
+  {
+    "message": "Dispatch completed.",
+    "sender": "Ravi Fabrics Surat",
+    "occurred_at": "2026-06-25 14:08:00",
+    "media": "none",
+    "record_type": "dispatch",
+    "status": "auto_committed",
+    "confidence": 1.0,
+    "fields": {
+      "party": "Ravi Fabrics Surat",
+      "dispatched_on": "25/06"
+    },
+    "reason": "",
+    "flags": [],
+    "party_id": "9f863bae-d50b-41a4-a339-3505cdfa503e",
+    "method": "alias"
+  },
+  {
+    "message": "Payment pending ₹1,09,824",
+    "sender": "Ravi Fabrics Surat",
+    "occurred_at": "2026-06-30 11:58:00",
+    "media": "none",
+    "record_type": "enquiry",
+    "status": "auto_committed",
+    "confidence": 1.0,
+    "fields": {
+      "notes": "Payment pending, will clear by Saturday",
+      "party": "Shree Krishna Textiles",
+      "amount": 109824.0
+    },
+    "reason": "",
+    "flags": [],
+    "party_id": "90882ca8-b3f7-49e8-8330-d3a8adabd2bd",
+    "method": "alias"
+  },
+  {
+    "message": "UTR 56293819271",
+    "sender": "Shree Krishna Textiles",
+    "occurred_at": "2026-07-05 18:32:00",
+    "media": "none",
+    "record_type": "payment",
+    "status": "needs_review",
+    "confidence": 1.0,
+    "fields": {
+      "party": "Shree Krishna Textiles",
+      "reference": "56293819271"
+    },
+    "reason": "",
+    "flags": [
+      "missing_amount"
+    ],
+    "party_id": "90882ca8-b3f7-49e8-8330-d3a8adabd2bd",
+    "method": "alias"
+  }
+]

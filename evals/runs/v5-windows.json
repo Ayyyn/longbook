@@ -1,0 +1,1569 @@
+{
+  "cases": 25,
+  "clean_cases": 24,
+  "expected_records": 22,
+  "matched": 21,
+  "missed": 1,
+  "spurious": 1,
+  "recall": 0.9545,
+  "precision": 0.9545,
+  "field_accuracy": 0.9024,
+  "field_hits": 37,
+  "field_total": 41,
+  "errors": 0,
+  "median_confidence": 1.0,
+  "median_latency_ms": 4942,
+  "per_type": {
+    "order": {
+      "expected": 7,
+      "found": 7
+    },
+    "dispatch": {
+      "expected": 3,
+      "found": 3
+    },
+    "complaint": {
+      "expected": 2,
+      "found": 2
+    },
+    "enquiry": {
+      "expected": 3,
+      "found": 2
+    },
+    "payment": {
+      "expected": 7,
+      "found": 7
+    }
+  },
+  "spurious_types": {
+    "order": 1
+  },
+  "results": [
+    {
+      "id": "win-01",
+      "tags": [
+        "real",
+        "order",
+        "multiline",
+        "amendment",
+        "negotiation"
+      ],
+      "messages": [
+        [
+          "Shree Krishna Textiles",
+          "Need fresh stock of cotton slub."
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Which quality?"
+        ],
+        [
+          "Shree Krishna Textiles",
+          "60x60 cotton slub\n145 gsm\n58 inch width"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Available."
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "₹88/mtr"
+        ],
+        [
+          "Shree Krishna Textiles",
+          "Color card?"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "New shades also added."
+        ],
+        [
+          "Shree Krishna Textiles",
+          "Need\n500 m White\n300 m Beige\n300 m Olive"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "White available immediately.\nOlive only 250 m ready."
+        ],
+        [
+          "Shree Krishna Textiles",
+          "Okay make Olive 250."
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Amount\n₹92,400 + GST"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Total 1050 meters."
+        ],
+        [
+          "Shree Krishna Textiles",
+          "Transport extra?"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Yes actual."
+        ],
+        [
+          "Shree Krishna Textiles",
+          "Dispatch today please."
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Will try before 5pm."
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "order",
+          "fields": {
+            "rate": 88,
+            "lines": [
+              {
+                "quality": "White",
+                "quantity": 500
+              },
+              {
+                "quality": "Beige",
+                "quantity": 300
+              },
+              {
+                "quality": "Olive",
+                "quantity": 250
+              }
+            ]
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "order",
+          "fields": {
+            "party": "Shree Krishna Textiles",
+            "quality": "60x60 cotton slub",
+            "quantity": 1050.0,
+            "unit": "meter",
+            "rate": 88.0,
+            "lines": [
+              {
+                "quality": "White",
+                "quantity": 500.0,
+                "unit": "meter",
+                "rate": 88.0
+              },
+              {
+                "quality": "Beige",
+                "quantity": 300.0,
+                "unit": "meter",
+                "rate": 88.0
+              },
+              {
+                "quality": "Olive",
+                "quantity": 250.0,
+                "unit": "meter",
+                "rate": 88.0
+              }
+            ]
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            8,
+            9,
+            10,
+            11,
+            12,
+            15
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 2,
+      "field_total": 2,
+      "confidences": [
+        1.0
+      ],
+      "latency_ms": 8932,
+      "error": null
+    },
+    {
+      "id": "win-02",
+      "tags": [
+        "real",
+        "dispatch",
+        "lr"
+      ],
+      "messages": [
+        [
+          "Ravi Fabrics Surat",
+          "LR copy.pdf"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Dispatched through Shree Maruti Courier"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "LR No 483917"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Expected Monday."
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "dispatch",
+          "fields": {
+            "lr_no": "483917",
+            "transporter": "Shree Maruti Courier"
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "dispatch",
+          "fields": {
+            "party": "Ravi Fabrics Surat",
+            "transporter": "Shree Maruti Courier",
+            "lr_no": "483917"
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            1,
+            2,
+            3
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 2,
+      "field_total": 2,
+      "confidences": [
+        1.0
+      ],
+      "latency_ms": 4942,
+      "error": null
+    },
+    {
+      "id": "win-03",
+      "tags": [
+        "real",
+        "complaint"
+      ],
+      "messages": [
+        [
+          "Shree Krishna Textiles",
+          "Received."
+        ],
+        [
+          "Shree Krishna Textiles",
+          "White roll no. 7 has weaving defect."
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Sorry bhai."
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Around how many meters?"
+        ],
+        [
+          "Shree Krishna Textiles",
+          "Around 18-20 m."
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Next dispatch me adjustment kar denge."
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "complaint",
+          "fields": {
+            "quality": "White"
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "complaint",
+          "fields": {
+            "party": "Shree Krishna Textiles",
+            "quality": "White",
+            "quantity": 20.0,
+            "unit": "meter",
+            "notes": "Weaving defect in roll no. 7"
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            2,
+            4,
+            5,
+            6
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 1,
+      "field_total": 1,
+      "confidences": [
+        1.0
+      ],
+      "latency_ms": 8948,
+      "error": null
+    },
+    {
+      "id": "win-04",
+      "tags": [
+        "real",
+        "enquiry",
+        "quote"
+      ],
+      "messages": [
+        [
+          "Ravi Fabrics Surat",
+          "New Rayon Flex launched."
+        ],
+        [
+          "Shree Krishna Textiles",
+          "Rate?"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "140 gsm\n56\"\n₹96/mtr"
+        ],
+        [
+          "Shree Krishna Textiles",
+          "MOQ?"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "300 m per shade."
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "enquiry",
+          "fields": {
+            "quality": "Rayon Flex",
+            "rate": 96
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "enquiry",
+          "fields": {
+            "party": "Shree Krishna Textiles",
+            "quality": "Rayon Flex",
+            "quantity": 300.0,
+            "unit": "meter",
+            "rate": 96.0,
+            "notes": "140 gsm / 56\", MOQ 300 m per shade"
+          },
+          "confidence": 0.95,
+          "reason": "",
+          "source_lines": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 2,
+      "field_total": 2,
+      "confidences": [
+        0.95
+      ],
+      "latency_ms": 6858,
+      "error": null
+    },
+    {
+      "id": "win-05",
+      "tags": [
+        "real",
+        "order",
+        "multiline",
+        "negotiation"
+      ],
+      "messages": [
+        [
+          "Shree Krishna Textiles",
+          "Need quotation for\n\nRayon Flex\nBlack - 600m\nWine - 400m\nBottle Green - 300m"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Total 1300 m"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "₹96 x 1300"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "₹1,24,800 + GST"
+        ],
+        [
+          "Shree Krishna Textiles",
+          "Best rate?"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "₹94 final."
+        ],
+        [
+          "Shree Krishna Textiles",
+          "Done."
+        ],
+        [
+          "Shree Krishna Textiles",
+          "Please dispatch by Friday."
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "order",
+          "fields": {
+            "rate": 94,
+            "lines": [
+              {
+                "quality": "Black",
+                "quantity": 600
+              },
+              {
+                "quality": "Wine",
+                "quantity": 400
+              },
+              {
+                "quality": "Bottle Green",
+                "quantity": 300
+              }
+            ]
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "order",
+          "fields": {
+            "party": "Shree Krishna Textiles",
+            "quality": "Rayon Flex",
+            "quantity": 1300.0,
+            "unit": "meter",
+            "rate": 94.0,
+            "notes": "Dispatch by Friday",
+            "lines": [
+              {
+                "quality": "Rayon Flex - Black",
+                "quantity": 600.0,
+                "unit": "meter",
+                "rate": 94.0
+              },
+              {
+                "quality": "Rayon Flex - Wine",
+                "quantity": 400.0,
+                "unit": "meter",
+                "rate": 94.0
+              },
+              {
+                "quality": "Rayon Flex - Bottle Green",
+                "quantity": 300.0,
+                "unit": "meter",
+                "rate": 94.0
+              }
+            ]
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 1,
+      "field_total": 2,
+      "confidences": [
+        1.0
+      ],
+      "latency_ms": 8513,
+      "error": null
+    },
+    {
+      "id": "win-06",
+      "tags": [
+        "real",
+        "payment",
+        "part-payment",
+        "upi"
+      ],
+      "messages": [
+        [
+          "Ravi Fabrics Surat",
+          "Advance 30% please."
+        ],
+        [
+          "Shree Krishna Textiles",
+          "UPI okay?"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Yes."
+        ],
+        [
+          "Shree Krishna Textiles",
+          "Screenshot_20260621.png"
+        ],
+        [
+          "Shree Krishna Textiles",
+          "Paid ₹37,440"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Received 👍"
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "payment",
+          "fields": {
+            "amount": 37440,
+            "mode": "upi"
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "payment",
+          "fields": {
+            "party": "Shree Krishna Textiles",
+            "amount": 37440.0,
+            "mode": "upi"
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 2,
+      "field_total": 2,
+      "confidences": [
+        1.0
+      ],
+      "latency_ms": 4063,
+      "error": null
+    },
+    {
+      "id": "win-07",
+      "tags": [
+        "real",
+        "dispatch",
+        "invoice"
+      ],
+      "messages": [
+        [
+          "Ravi Fabrics Surat",
+          "Dispatch completed."
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Invoice_RF2387.pdf"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Invoice Value ₹1,47,264 including GST."
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "dispatch",
+          "fields": {}
+        }
+      ],
+      "got": [
+        {
+          "record_type": "dispatch",
+          "fields": {
+            "party": "Ravi Fabrics Surat"
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            1
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 0,
+      "field_total": 0,
+      "confidences": [
+        1.0
+      ],
+      "latency_ms": 10812,
+      "error": null
+    },
+    {
+      "id": "win-08",
+      "tags": [
+        "real",
+        "amendment",
+        "rejected-amendment"
+      ],
+      "messages": [
+        [
+          "Shree Krishna Textiles",
+          "One correction."
+        ],
+        [
+          "Shree Krishna Textiles",
+          "Wine should be 350m only"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Already packed 😅"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Keep for next order."
+        ]
+      ],
+      "expected": [],
+      "got": [],
+      "matched": 0,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 0,
+      "field_total": 0,
+      "confidences": [],
+      "latency_ms": 3966,
+      "error": null
+    },
+    {
+      "id": "win-09",
+      "tags": [
+        "real",
+        "enquiry",
+        "not-a-payment",
+        "lakh"
+      ],
+      "messages": [
+        [
+          "Ravi Fabrics Surat",
+          "Payment pending ₹1,09,824"
+        ],
+        [
+          "Shree Krishna Textiles",
+          "Will clear by Saturday."
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "enquiry",
+          "fields": {
+            "amount": 109824
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "enquiry",
+          "fields": {
+            "party": "Shree Krishna Textiles",
+            "amount": 109824.0,
+            "notes": "Payment pending"
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            1,
+            2
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 1,
+      "field_total": 1,
+      "confidences": [
+        1.0
+      ],
+      "latency_ms": 6935,
+      "error": null
+    },
+    {
+      "id": "win-10",
+      "tags": [
+        "real",
+        "payment",
+        "reference",
+        "missing-amount"
+      ],
+      "messages": [
+        [
+          "Shree Krishna Textiles",
+          "Paid full."
+        ],
+        [
+          "Shree Krishna Textiles",
+          "UTR 56293819271"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Payment received."
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Thank you Mahesh bhai 🙏"
+        ],
+        [
+          "Shree Krishna Textiles",
+          "Next week denim enquiry bhejunga."
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Sure 👍"
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "payment",
+          "fields": {
+            "reference": "56293819271"
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "payment",
+          "fields": {
+            "party": "Shree Krishna Textiles",
+            "reference": "56293819271"
+          },
+          "confidence": 0.95,
+          "reason": "",
+          "source_lines": [
+            1,
+            2,
+            3
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 1,
+      "field_total": 1,
+      "confidences": [
+        0.95
+      ],
+      "latency_ms": 6264,
+      "error": null
+    },
+    {
+      "id": "win-11",
+      "tags": [
+        "seed",
+        "order",
+        "hinglish"
+      ],
+      "messages": [
+        [
+          "Ashok Textiles",
+          "Bhai 150 mtr SR-1042 blue chahiye, rate 62 nett, delivery friday tak"
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "order",
+          "fields": {
+            "quality": "SR-1042",
+            "quantity": 150,
+            "rate": 62
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "order",
+          "fields": {
+            "party": "Ashok Textiles",
+            "quality": "SR-1042 blue",
+            "quantity": 150.0,
+            "unit": "meter",
+            "rate": 62.0,
+            "delivery_date": "friday",
+            "notes": "nett"
+          },
+          "confidence": 0.95,
+          "reason": "",
+          "source_lines": [
+            1
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 2,
+      "field_total": 3,
+      "confidences": [
+        0.95
+      ],
+      "latency_ms": 6241,
+      "error": null
+    },
+    {
+      "id": "win-12",
+      "tags": [
+        "seed",
+        "payment",
+        "hinglish"
+      ],
+      "messages": [
+        [
+          "Ashok Textiles",
+          "aaj 50000 rtgs kar diya, check karo"
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "payment",
+          "fields": {
+            "amount": 50000,
+            "mode": "rtgs"
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "payment",
+          "fields": {
+            "party": "Ashok Textiles",
+            "amount": 50000.0,
+            "mode": "rtgs"
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            1
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 2,
+      "field_total": 2,
+      "confidences": [
+        1.0
+      ],
+      "latency_ms": 3657,
+      "error": null
+    },
+    {
+      "id": "win-13",
+      "tags": [
+        "seed",
+        "noise",
+        "greeting"
+      ],
+      "messages": [
+        [
+          "Ashok Textiles",
+          "Good morning ji"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Morning bhai"
+        ]
+      ],
+      "expected": [],
+      "got": [],
+      "matched": 0,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 0,
+      "field_total": 0,
+      "confidences": [],
+      "latency_ms": 2581,
+      "error": null
+    },
+    {
+      "id": "win-14",
+      "tags": [
+        "seed",
+        "enquiry",
+        "thaan",
+        "hinglish"
+      ],
+      "messages": [
+        [
+          "Ashok Textiles",
+          "2 thaan ka sample bhej dena us design ka jo pichli baar liya tha"
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "enquiry",
+          "fields": {
+            "quantity": 2,
+            "unit": "thaan"
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "order",
+          "fields": {
+            "party": "Ashok Textiles",
+            "quantity": 2.0,
+            "unit": "thaan",
+            "notes": "sample of design taken last time"
+          },
+          "confidence": 0.9,
+          "reason": "",
+          "source_lines": [
+            1
+          ]
+        }
+      ],
+      "matched": 0,
+      "missed": [
+        {
+          "record_type": "enquiry",
+          "fields": {
+            "quantity": 2,
+            "unit": "thaan"
+          }
+        }
+      ],
+      "spurious": [
+        {
+          "record_type": "order",
+          "fields": {
+            "party": "Ashok Textiles",
+            "quantity": 2.0,
+            "unit": "thaan",
+            "notes": "sample of design taken last time"
+          },
+          "confidence": 0.9,
+          "reason": "",
+          "source_lines": [
+            1
+          ]
+        }
+      ],
+      "field_hits": 0,
+      "field_total": 2,
+      "confidences": [
+        0.9
+      ],
+      "latency_ms": 4114,
+      "error": null
+    },
+    {
+      "id": "win-15",
+      "tags": [
+        "seed",
+        "dispatch",
+        "lr",
+        "hinglish"
+      ],
+      "messages": [
+        [
+          "Ravi Fabrics Surat",
+          "LR no 448821 se bhej diya, transporter VRL"
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "dispatch",
+          "fields": {
+            "lr_no": "448821",
+            "transporter": "VRL"
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "dispatch",
+          "fields": {
+            "party": "Ravi Fabrics Surat",
+            "lr_no": "448821",
+            "transporter": "VRL"
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            1
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 2,
+      "field_total": 2,
+      "confidences": [
+        1.0
+      ],
+      "latency_ms": 3922,
+      "error": null
+    },
+    {
+      "id": "win-16",
+      "tags": [
+        "seed",
+        "payment",
+        "lakh",
+        "reference"
+      ],
+      "messages": [
+        [
+          "Ashok Textiles",
+          "1,25,000 ka payment aaj neft se bheja hai UTR 998877"
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "payment",
+          "fields": {
+            "amount": 125000,
+            "mode": "neft",
+            "reference": "998877"
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "payment",
+          "fields": {
+            "party": "Ashok Textiles",
+            "amount": 125000.0,
+            "mode": "neft",
+            "reference": "998877"
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            1
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 3,
+      "field_total": 3,
+      "confidences": [
+        1.0
+      ],
+      "latency_ms": 3391,
+      "error": null
+    },
+    {
+      "id": "win-17",
+      "tags": [
+        "seed",
+        "order",
+        "decimal-rate"
+      ],
+      "messages": [
+        [
+          "Ashok Textiles",
+          "SR-1042 ka 300 meter chahiye @ 58.50 per mtr"
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "order",
+          "fields": {
+            "quality": "SR-1042",
+            "quantity": 300,
+            "rate": 58.5
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "order",
+          "fields": {
+            "party": "Ashok Textiles",
+            "quality": "SR-1042",
+            "quantity": 300.0,
+            "unit": "meter",
+            "rate": 58.5
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            1
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 3,
+      "field_total": 3,
+      "confidences": [
+        1.0
+      ],
+      "latency_ms": 4383,
+      "error": null
+    },
+    {
+      "id": "win-18",
+      "tags": [
+        "seed",
+        "payment",
+        "cheque"
+      ],
+      "messages": [
+        [
+          "Ashok Textiles",
+          "cheque no 774112 diya hai 45000 ka, date 15 ko"
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "payment",
+          "fields": {
+            "amount": 45000,
+            "mode": "cheque",
+            "reference": "774112"
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "payment",
+          "fields": {
+            "party": "Ashok Textiles",
+            "amount": 45000.0,
+            "mode": "cheque",
+            "reference": "774112",
+            "cheque_date": "15"
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            1
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 3,
+      "field_total": 3,
+      "confidences": [
+        1.0
+      ],
+      "latency_ms": 4367,
+      "error": null
+    },
+    {
+      "id": "win-19",
+      "tags": [
+        "seed",
+        "payment",
+        "part-payment",
+        "hinglish"
+      ],
+      "messages": [
+        [
+          "Ashok Textiles",
+          "aadha payment aaj 25000 baaki agle hafte"
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "payment",
+          "fields": {
+            "amount": 25000
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "payment",
+          "fields": {
+            "party": "Ashok Textiles",
+            "amount": 25000.0
+          },
+          "confidence": 0.9,
+          "reason": "",
+          "source_lines": [
+            1
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 1,
+      "field_total": 1,
+      "confidences": [
+        0.9
+      ],
+      "latency_ms": 11008,
+      "error": null
+    },
+    {
+      "id": "win-20",
+      "tags": [
+        "seed",
+        "order",
+        "multiline",
+        "retail"
+      ],
+      "messages": [
+        [
+          "Ashok Textiles",
+          "KRT-BLU-M 40 piece aur KRT-RED-L 25 piece bhej do"
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "order",
+          "fields": {
+            "lines": [
+              {
+                "quality": "KRT-BLU-M",
+                "quantity": 40
+              },
+              {
+                "quality": "KRT-RED-L",
+                "quantity": 25
+              }
+            ]
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "order",
+          "fields": {
+            "party": "Ashok Textiles",
+            "lines": [
+              {
+                "quality": "KRT-BLU-M",
+                "quantity": 40.0,
+                "unit": "piece"
+              },
+              {
+                "quality": "KRT-RED-L",
+                "quantity": 25.0,
+                "unit": "piece"
+              }
+            ]
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            1
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 1,
+      "field_total": 1,
+      "confidences": [
+        1.0
+      ],
+      "latency_ms": 6276,
+      "error": null
+    },
+    {
+      "id": "win-21",
+      "tags": [
+        "seed",
+        "noise",
+        "hinglish"
+      ],
+      "messages": [
+        [
+          "Ashok Textiles",
+          "maal kab tak aayega bhai"
+        ]
+      ],
+      "expected": [],
+      "got": [],
+      "matched": 0,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 0,
+      "field_total": 0,
+      "confidences": [],
+      "latency_ms": 2693,
+      "error": null
+    },
+    {
+      "id": "win-22",
+      "tags": [
+        "seed",
+        "order",
+        "payment",
+        "two-records"
+      ],
+      "messages": [
+        [
+          "Ashok Textiles",
+          "SR-1188 ka 200 meter bhej do rate 70"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "ok bhej denge"
+        ],
+        [
+          "Ashok Textiles",
+          "aur pichla 30000 ka payment neft kar diya"
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "order",
+          "fields": {
+            "quality": "SR-1188",
+            "quantity": 200,
+            "rate": 70
+          }
+        },
+        {
+          "record_type": "payment",
+          "fields": {
+            "amount": 30000,
+            "mode": "neft"
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "order",
+          "fields": {
+            "party": "Ashok Textiles",
+            "quality": "SR-1188",
+            "quantity": 200.0,
+            "unit": "meter",
+            "rate": 70.0
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            1,
+            2
+          ]
+        },
+        {
+          "record_type": "payment",
+          "fields": {
+            "party": "Ashok Textiles",
+            "amount": 30000.0,
+            "mode": "neft"
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            3
+          ]
+        }
+      ],
+      "matched": 2,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 5,
+      "field_total": 5,
+      "confidences": [
+        1.0,
+        1.0
+      ],
+      "latency_ms": 5052,
+      "error": null
+    },
+    {
+      "id": "win-23",
+      "tags": [
+        "seed",
+        "order",
+        "amendment"
+      ],
+      "messages": [
+        [
+          "Ashok Textiles",
+          "500 meter SR-1042 chahiye"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "400 hi hai stock me"
+        ],
+        [
+          "Ashok Textiles",
+          "theek hai 400 bhej do"
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "order",
+          "fields": {
+            "quality": "SR-1042",
+            "quantity": 400
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "order",
+          "fields": {
+            "party": "Ashok Textiles",
+            "quality": "SR-1042",
+            "quantity": 400.0,
+            "unit": "meter"
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            1,
+            2,
+            3
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 2,
+      "field_total": 2,
+      "confidences": [
+        1.0
+      ],
+      "latency_ms": 5337,
+      "error": null
+    },
+    {
+      "id": "win-24",
+      "tags": [
+        "seed",
+        "complaint",
+        "hinglish"
+      ],
+      "messages": [
+        [
+          "Ashok Textiles",
+          "pichle lot me 25 meter kam nikla"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "check karke batata hoon"
+        ]
+      ],
+      "expected": [
+        {
+          "record_type": "complaint",
+          "fields": {
+            "quantity": 25
+          }
+        }
+      ],
+      "got": [
+        {
+          "record_type": "complaint",
+          "fields": {
+            "party": "Ashok Textiles",
+            "quantity": 25.0,
+            "unit": "meter",
+            "notes": "pichle lot me 25 meter kam nikla"
+          },
+          "confidence": 1.0,
+          "reason": "",
+          "source_lines": [
+            1,
+            2
+          ]
+        }
+      ],
+      "matched": 1,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 1,
+      "field_total": 1,
+      "confidences": [
+        1.0
+      ],
+      "latency_ms": 4941,
+      "error": null
+    },
+    {
+      "id": "win-25",
+      "tags": [
+        "seed",
+        "noise",
+        "conversational"
+      ],
+      "messages": [
+        [
+          "Ashok Textiles",
+          "Diwali ki shubhkamnayein 🙏"
+        ],
+        [
+          "Ravi Fabrics Surat",
+          "Aapko bhi bhai"
+        ]
+      ],
+      "expected": [],
+      "got": [],
+      "matched": 0,
+      "missed": [],
+      "spurious": [],
+      "field_hits": 0,
+      "field_total": 0,
+      "confidences": [],
+      "latency_ms": 2500,
+      "error": null
+    }
+  ]
+}
