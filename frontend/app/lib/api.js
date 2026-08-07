@@ -71,6 +71,22 @@ export const api = {
       body: JSON.stringify({ reason: reason || null }),
     }),
 
+  parties: (options = {}) => {
+    const query = new URLSearchParams();
+    if (options.q) query.set("q", options.q);
+    if (options.overdueOnly) query.set("overdue_only", "true");
+    return request(`/api/parties?${query}`);
+  },
+  party: (id) => request(`/api/parties/${id}`),
+
+  orders: (options = {}) => {
+    const query = new URLSearchParams({ limit: "100" });
+    if (options.status) query.set("status", options.status);
+    if (options.partyId) query.set("party_id", options.partyId);
+    return request(`/api/orders?${query}`);
+  },
+  order: (id) => request(`/api/orders/${id}`),
+
   agentSummary: (days = 30) => request(`/api/agents/summary?days=${days}`),
   agentRuns: (options = {}) => {
     const query = new URLSearchParams({ limit: "30" });

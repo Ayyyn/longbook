@@ -24,9 +24,13 @@ class OrdersToday(BaseModel):
 class RecentPayment(BaseModel):
     id: uuid.UUID
     party_name: str | None
-    amount: float
+    # None when the owner has not confirmed the amount yet. Deliberately not
+    # 0.0 — a zero on this screen reads as "they paid nothing", which is a
+    # different and much worse statement than "we do not know yet".
+    amount: float | None
     mode: str | None
     received_on: date | None
+    pending: bool = False
 
 
 class Overdue(BaseModel):

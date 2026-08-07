@@ -69,13 +69,16 @@ function Today() {
           <div className="label">Overdue</div>
           <div className="value">{money(data.overdue.total)}</div>
           <div className="note">
-            {data.overdue.parties
-              ? `${data.overdue.parties} ${
-                  data.overdue.parties === 1 ? "party" : "parties"
-                } past ${data.overdue.overdue_days} days · worst ${
-                  data.overdue.worst_party
-                } at ${data.overdue.worst_days}d`
-              : `nobody past ${data.overdue.overdue_days} days`}
+            {data.overdue.parties ? (
+              <Link href="/parties">
+                {data.overdue.parties}{" "}
+                {data.overdue.parties === 1 ? "party" : "parties"} past{" "}
+                {data.overdue.overdue_days} days · worst {data.overdue.worst_party} at{" "}
+                {data.overdue.worst_days}d
+              </Link>
+            ) : (
+              `nobody past ${data.overdue.overdue_days} days`
+            )}
           </div>
         </div>
 
@@ -88,7 +91,9 @@ function Today() {
         <div className="stat">
           <div className="label">Open orders</div>
           <div className="value">{formatNumber(data.orders.open_total)}</div>
-          <div className="note">{data.orders.awaiting_confirmation} to confirm</div>
+          <div className="note">
+            <Link href="/orders">{data.orders.awaiting_confirmation} to confirm</Link>
+          </div>
         </div>
 
         <div className="stat">
@@ -108,7 +113,7 @@ function Today() {
 
       {data.exceptions.total > 0 && (
         <div className="card">
-          <strong>Needs a look</strong>
+          <h3>Needs a look</h3>
           {data.exceptions.headline && <p style={{ margin: "6px 0" }}>{data.exceptions.headline}</p>}
           <div className="chips">
             {data.exceptions.slowing_payers > 0 && (
@@ -125,7 +130,7 @@ function Today() {
       )}
 
       <div className="card">
-        <strong>Recent payments</strong>
+        <h3>Recent payments</h3>
         {data.recent_payments.length === 0 ? (
           <p className="muted">Nothing recorded yet.</p>
         ) : (
@@ -138,7 +143,13 @@ function Today() {
                   {payment.received_on ? ` · ${payment.received_on}` : ""}
                 </div>
               </div>
-              <div style={{ fontWeight: 650 }}>{money(payment.amount)}</div>
+              <div style={{ fontWeight: 650 }}>
+                {payment.amount == null ? (
+                  <span className="pending-tag">amount?</span>
+                ) : (
+                  money(payment.amount)
+                )}
+              </div>
             </div>
           ))
         )}
@@ -146,7 +157,7 @@ function Today() {
 
       {data.unavailable.length > 0 && (
         <div className="card">
-          <strong>Not computed yet</strong>
+          <h3>Not computed yet</h3>
           <div className="chips">
             {data.unavailable.map((key) => (
               <span className="chip plain" key={key}>
@@ -155,8 +166,8 @@ function Today() {
             ))}
           </div>
           <p className="muted">
-            These need the ledger. Shown as blank rather than zero on purpose — a
-            zero here would read as &ldquo;nobody owes you anything&rdquo;.
+            Shown as blank rather than zero on purpose — a zero would read as a
+            fact rather than a gap.
           </p>
         </div>
       )}

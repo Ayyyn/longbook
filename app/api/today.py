@@ -116,9 +116,10 @@ def today(tid: TenantId, db: TenantDB, profile: Profile) -> TodayDigest:
             RecentPayment(
                 id=payment.id,
                 party_name=party_name,
-                amount=float(payment.amount or 0),
+                amount=float(payment.amount) if payment.amount is not None else None,
                 mode=payment.mode,
                 received_on=payment.received_on,
+                pending=bool((payment.attributes or {}).get("pending_fields")),
             )
             for payment, party_name in recent
         ],

@@ -60,6 +60,47 @@ function Activity() {
     <>
       <Header />
 
+      {/* What the system DID with the records, not just how the agents ran.
+          Auto-commit alone understates it: a record written with one blank to
+          confirm counts as "review" while being nearly done. */}
+      {summary.throughput?.records > 0 && (
+        <div className="card">
+          <h3>Records handled</h3>
+          <div className="row">
+            <div>
+              <div>Straight through</div>
+              <div className="muted">committed with nothing to confirm</div>
+            </div>
+            <div style={{ fontWeight: 650 }}>
+              {Math.round(summary.throughput.auto_commit_rate * 100)}%
+            </div>
+          </div>
+          <div className="row">
+            <div>
+              <div>Written</div>
+              <div className="muted">including those needing one detail</div>
+            </div>
+            <div style={{ fontWeight: 650 }}>
+              {Math.round(summary.throughput.written_rate * 100)}%
+            </div>
+          </div>
+          <div className="row">
+            <div>
+              <div>Asked per item</div>
+              <div className="muted">fields the owner has to fill</div>
+            </div>
+            <div style={{ fontWeight: 650 }}>
+              {summary.throughput.fields_per_review_item ?? "—"}
+            </div>
+          </div>
+          <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
+            {summary.throughput.records} records ·{" "}
+            {summary.throughput.partially_committed} written with a detail
+            outstanding
+          </p>
+        </div>
+      )}
+
       <div className="stat-grid">
         <div className="stat">
           <div className="label">Decisions</div>
@@ -87,7 +128,7 @@ function Activity() {
 
       {summary.by_agent.length > 0 && (
         <div className="card">
-          <strong>By agent</strong>
+          <h3>By agent</h3>
           {summary.by_agent.map((row) => (
             <div className="row" key={row.agent}>
               <div>

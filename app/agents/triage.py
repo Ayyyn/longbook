@@ -22,7 +22,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.agents.base import Agent, Decision
-from app.services.gating import gate_record
+from app.services.gating import gate_record, strip_pending
 from app.services.validation import as_dicts, money_rule_failed, validate
 
 AUTO_COMMIT_FLOOR = 0.85
@@ -144,9 +144,18 @@ class Triage(Agent):
                                 "Party could not be resolved.")
 
         if gate.pending:
-            # The useful case: write what is known, ask about the rest.
-            return self._decide("commit_partial", conf, flags, validation_dicts, gate,
-                                f"Confirm: {', '.join(gate.pending)}")
+            # A partial commit is only worth writing if something survives the
+            # stripping. Otherwise the owner gets an empty record and a lone
+            # input box with no product, date or reference to judge it against
+            # — worse than a plain queue item, because it also writes a hollow
+            # row into the business tables.
+            remainder = strip_pending(record.get("fields") or {}, gate.pending)
+            if any(v not in (None, "", [], {}) for v in remainder.values()):
+                return self._decide("commit_partial", conf, flags, validation_dicts, gate,
+                                    f"Confirm: {', '.join(gate.pending)}")
+            return self._decide("review", conf, flags, validation_dicts, gate,
+                                f"Nothing to go on but the party; needs "
+                                f"{', '.join(gate.pending)}.")
 
         if conf < floor:
             return self._decide("review", conf, flags, validation_dicts, gate,

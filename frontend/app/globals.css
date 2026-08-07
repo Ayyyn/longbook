@@ -279,3 +279,210 @@ nav.tabs a.active {
   padding: 40px 16px;
   color: var(--muted);
 }
+
+/* --- five tabs on a 360px screen ------------------------------------- */
+
+nav.tabs a {
+  font-size: 13px;
+  padding: 12px 2px;
+  letter-spacing: -0.01em;
+}
+
+/* --- shared list rows ------------------------------------------------- */
+
+.list-row {
+  display: block;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-top: 8px;
+  text-decoration: none;
+  color: inherit;
+  min-height: 56px;
+}
+
+.list-row .top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.list-row .name {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.list-row .amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.list-row .sub {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+.list-row.overdue {
+  border-left: 4px solid var(--warn);
+}
+
+/* --- the "what we know" / "where this came from" blocks --------------- */
+
+.know {
+  background: #f7f4ec;
+  border: 1px solid #e6dcc4;
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-top: 12px;
+}
+
+.know h3,
+.card h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.know ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.know li {
+  margin: 4px 0;
+  font-size: 15px;
+}
+
+/* --- the field being asked about -------------------------------------- */
+
+.field-ask {
+  background: #fff8e8;
+  border: 2px solid var(--warn);
+  border-radius: 10px;
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.field-ask label {
+  margin-top: 0;
+  color: var(--warn);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.field-ask .why {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 4px 0 8px;
+}
+
+.confirmed {
+  display: grid;
+  grid-template-columns: minmax(84px, auto) 1fr;
+  gap: 5px 10px;
+  font-size: 15px;
+  margin: 4px 0 0;
+}
+
+.confirmed dt {
+  color: var(--muted);
+}
+
+.confirmed dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- collapsible source conversation ---------------------------------- */
+
+details.source {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+details.source summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 6px 0;
+  list-style: none;
+}
+
+details.source summary::-webkit-details-marker {
+  display: none;
+}
+
+details.source summary::after {
+  content: " ▾";
+}
+
+details.source[open] summary::after {
+  content: " ▴";
+}
+
+.msg-line {
+  padding: 7px 10px;
+  margin-top: 6px;
+  border-radius: 8px;
+  background: #f0f2f5;
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.msg-line.cited {
+  background: #e8f4ec;
+  border-left: 3px solid var(--accent);
+}
+
+.msg-line .who {
+  color: var(--muted);
+  font-size: 12px;
+  display: block;
+}
+
+/* --- misc ------------------------------------------------------------- */
+
+.filters {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 10px 0 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.filters button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 999px;
+}
+
+.back {
+  display: inline-block;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 8px 0;
+}
+
+.pending-tag {
+  background: #fdf1e3;
+  color: var(--warn);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
