@@ -27,11 +27,26 @@ from app.services.matching import phone_match, shortlist_parties, exact_alias_ma
 
 class Resolver(Agent):
     name = "resolver"
-    prompt_version = "v1"
+    prompt_version = "v2"
+
+    def _is_us(self, name: str) -> bool:
+        from app.models.tenant import Tenant
+        from app.services.party_import import is_owner
+
+        tenant = self.db.get(Tenant, self.tenant_id) if self.db else None
+        return is_owner(name, None, tenant)
 
     def run(self, payload: dict[str, Any]) -> Decision:
         raw_name = (payload.get("fields", {}) or {}).get("party") or ""
         phone = payload.get("sender_phone")
+
+        # A record's party is the counterparty, never the tenant. The model
+        # names whoever the sentence is about, and on a dispatch that is the
+        # business itself ("we sent it") — so a record would be attributed to
+        # a party that deliberately does not exist. Fall through to the person
+        # on the other side of the conversation instead.
+        if raw_name and self._is_us(raw_name):
+            raw_name = ""
 
         hit = exact_alias_match(self.db, self.tenant_id, raw_name)
         if hit:

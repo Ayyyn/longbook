@@ -60,21 +60,79 @@ def _party_hints(db, tenant_id: uuid.UUID) -> list[str]:
     )
 
 
-def _counterparty(segment, tenant_id) -> tuple[str | None, str | None]:
+def _counterparty(segment, tenant) -> tuple[str | None, str | None]:
     """Who the owner was talking to in this window.
 
-    The busiest sender that is not the owner. A 1:1 export names them by
-    contact name, a group by number; either way the Resolver can attribute a
-    record whose text never says who it is from.
+    The busiest sender that is *not* the owner. The exclusion is load-bearing:
+    in a 1:1 chat the owner often sends more messages than the customer, so
+    picking the plain maximum attributes the whole window to the tenant
+    themselves — who is deliberately not on the party list — and every record
+    in it then fails to resolve.
     """
+    from app.services.party_import import is_owner
+
     counts: dict[tuple[str | None, str | None], int] = {}
     for message in segment.messages:
+        if is_owner(message.sender, message.sender_phone, tenant):
+            continue
         key = (message.sender, message.sender_phone)
         counts[key] = counts.get(key, 0) + 1
     if not counts:
         return None, None
     name, phone = max(counts, key=lambda k: counts[k])
     return name, phone
+
+
+def _party_context(db, tenant_id: uuid.UUID, name: str | None, phone: str | None) -> str:
+    """What this business already knows about the counterparty, as prose.
+
+    Best-effort: an unrecognised party simply contributes no context, which is
+    the same position the Extractor was in before.
+    """
+    from app.services.matching import exact_alias_match, phone_match
+    from app.services.party_brief import as_prompt_context
+
+    party = None
+    if name:
+        party = exact_alias_match(db, tenant_id, name)
+    if party is None and phone:
+        party = phone_match(db, tenant_id, phone)
+    if party is None:
+        return ""
+    return as_prompt_context((party.attributes or {}).get("brief") or {})
+
+
+def _thread_counterparty(db, tenant_id: uuid.UUID, thread_key: str | None, tenant
+                         ) -> tuple[str | None, str | None]:
+    """The dominant non-owner sender across a whole thread."""
+    from app.services.party_import import is_owner
+
+    rows = db.execute(
+        select(Interaction.sender, Interaction.sender_phone, func.count())
+        .where(Interaction.tenant_id == tenant_id, Interaction.thread_key == thread_key)
+        .group_by(Interaction.sender, Interaction.sender_phone)
+        .order_by(func.count().desc())
+    ).all()
+    for sender, phone, _count in rows:
+        if sender and not is_owner(sender, phone, tenant):
+            return sender, phone
+    return None, None
+
+
+def _refresh_counterparty(db, tenant_id: uuid.UUID, name: str | None,
+                          phone: str | None) -> None:
+    """Best-effort: memory is an optimisation, never a reason to lose a window."""
+    from app.services.matching import exact_alias_match, phone_match
+    from app.services.party_brief import refresh_party
+
+    try:
+        party = (exact_alias_match(db, tenant_id, name) if name else None) or (
+            phone_match(db, tenant_id, phone) if phone else None
+        )
+        if party is not None:
+            refresh_party(db, tenant_id, party.id)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _withdraw_previous(db, tenant_id: uuid.UUID, window: ExtractionWindow) -> int:
@@ -140,7 +198,24 @@ def _process_window(
         ).scalars().first()
         graph = build_pipeline(db, tenant_id, profile)
 
-        name, phone = _counterparty(segment, tenant_id)
+        from app.models.tenant import Tenant
+
+        tenant = db.get(Tenant, tenant_id)
+        name, phone = _counterparty(segment, tenant)
+        if name is None:
+            # A window can be entirely one-sided — "Dispatched through X",
+            # "LR No 483917" are all sent by the owner. The conversation still
+            # has exactly one other party, so fall back to whoever that is
+            # across the whole thread rather than leaving the records
+            # unattributable.
+            name, phone = _thread_counterparty(db, tenant_id, window.thread_key, tenant)
+
+        # Resolve the counterparty BEFORE extraction, so what this business
+        # already knows about them can shape how the conversation is read. A
+        # negotiation runs across months and separate windows; this is what
+        # lets a December window resolve "1390 is our offer" against April's
+        # 1440 without joining the sessions structurally.
+        party_context = _party_context(db, tenant_id, name, phone)
         media = next(
             (m for m in segment.messages if m.media_uri and m.media_kind == "image"),
             None,
@@ -157,6 +232,7 @@ def _process_window(
                 "ended_at": segment.ended_at,
                 "counterparty_name": name,
                 "counterparty_phone": phone,
+                "party_context": party_context,
                 "party_hints": hints,
                 "media_uri": media.media_uri if media else None,
                 "media_kind": media.media_kind if media else None,
@@ -179,6 +255,11 @@ def _process_window(
             window.extracted_hash = window.content_hash
             window.outcome = "extracted"
             window.last_error = None
+
+            # Fold this window into what we know about the party, so the next
+            # window in the conversation is read against it. Quotes never
+            # commit, so nothing else would pick them up.
+            _refresh_counterparty(db, tenant_id, name, phone)
             return "extracted", None
         except Exception as exc:  # noqa: BLE001 - one window must not stop the batch
             db.rollback()

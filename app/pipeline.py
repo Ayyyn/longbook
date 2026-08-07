@@ -46,6 +46,7 @@ def build_pipeline(db, tenant_id, profile):
                 "body": window["text"],
                 "party_hints": window.get("party_hints", []),
                 "message_count": window.get("message_count", 0),
+                "party_context": window.get("party_context", ""),
                 "media_uri": window.get("media_uri"),
                 "media_kind": window.get("media_kind"),
             },

@@ -39,6 +39,7 @@ SYSTEM = """You extract structured records from Indian textile trade messages.
 The business uses these units: {units}
 Quality/design codes usually look like: {code_hint}
 Known party names include: {party_hint}
+{party_context}
 
 You are given ONE CONVERSATION, as numbered lines. A single order is usually
 built across several lines — a request, an availability reply, an amendment,
@@ -132,6 +133,26 @@ Rules:
   line did. Only go below 0.6 when the conversation itself leaves something
   genuinely open — a quantity nobody confirmed, a rate never agreed.
 """
+
+
+def _party_context_block(context: str) -> str:
+    """What this business already knows about the party, for the prompt.
+
+    A negotiation runs across months and separate windows: "1390 is our offer"
+    in December means nothing without April's 1440. Carrying the party's own
+    recent figures lets a later window resolve against them without the
+    segmenter having to join the sessions together structurally.
+    """
+    if not context:
+        return ""
+    return (
+        "\nWhat you already know about this party:\n"
+        f"  {context}\n"
+        "Use it to resolve figures this conversation leaves implicit — a\n"
+        "counter-offer only means something against the rate already on the\n"
+        "table. It is background, not evidence: never report it as fact, and\n"
+        "if this conversation contradicts it, this conversation wins."
+    )
 
 
 def coerce_number(value: Any) -> float | None:
@@ -247,10 +268,12 @@ class Extractor(Agent):
         agent_run row still summarises how sure the pass was overall.
         """
         vocab = (self.profile.vocabulary if self.profile else {}) or {}
+        context = payload.get("party_context") or ""
         prompt = SYSTEM.format(
             units=", ".join(vocab.get("quantity_units", ["meter"])),
             code_hint=vocab.get("quality_code_example", "unknown"),
             party_hint=", ".join(payload.get("party_hints", [])[:40]) or "none yet",
+            party_context=_party_context_block(context),
         )
 
         result, usage = generate_json(

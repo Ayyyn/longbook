@@ -125,12 +125,16 @@ def build_brief(db, tenant_id: uuid.UUID, party: Party, since: datetime | None =
     # An accepted quote is a rate this party actually agreed to, which is
     # exactly what the band is trying to describe — and in a business that
     # negotiates hard, it may be the only rate evidence there is.
+    # Quotes are read at any status, unlike everything else here. A quote is
+    # a proposal by nature — it never "commits" — and a figure the two sides
+    # discussed is real history even before anyone accepts it. Only accepted
+    # ones are allowed to move the rate band below.
     quotes = db.execute(
         select(Extraction)
         .where(
             Extraction.tenant_id == tenant_id,
             Extraction.record_type == "quote",
-            Extraction.status.in_(_COMMITTED),
+            Extraction.status != "superseded",
         )
         .order_by(Extraction.created_at.desc())
         .limit(50)
@@ -150,6 +154,7 @@ def build_brief(db, tenant_id: uuid.UUID, party: Party, since: datetime | None =
                 "quality": (q.payload or {}).get("quality"),
                 "rate": (q.payload or {}).get("rate"),
                 "status": (q.payload or {}).get("status"),
+                "when": q.created_at.date().isoformat() if q.created_at else None,
                 "extraction_id": str(q.id),
             }
             for q in quotes[:5]
@@ -329,6 +334,12 @@ def as_prompt_context(brief: dict[str, Any]) -> str:
 
     Deliberately terse: this rides along on every window, so it earns its
     tokens or it does not go.
+
+    The quote history is the load-bearing part. A negotiation runs across
+    months and separate windows — "1390 is our offer" in December means
+    nothing without April's 1440 — and carrying the party's recent figures
+    lets a later window resolve against them without the segmenter having to
+    join the sessions up.
     """
     if not brief:
         return ""
@@ -336,9 +347,22 @@ def as_prompt_context(brief: dict[str, Any]) -> str:
     buys = ", ".join(b["quality"] for b in brief.get("buys", [])[:4])
     if buys:
         parts.append(f"usually buys {buys}")
+
     band = brief.get("rate_band") or {}
     if band.get("typical"):
         parts.append(f"usual rate around {band['typical']:g}")
+
+    quotes = (brief.get("quotes") or {}).get("latest") or []
+    if quotes:
+        recent = "; ".join(
+            f"{q.get('quality') or 'item'} at {q['rate']:g}"
+            + (f" ({q['status']})" if q.get("status") else "")
+            for q in quotes[:4]
+            if q.get("rate") is not None
+        )
+        if recent:
+            parts.append(f"rates already discussed with them: {recent}")
+
     behaviour = brief.get("payment_behaviour") or {}
     if behaviour.get("avg_days_to_settle") is not None:
         parts.append(f"settles in about {behaviour['avg_days_to_settle']:.0f} days")
