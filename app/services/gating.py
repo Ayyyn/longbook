@@ -34,6 +34,7 @@ REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "payment": ("party", "amount"),
     "dispatch": ("party",),
     "enquiry": ("party",),
+    "quote": ("party", "rate"),
     "complaint": ("party",),
 }
 
@@ -44,6 +45,7 @@ USEFUL_FIELDS: dict[str, tuple[str, ...]] = {
     "payment": ("mode", "reference", "received_on"),
     "dispatch": ("lr_no", "transporter", "dispatched_on"),
     "enquiry": ("quality", "quantity", "rate"),
+    "quote": ("quality", "quantity", "unit", "status"),
     "complaint": ("quality", "quantity"),
 }
 

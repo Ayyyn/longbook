@@ -111,6 +111,13 @@ class Triage(Agent):
         gate = gate_record(record, validations, confidence=conf, floor=floor)
 
         # --- the rules that override everything ---------------------------
+        # A price under negotiation is not a commitment. It reaches a human
+        # because accepting it is a commercial decision, and because the
+        # negotiation history attached to it is the thing worth reading.
+        if record_type == "quote":
+            return self._decide("review", conf, ["quote", *flags], validation_dicts,
+                                gate, "Quotes are always reviewed.")
+
         # A defect claim leads to a credit note or a replacement, and neither
         # is a decision the system should take on the owner's behalf.
         if record_type == "complaint":

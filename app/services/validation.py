@@ -325,7 +325,7 @@ def validate(db, tenant_id: uuid.UUID, profile, record: dict[str, Any]) -> list[
 
     results = [check_party_exists(db, tenant_id, party_id)]
 
-    if record_type in ("order", "enquiry"):
+    if record_type in ("order", "enquiry", "quote"):
         results += [
             check_line_arithmetic(fields),
             check_quantity_sum(fields),

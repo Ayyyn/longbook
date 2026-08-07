@@ -40,7 +40,7 @@ from app.models.party import Party
 # about the last handful of dealings, not the full three years.
 TOP_QUALITIES = 6
 RECENT_ORDERS = 20
-BRIEF_VERSION = 2
+BRIEF_VERSION = 3
 
 # Statuses whose records are real. Anything else is a proposal.
 _COMMITTED = ("auto_committed", "accepted", "corrected")
@@ -57,6 +57,7 @@ def _empty() -> dict[str, Any]:
         "rate_band": {},
         "payment_behaviour": {},
         "complaints": {"count": 0, "recent": []},
+        "quotes": {"accepted": 0, "latest": []},
         "contact": {},
         "totals": {},
         "sources": {},
@@ -120,6 +121,41 @@ def build_brief(db, tenant_id: uuid.UUID, party: Party, since: datetime | None =
         {"quality": name, "times": times}
         for name, times in sorted(counts.items(), key=lambda kv: -kv[1])[:TOP_QUALITIES]
     ]
+
+    # An accepted quote is a rate this party actually agreed to, which is
+    # exactly what the band is trying to describe — and in a business that
+    # negotiates hard, it may be the only rate evidence there is.
+    quotes = db.execute(
+        select(Extraction)
+        .where(
+            Extraction.tenant_id == tenant_id,
+            Extraction.record_type == "quote",
+            Extraction.status.in_(_COMMITTED),
+        )
+        .order_by(Extraction.created_at.desc())
+        .limit(50)
+    ).scalars().all()
+    accepted = [
+        q for q in quotes
+        if str((q.resolved or {}).get("party_id") or "") == str(party.id)
+        and (q.payload or {}).get("status") == "accepted"
+        and (q.payload or {}).get("rate") is not None
+    ]
+    for quote in accepted:
+        brief["_rates"].append(float(quote.payload["rate"]))
+    brief["quotes"] = {
+        "accepted": len(accepted),
+        "latest": [
+            {
+                "quality": (q.payload or {}).get("quality"),
+                "rate": (q.payload or {}).get("rate"),
+                "status": (q.payload or {}).get("status"),
+                "extraction_id": str(q.id),
+            }
+            for q in quotes[:5]
+            if str((q.resolved or {}).get("party_id") or "") == str(party.id)
+        ],
+    }
 
     if brief["_rates"]:
         band = brief["_rates"]

@@ -272,7 +272,7 @@ print("\n-- seeds_from_messages excludes the owner --")
 with tenant_session(tenant_a) as db:
     derived = seeds_from_messages(db, tenant_a, owner_phone="+91 90000 11111")
     check("the owner's own number is not a party",
-          [s.name for s in derived], ["Ashok Textiles", "Bharat Fabrics"])
+          sorted(s.name for s in derived), ["Ashok Textiles", "Bharat Fabrics"])
 
 for path in Path("var").glob("test-*.xlsx"):
     path.unlink(missing_ok=True)

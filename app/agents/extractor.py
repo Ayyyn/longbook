@@ -50,7 +50,7 @@ Return JSON only, no prose:
 {{
   "records": [
     {{
-      "record_type": "order|payment|enquiry|dispatch|complaint|noise",
+      "record_type": "order|quote|payment|enquiry|dispatch|complaint|noise",
       "fields": {{...}},
       "confidence": 0.0-1.0,
       "reason": "<why you are unsure, empty if confident>",
@@ -70,6 +70,10 @@ cannot fill; never rename one, never invent a new one.
   payment   party, amount, mode, reference, received_on, cheque_date
             (mode is one of: cash, upi, neft, rtgs, cheque)
   dispatch  party, order_no, challan_no, transporter, lr_no, dispatched_on
+  quote     party, quality, quantity, unit, rate, quoted_by, status, notes,
+            counters
+            (quoted_by is "us" or "them"; status is one of: offered,
+             countered, accepted, rejected, lapsed)
   enquiry   party, quality, quantity, unit, rate, amount, notes
   complaint party, quality, quantity, unit, notes
   noise     (no fields)
@@ -82,12 +86,22 @@ A colour or shade with no separate design code goes in that line's "quality".
 Use the unit names the business uses ({units}), not the abbreviation the
 message happened to type.
 
+A price haggled back and forth is a "quote", not an order and not an enquiry.
+Report the WHOLE negotiation as ONE quote record: `rate` is the latest figure
+on the table, `status` says where it ended up, and `counters` lists every
+figure in order so the history is not lost:
+  "counters": [{{"rate": 1600, "by": "them"}}, {{"rate": 1450, "by": "us"}},
+               {{"rate": 1500, "by": "them"}}]
+An order only exists once someone actually places one ("sending PO",
+"received order", "confirmed"). Until then a agreed price is a quote with
+status "accepted".
+
 Rules:
 - Never invent a party or quality that is not in the message.
 - Amounts in INR. Quantities keep the unit the message used.
 - Trade shorthand: "nett" = no further discount, "thaan"/"than" = roll/piece.
 - Classify by what the message DOES, not by the words it contains:
-    * A price the seller quotes is an enquiry, not a payment.
+    * A price offered, asked for, or countered is a "quote".
     * An order total or invoice value is not a payment. Only money that has
       actually moved is a payment.
     * Asking for something to be sent is an order, not a dispatch. Only a
@@ -96,8 +110,8 @@ Rules:
       completed.", "Dispatched", "Bhej diya").
     * Money still owed is an enquiry, not a payment ("Payment pending
       1,09,824", "Balance 50000"). Nothing has moved yet.
-    * A quoted price, a stated rate, or a total the seller works out is an
-      enquiry — put the number in "rate" or "amount".
+    * A total worked out from an agreed rate and quantity is part of the
+      quote or order it belongs to, not a separate record.
 - "order" needs the buyer to commit to buying something: a quantity to send, a
   named product to send, an explicit yes ("done", "confirmed", "make it 250"),
   or a change to what was already ordered ("Wine should be 350m"). A message

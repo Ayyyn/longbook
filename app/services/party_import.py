@@ -253,13 +253,79 @@ def parse_upload(filename: str | None, path: Path) -> tuple[str, list[PartySeed]
 _SELF_NAMES = {"you", "me", "self", "aap"}
 
 
-def seeds_from_messages(db, tenant_id: uuid.UUID, owner_phone: str | None = None) -> list[PartySeed]:
+def _tokens(text: str | None) -> set[str]:
+    """Significant words in a business name, for owner matching.
+
+    "Ravi Fabrics & Bros" and a sender called "Mahesh Shah (Ravi Fabrics)"
+    are the same side of the conversation; comparing whole strings would miss
+    that, and comparing every word would match on "textiles".
+    """
+    if not text:
+        return set()
+    stop = {"and", "bros", "brothers", "co", "company", "sons", "the",
+            "textiles", "textile", "mills", "mill", "traders", "trading",
+            "industries", "enterprise", "enterprises", "pvt", "ltd", "llp"}
+    words = re.findall(r"[a-z0-9]+", text.lower())
+    return {w for w in words if len(w) > 2 and w not in stop}
+
+
+def is_owner(sender: str | None, phone: str | None, tenant) -> bool:
+    """Whether this sender is the tenant themselves rather than a customer.
+
+    A 1:1 export contains exactly two people, and one of them is the owner.
+    Seeding both makes the owner a customer of themselves — measured on a real
+    export, that put half of all records on the wrong party and would have
+    shown the owner money they owe to themselves.
+    """
+    if not sender:
+        return False
+    if sender.strip().lower() in _SELF_NAMES:
+        return True
+    if tenant is None:
+        return False
+
+    if phone and normalize_phone(phone) and normalize_phone(phone) == normalize_phone(
+        getattr(tenant, "owner_phone", None)
+    ):
+        return True
+
+    theirs = _tokens(sender)
+    if not theirs:
+        return False
+
+    # The names must match outright, or one must contain the other on the
+    # strength of at least two words. A customer called "Ashok Bhai" contains
+    # an owner called "Ashok", and dropping them from the party list is worse
+    # than seeding one party too many: an unseeded customer sends every record
+    # about them to review.
+    for ours in (
+        _tokens(getattr(tenant, "business_name", None)),
+        _tokens(getattr(tenant, "owner_name", None)),
+    ):
+        if not ours:
+            continue
+        if theirs == ours:
+            return True
+        if (theirs <= ours or ours <= theirs) and min(len(theirs), len(ours)) >= 2:
+            return True
+    return False
+
+
+def seeds_from_messages(
+    db, tenant_id: uuid.UUID, owner_phone: str | None = None, tenant=None
+) -> list[PartySeed]:
     """Every distinct counterparty the owner has actually talked to.
 
     A 1:1 export names the sender by their saved contact name; a group export
     names them by number. Both become a party, and the phone is what lets the
     Resolver attribute a message whose text never says who it is from.
+
+    The owner's own side is excluded — see `is_owner`.
     """
+    from app.models.tenant import Tenant
+
+    if tenant is None:
+        tenant = db.get(Tenant, tenant_id)
     rows = db.execute(
         select(
             Interaction.sender,
@@ -280,6 +346,8 @@ def seeds_from_messages(db, tenant_id: uuid.UUID, owner_phone: str | None = None
             continue
         if owner_last10 and normalize_phone(phone) == owner_last10:
             continue  # the owner's own messages
+        if is_owner(name, phone, tenant):
+            continue
 
         key = name.lower()
         if key in merged:

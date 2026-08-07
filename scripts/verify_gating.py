@@ -291,6 +291,45 @@ with tenant_session(TENANT) as db:
     check("an unknown unit is queued as a field, not a whole record",
           unknown_unit and triage.run(unknown_unit).output["pending_fields"], ["unit"])
 
+print("\n-- quotes --")
+
+with tenant_session(TENANT) as db:
+    from app.agents import Triage
+    from app.services.party_brief import refresh_party
+
+    profile = db.query(BusinessProfile).one()
+    triage = Triage(db, TENANT, profile)
+    party_id = db.query(Party).one().id
+
+    quote = {
+        "record_type": "quote", "confidence": 1.0, "party_id": party_id, "rate": 1427,
+        "record": {
+            "record_type": "quote",
+            "resolution": {"party_id": party_id},
+            "fields": {"quality": "Spindle Bolster", "rate": 1427, "unit": "pc",
+                       "status": "accepted", "quoted_by": "us",
+                       "counters": [{"rate": 1440, "by": "us"},
+                                    {"rate": 1390, "by": "them"},
+                                    {"rate": 1415, "by": "them"}]},
+        },
+    }
+    decision = triage.run(quote)
+    check("a quote always reaches a human", decision.output["action"], "review")
+    check("  even at full confidence", decision.confidence, 1.0)
+    check("  flagged as a quote", "quote" in decision.output["flags"], True)
+
+    # An accepted quote is the rate this party actually agreed to — in a
+    # business that negotiates hard it may be the only rate evidence there is.
+    db.add(Extraction(tenant_id=TENANT, record_type="quote", status="accepted",
+                      payload={"quality": "Spindle Bolster", "rate": 1427,
+                               "status": "accepted"},
+                      resolved={"party_id": str(party_id)}, confidence=1.0))
+    db.flush()
+    brief = refresh_party(db, TENANT, party_id)
+    check("an accepted quote feeds the rate band",
+          brief["rate_band"].get("typical"), 1427.0)
+    check("  and the negotiation is kept", brief["quotes"]["accepted"], 1)
+
 print("\n-- validation is recorded, never silently skipped --")
 
 with tenant_session(TENANT) as db:

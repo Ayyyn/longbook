@@ -38,7 +38,10 @@ for stream in (sys.stdout, sys.stderr):
         stream.reconfigure(encoding="utf-8", errors="replace")
 
 
-def main(path: Path) -> int:
+def main(path: Path, business: str = "Ravi Fabrics Surat",
+         interview: str | None = None, out: Path | None = None) -> int:
+    global OUT
+    OUT = out or OUT
     OUT.mkdir(parents=True, exist_ok=True)
     started = time.time()
 
@@ -46,7 +49,7 @@ def main(path: Path) -> int:
     with admin_session() as db:
         tenant = Tenant(
             id=tenant_id,
-            business_name="Ravi Fabrics Surat",
+            business_name=business,
             owner_name="Ravi",
             owner_phone=f"98{uuid.uuid4().int % 10**8:08d}",
             city="Surat",
@@ -71,7 +74,8 @@ def main(path: Path) -> int:
     # 2. Configure — a real Configurator call over the real sample.
     config_started = time.time()
     with tenant_session(tenant_id) as db:
-        built = build_profile(db, tenant_id, INTERVIEW, ["wholesaler"], uuid.uuid4())
+        built = build_profile(db, tenant_id, interview or INTERVIEW, ["wholesaler"],
+                              uuid.uuid4())
         db.add(BusinessProfile(
             tenant_id=tenant_id, segments=built["segments"], modules=built["modules"],
             vocabulary=built["vocabulary"], rules=built["rules"], examples=[],
@@ -154,7 +158,7 @@ def main(path: Path) -> int:
         by_status[record["status"]] = by_status.get(record["status"], 0) + 1
         by_type[record["record_type"] or "none"] = by_type.get(record["record_type"] or "none", 0) + 1
 
-    business = sum(v for k, v in by_status.items() if k != "rejected")
+    denominator = sum(v for k, v in by_status.items() if k != "rejected")
     committed = by_status.get("auto_committed", 0)
     queued = by_status.get("needs_review", 0)
 
@@ -168,10 +172,10 @@ def main(path: Path) -> int:
         "messages_parsed": len(records),
         "by_status": by_status,
         "by_record_type": by_type,
-        "auto_commit_rate": round(committed / business, 3) if business else 0,
-        "review_rate": round(queued / business, 3) if business else 0,
+        "auto_commit_rate": round(committed / denominator, 3) if denominator else 0,
+        "review_rate": round(queued / denominator, 3) if denominator else 0,
         "records_written": committed + len(partial),
-        "written_rate": round((committed + len(partial)) / business, 3) if business else 0,
+        "written_rate": round((committed + len(partial)) / denominator, 3) if denominator else 0,
         "review_items_partial": len(partial),
         "fields_per_review_item": (
             round(sum(len(r["pending_fields"]) for r in partial) / len(partial), 2)
@@ -220,5 +224,14 @@ Typical credit days: not stated
 
 
 if __name__ == "__main__":
-    target = Path(sys.argv[1] if len(sys.argv) > 1 else "data/example_whatsapp_chat.txt")
-    raise SystemExit(main(target))
+    import argparse
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("path", nargs="?", default="data/example_whatsapp_chat.txt")
+    ap.add_argument("--business", default="Ravi Fabrics Surat")
+    ap.add_argument("--interview", help="file holding the interview answers")
+    ap.add_argument("--out", default="var/real_run")
+    args = ap.parse_args()
+
+    text = Path(args.interview).read_text(encoding="utf-8") if args.interview else None
+    raise SystemExit(main(Path(args.path), args.business, text, Path(args.out)))
