@@ -89,11 +89,16 @@ class ProfileOut(BaseModel):
     source: str  # configurator | seed
     confidence: float | None = None
     rationale: str | None = None
+    # Thresholds the agent proposed that were clamped or rejected for want
+    # of evidence, so the owner is told rather than silently overridden.
+    rule_notes: list[str] = Field(default_factory=list)
 
 
 class ConfigureResult(BaseModel):
     tenant_id: uuid.UUID
     profile: ProfileOut
+    # Watch this to show records appearing as they are extracted.
+    backfill_job_id: uuid.UUID
     pending_interactions: int
     parties: int
     parties_seeded_from: str | None = None

@@ -31,6 +31,8 @@ Infer how this business actually works and return JSON only:
                  "quality_code_example": "...", "party_terms": [...]},
   "rules": {"overdue_days": int, "low_stock_threshold": number,
             "rate_deviation_pct": number},
+  "rules_evidence": {"overdue_days": <how many separate messages support this>,
+                     "low_stock_threshold": int, "rate_deviation_pct": int},
   "confidence": 0.0-1.0,
   "reason": "..."
 }
@@ -38,6 +40,12 @@ Infer how this business actually works and return JSON only:
 Base every inference on evidence in the sample. If the sample never shows dye
 lots, set lots=false. If there are no credit terms or outstanding chases,
 set credit_ledger=false. Do not apply defaults you cannot see evidence for.
+
+For every threshold in "rules", say in "rules_evidence" how many SEPARATE
+messages support it. Count honestly: one negotiation is one observation, not
+evidence of a general rule. A threshold supported by fewer than 3 observations
+will be ignored in favour of the industry default, so an inflated count only
+produces a worse configuration.
 """
 
 

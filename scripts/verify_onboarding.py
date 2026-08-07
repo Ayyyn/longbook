@@ -47,7 +47,8 @@ def fake_configurator(*, model, system, user, **kwargs):
             "segments": ["wholesaler"],
             "modules": {"lots": True, "dispatch": True, "job_work": True},
             "vocabulary": {"quantity_units": ["meter", "thaan"], "rate_basis": "per_meter"},
-            "rules": {"overdue_days": 30},
+            "rules": {"overdue_days": 30, "rate_deviation_pct": 2.08},
+            "rules_evidence": {"overdue_days": 5, "rate_deviation_pct": 1},
             "confidence": 0.88,
             "reason": "Dye lots and LR numbers appear throughout the sample.",
         },
@@ -167,10 +168,30 @@ check("profile came from the configurator", profile["source"], "configurator")
 check("confidence surfaced", profile["confidence"], 0.88)
 check("agent findings applied", profile["modules"]["job_work"], True)
 check("seed fills what the agent did not decide", profile["modules"]["credit_ledger"], True)
-check("agent overrides the seed", profile["rules"]["overdue_days"], 30)
-check("seed rules survive", profile["rules"]["rate_deviation_pct"], 20)
+check("a well-evidenced threshold overrides the seed", profile["rules"]["overdue_days"], 30)
+# The measured over-fit: 2.08% inferred from one negotiation would flag nearly
+# every order. One observation is not evidence of a rule.
+check("a threshold from one observation is rejected",
+      profile["rules"]["rate_deviation_pct"], 20)
+check("  and the owner is told why",
+      any("rate_deviation_pct" in n for n in profile["rule_notes"]), True)
+
+from app.services.onboarding import clamp_rules  # noqa: E402
+
+rules, notes = clamp_rules({"overdue_days": 45}, {"overdue_days": 3},
+                           {"overdue_days": 10})
+check("a well-evidenced but absurd threshold is clamped, not taken",
+      rules["overdue_days"], 15)
+check("  and the clamp is reported", any("clamped" in n for n in notes), True)
+check("an ungoverned rule passes straight through",
+      clamp_rules({}, {"digest_hour": 19}, {})[0]["digest_hour"], 19)
+check("a non-numeric threshold is refused",
+      clamp_rules({"overdue_days": 45}, {"overdue_days": "soon"}, {"overdue_days": 9})[0],
+      {"overdue_days": 45})
 check("owner's segments win", profile["segments"], ["wholesaler"])
 check("messages queued", result["pending_interactions"], 4)
+check("a backfill job id comes back so the screen can follow it",
+      bool(result["backfill_job_id"]), True)
 
 check("interview text reached the agent",
       "cotton and poly-cotton shirting" in configurator_calls[0]["user"], True)

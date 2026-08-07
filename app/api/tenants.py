@@ -244,8 +244,11 @@ def configure(
     version = profile.version or "1"
     db.commit()
 
-    # Everything uploaded before the profile existed, in one pass.
-    background.add_task(run_backfill, tid, None)
+    # Everything uploaded before the profile existed. The owner is sitting
+    # here watching, so this returns immediately and the screen follows the
+    # job — records land as windows finish rather than all at the end.
+    backfill_job = uuid.uuid4()
+    background.add_task(run_backfill, tid, backfill_job)
 
     return ConfigureResult(
         tenant_id=tid,
@@ -258,8 +261,10 @@ def configure(
             source=built["source"],
             confidence=built["confidence"],
             rationale=built["rationale"],
+            rule_notes=built.get("rule_notes", []),
         ),
         pending_interactions=pending,
+        backfill_job_id=backfill_job,
         parties=parties,
         parties_seeded_from=seeded_from,
         detail=(

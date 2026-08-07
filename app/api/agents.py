@@ -24,6 +24,7 @@ from app.schemas.agents import (
     AgentRunOut,
     AgentStat,
     AgentSummary,
+    Throughput,
     Trace,
     TraceStep,
 )
@@ -172,6 +173,8 @@ def summary(
             )
         )
 
+    throughput = _throughput(db, tid, since)
+
     today_count = db.execute(
         select(func.count())
         .select_from(AgentRun)
@@ -180,6 +183,7 @@ def summary(
 
     return AgentSummary(
         since=since,
+        throughput=throughput,
         runs=runs,
         runs_today=today_count,
         overrides=overrides,
@@ -191,6 +195,39 @@ def summary(
         cost_usd=round(cost, 6),
         avg_latency_ms=int(latency_weighted / runs) if runs else None,
         by_agent=by_agent,
+    )
+
+
+def _throughput(db, tid, since) -> Throughput:
+    """How records landed, not just how agents ran."""
+    where = [Extraction.tenant_id == tid, Extraction.status != "superseded"]
+    if since:
+        where.append(Extraction.created_at >= since)
+
+    rows = db.execute(
+        select(Extraction.status, Extraction.committed_id, Extraction.pending_fields)
+        .where(*where)
+    ).all()
+    if not rows:
+        return Throughput()
+
+    auto = sum(1 for status, _, _ in rows if status == "auto_committed")
+    queued_rows = [r for r in rows if r[0] == "needs_review"]
+    # A queued record that already wrote a business row is a confirmation, not
+    # a re-entry — that distinction is the whole point of field-level gating.
+    partial = [r for r in queued_rows if r[1] is not None]
+    asks = [len(r[2] or []) for r in partial if r[2]]
+    total = len(rows)
+
+    return Throughput(
+        records=total,
+        auto_committed=auto,
+        partially_committed=len(partial),
+        queued=len(queued_rows),
+        auto_commit_rate=round(auto / total, 4),
+        written_rate=round((auto + len(partial)) / total, 4),
+        review_rate=round(len(queued_rows) / total, 4),
+        fields_per_review_item=round(sum(asks) / len(asks), 2) if asks else None,
     )
 
 

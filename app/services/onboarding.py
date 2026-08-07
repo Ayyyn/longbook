@@ -28,6 +28,74 @@ SAMPLE_SIZE = 300
 # ignored rather than written into the profile that drives every prompt.
 PROFILE_KEYS = ("segments", "modules", "vocabulary", "rules")
 
+# Thresholds the agent may set, and the range a real textile business could
+# plausibly occupy. Measured failure: from one ₹96→₹94 haggle it inferred
+# `rate_deviation_pct: 2.08`, which would flag almost every order, and from a
+# single "will clear by Saturday" it inferred `overdue_days: 7`. A threshold
+# derived from one observation is a fact about that observation, not about the
+# business.
+RULE_BOUNDS: dict[str, tuple[float, float]] = {
+    "overdue_days": (15, 120),
+    "rate_deviation_pct": (5, 50),
+    "low_stock_threshold": (1, 100_000),
+    "high_value_amount": (10_000, 10_000_000),
+}
+
+# How many supporting observations the agent must cite before its number
+# replaces the seed's. Below this the seed wins and the reason is recorded.
+MIN_OBSERVATIONS = 3
+
+
+def clamp_rules(
+    seed_rules: dict[str, Any],
+    proposed: dict[str, Any],
+    evidence: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], list[str]]:
+    """Accept the agent's thresholds only where they are supported and sane.
+
+    Returns the rules to persist and a note for each one that was rejected, so
+    the owner can be told what the system decided to ignore rather than having
+    it happen silently.
+    """
+    evidence = evidence or {}
+    rules = dict(seed_rules or {})
+    notes: list[str] = []
+
+    for key, value in (proposed or {}).items():
+        if key not in RULE_BOUNDS:
+            # Not a threshold we govern; pass it through untouched.
+            rules[key] = value
+            continue
+
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            notes.append(f"{key}: '{value}' is not a number, kept {rules.get(key)}")
+            continue
+
+        support = evidence.get(key)
+        try:
+            support = int(support)
+        except (TypeError, ValueError):
+            support = 0
+
+        if support < MIN_OBSERVATIONS:
+            notes.append(
+                f"{key}: {number:g} inferred from {support} observation(s), "
+                f"kept the seed's {rules.get(key)}"
+            )
+            continue
+
+        low, high = RULE_BOUNDS[key]
+        if not low <= number <= high:
+            clamped = min(max(number, low), high)
+            notes.append(f"{key}: {number:g} is outside {low:g}-{high:g}, clamped to {clamped:g}")
+            number = clamped
+
+        rules[key] = int(number) if float(number).is_integer() else number
+
+    return rules, notes
+
 
 @lru_cache
 def seed_profile(name: str) -> dict[str, Any]:
@@ -71,6 +139,9 @@ def _merge(seed: dict[str, Any], decided: dict[str, Any]) -> dict[str, Any]:
     for key in PROFILE_KEYS:
         base = seed.get(key)
         found = decided.get(key)
+        if key == "rules" and isinstance(base, dict):
+            # Thresholds are governed rather than merged; see clamp_rules.
+            continue
         if isinstance(base, dict) and isinstance(found, dict):
             merged[key] = {**base, **found}
         elif found not in (None, [], {}):
@@ -100,11 +171,22 @@ def build_profile(
             decision = agent.execute(
                 {"interview": interview_text, "sample": sample}, trace_id=trace_id
             )
+            merged = _merge(seed, decision.output)
+            rules, notes = clamp_rules(
+                seed.get("rules", {}),
+                decision.output.get("rules", {}),
+                decision.output.get("rules_evidence", {}),
+            )
+            rationale = decision.rationale
+            if notes:
+                rationale = f"{rationale} Adjusted: {'; '.join(notes)}."
             result = {
                 "source": "configurator",
                 "confidence": decision.confidence,
-                "rationale": decision.rationale,
-                **_merge(seed, decision.output),
+                "rationale": rationale,
+                "rule_notes": notes,
+                **merged,
+                "rules": rules,
             }
         except Exception as exc:  # noqa: BLE001 - onboarding must not dead-end
             result["rationale"] = (

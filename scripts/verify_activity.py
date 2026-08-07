@@ -107,6 +107,12 @@ check("totals add up", summary["runs"], feed["total"])
 check("nothing overridden yet", summary["overrides"], 0)
 check("cost rolled up", summary["cost_usd"] > 0, True)
 check("tokens rolled up", summary["input_tokens"] > 0, True)
+t = summary["throughput"]
+check("throughput counts records, not agent runs", t["records"] > 0, True)
+check("  auto-commit rate reported", 0 <= t["auto_commit_rate"] <= 1, True)
+check("  written rate reported alongside it", 0 <= t["written_rate"] <= 1, True)
+check("  written is never below auto-committed",
+      t["written_rate"] >= t["auto_commit_rate"], True)
 check("per-agent breakdown present",
       sorted(a["agent"] for a in summary["by_agent"]),
       ["extractor", "resolver", "triage"])

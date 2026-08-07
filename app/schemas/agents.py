@@ -62,8 +62,28 @@ class AgentStat(BaseModel):
     cost_usd: float
 
 
+class Throughput(BaseModel):
+    """What the system actually did with the records it produced.
+
+    Auto-commit rate alone understates the system once field-level gating is on:
+    a record written with one blank to confirm counts as "review" but is very
+    nearly done. `written_rate` and `fields_per_review_item` are what separate
+    that from an empty form.
+    """
+
+    records: int = 0
+    auto_committed: int = 0
+    partially_committed: int = 0
+    queued: int = 0
+    auto_commit_rate: float = 0.0
+    written_rate: float = 0.0
+    review_rate: float = 0.0
+    fields_per_review_item: float | None = None
+
+
 class AgentSummary(BaseModel):
     since: datetime | None
+    throughput: Throughput = Throughput()
     runs: int
     runs_today: int
     overrides: int
