@@ -60,70 +60,64 @@ function Activity() {
     <>
       <Header />
 
-      {/* What the system DID with the records, not just how the agents ran.
-          Auto-commit alone understates it: a record written with one blank to
-          confirm counts as "review" while being nearly done. */}
-      {summary.throughput?.records > 0 && (
-        <div className="card">
-          <h3>Records handled</h3>
-          <div className="row">
-            <div>
-              <div>Straight through</div>
-              <div className="muted">committed with nothing to confirm</div>
-            </div>
-            <div style={{ fontWeight: 650 }}>
-              {Math.round(summary.throughput.auto_commit_rate * 100)}%
-            </div>
-          </div>
-          <div className="row">
-            <div>
-              <div>Written</div>
-              <div className="muted">including those needing one detail</div>
-            </div>
-            <div style={{ fontWeight: 650 }}>
-              {Math.round(summary.throughput.written_rate * 100)}%
-            </div>
-          </div>
-          <div className="row">
-            <div>
-              <div>Asked per item</div>
-              <div className="muted">fields the owner has to fill</div>
-            </div>
-            <div style={{ fontWeight: 650 }}>
-              {summary.throughput.fields_per_review_item ?? "—"}
-            </div>
-          </div>
-          <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
-            {summary.throughput.records} records ·{" "}
-            {summary.throughput.partially_committed} written with a detail
-            outstanding
-          </p>
-        </div>
-      )}
-
+      {/* The four numbers that say whether this is working. Auto-commit
+          alone understates it: a record written with one blank to confirm is
+          nearly done, so "written" sits beside it. */}
       <div className="stat-grid">
         <div className="stat">
-          <div className="label">Decisions</div>
-          <div className="value">{formatNumber(summary.runs)}</div>
-          <div className="note">{summary.runs_today} today</div>
-        </div>
-        <div className="stat">
-          <div className="label">You corrected</div>
-          <div className="value">{Math.round(summary.override_rate * 100)}%</div>
-          <div className="note">{summary.overrides} of {summary.runs}</div>
-        </div>
-        <div className="stat">
-          <div className="label">Speed</div>
           <div className="value">
+            {Math.round((summary.throughput?.written_rate ?? 0) * 100)}%
+          </div>
+          <div className="note">Records written</div>
+        </div>
+        <div className="stat">
+          <div className="value">
+            {Math.round((summary.throughput?.auto_commit_rate ?? 0) * 100)}%
+          </div>
+          <div className="note">Handled without asking</div>
+        </div>
+        <div className="stat">
+          <div className="value">
+            {summary.throughput?.fields_per_review_item ?? "—"}
+          </div>
+          <div className="note">Questions per item</div>
+        </div>
+        <div className="stat">
+          <div className="value">{Math.round(summary.override_rate * 100)}%</div>
+          <div className="note">Corrections by you</div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Cost and speed</h3>
+        <div className="row">
+          <div className="muted">Decisions</div>
+          <div style={{ fontWeight: 650 }}>
+            {formatNumber(summary.runs)}{" "}
+            <span className="muted">({summary.runs_today} today)</span>
+          </div>
+        </div>
+        <div className="row">
+          <div className="muted">Average time</div>
+          <div style={{ fontWeight: 650 }}>
             {summary.avg_latency_ms ? `${(summary.avg_latency_ms / 1000).toFixed(1)}s` : "—"}
           </div>
-          <div className="note">average</div>
         </div>
-        <div className="stat">
-          <div className="label">Cost</div>
-          <div className="value">${summary.cost_usd.toFixed(2)}</div>
-          <div className="note">{formatNumber(summary.input_tokens + summary.output_tokens)} tokens</div>
+        <div className="row">
+          <div className="muted">Spend</div>
+          <div style={{ fontWeight: 650 }}>
+            ${summary.cost_usd.toFixed(2)}{" "}
+            <span className="muted">
+              ({formatNumber(summary.input_tokens + summary.output_tokens)} tokens)
+            </span>
+          </div>
         </div>
+        {summary.errors > 0 && (
+          <div className="row">
+            <div className="muted">Failed</div>
+            <div style={{ fontWeight: 650 }}>{summary.errors}</div>
+          </div>
+        )}
       </div>
 
       {summary.by_agent.length > 0 && (
@@ -146,18 +140,20 @@ function Activity() {
         </div>
       )}
 
-      <div className="chips" style={{ marginTop: 14 }}>
-        {FILTERS.map((option) => (
-          <button
-            key={option.key}
-            onClick={() => setFilter(option.key)}
-            style={{ flex: "0 0 auto", minHeight: 40, padding: "0 14px" }}
-            className={filter === option.key ? "primary" : ""}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+      <section className="feed">
+        <h2>Recent decisions</h2>
+        <div className="filters">
+          {FILTERS.map((option) => (
+            <button
+              key={option.key}
+              onClick={() => setFilter(option.key)}
+              className={filter === option.key ? "primary" : ""}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {runs.length === 0 ? (
         <div className="empty">Nothing here yet.</div>
@@ -171,8 +167,47 @@ function Activity() {
           />
         ))
       )}
+
+      {runs.length > 0 && (
+        <div className="actions">
+          <button style={{ width: "100%" }} onClick={() => exportCsv(runs)}>
+            Export activity log
+          </button>
+        </div>
+      )}
     </>
   );
+}
+
+// The runs already on screen, as a CSV the owner can open in Excel or hand to
+// an auditor. Only what is loaded — the filter above decides what goes in.
+function exportCsv(runs) {
+  const columns = [
+    "created_at",
+    "agent",
+    "subject",
+    "outcome",
+    "confidence",
+    "human_override",
+    "model",
+    "prompt_version",
+    "latency_ms",
+    "cost_usd",
+    "trace_id",
+  ];
+  const cell = (value) =>
+    value == null ? "" : `"${String(value).replace(/"/g, '""')}"`;
+  const csv = [
+    columns.join(","),
+    ...runs.map((run) => columns.map((c) => cell(run[c])).join(",")),
+  ].join("\n");
+
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "activity-log.csv";
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function RunCard({ run, open, onToggle }) {

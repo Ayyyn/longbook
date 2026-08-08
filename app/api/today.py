@@ -11,6 +11,7 @@ which is a different and much worse statement than "not built yet".
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, timedelta
 
 from fastapi import APIRouter
@@ -23,7 +24,10 @@ from app.models.observability import AgentRun
 from app.models.orders import Dispatch, Order
 from app.models.party import Party
 from app.schemas.today import (
+    ChasingRow,
     ExceptionCounts,
+    FlaggedRow,
+    NewOrderRow,
     MoneyIn,
     Overdue,
     OrdersToday,
@@ -37,6 +41,22 @@ router = APIRouter()
 
 OPEN_STATUSES = ("draft", "confirmed", "partially_dispatched")
 RECENT_LIMIT = 5
+CHASING_LIMIT = 6
+NEW_ORDER_LIMIT = 6
+
+
+def _summarise(order) -> str:
+    """"Cotton 60x60 · 450 Meters" — what the owner would say the order is."""
+    lines = order.lines or []
+    if not lines:
+        return "no items recorded"
+    first = lines[0]
+    what = first.raw_description or "item"
+    parts = [what]
+    if first.quantity is not None:
+        parts.append(f"{float(first.quantity):g} {first.unit or ''}".strip())
+    text = " · ".join(parts)
+    return text + (f" +{len(lines) - 1} more" if len(lines) > 1 else "")
 
 
 @router.get("", response_model=TodayDigest)
@@ -73,6 +93,55 @@ def today(tid: TenantId, db: TenantDB, profile: Profile) -> TodayDigest:
     )
     stalled = exception_rules.stalled_orders(db, tid, today_date)
     slowing = payment_trend(db, tid)
+
+    # The sections the screen is actually made of.
+    chasing = [
+        ChasingRow(
+            party_id=row["party_id"],
+            party_name=row["party_name"],
+            outstanding=row["outstanding"],
+            days_overdue=row["days_overdue"],
+        )
+        for row in overdue_rows[:CHASING_LIMIT]
+    ]
+
+    flagged: list[FlaggedRow] = []
+    for row in slowing[:3]:
+        flagged.append(FlaggedRow(
+            headline=f"Paying {row['slower_by_days']:.0f} days slower than before",
+            party_name=row["party_name"], kind="slowing_payer",
+            party_id=uuid.UUID(row["party_id"]),
+        ))
+    for row in stalled[:3]:
+        flagged.append(FlaggedRow(
+            headline=f"Order not dispatched, {row['late_by_days']} days",
+            party_name=row["party_name"], kind="stalled_order",
+            order_id=row["order_id"],
+        ))
+    for row in deviations[:3]:
+        flagged.append(FlaggedRow(
+            headline=(
+                f"Rate {abs(row['deviation_pct']):.0f}% {row['direction']} usual"
+            ),
+            party_name=row["party_name"], kind="rate_deviation",
+            order_id=row["order_id"],
+        ))
+
+    new_orders = [
+        NewOrderRow(
+            id=order.id,
+            party_name=party_name,
+            summary=_summarise(order),
+            pending_fields=(order.attributes or {}).get("pending_fields", []),
+        )
+        for order, party_name in db.execute(
+            select(Order, Party.name)
+            .outerjoin(Party, Party.id == Order.party_id)
+            .where(Order.tenant_id == tid, Order.status.in_(OPEN_STATUSES))
+            .order_by(Order.order_date.desc().nullslast(), Order.created_at.desc())
+            .limit(NEW_ORDER_LIMIT)
+        ).all()
+    ]
 
     recent = db.execute(
         select(Payment, Party.name)
@@ -112,6 +181,9 @@ def today(tid: TenantId, db: TenantDB, profile: Profile) -> TodayDigest:
         dispatches_today=count(Dispatch, Dispatch.dispatched_on == today_date),
         needs_review=count(Extraction, Extraction.status == "needs_review"),
         agent_decisions_today=count(AgentRun, func.date(AgentRun.created_at) == today_date),
+        chasing=chasing,
+        flagged=flagged,
+        new_orders=new_orders,
         recent_payments=[
             RecentPayment(
                 id=payment.id,

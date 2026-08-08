@@ -72,17 +72,21 @@ function Orders() {
           <Link key={o.id} href={`/orders/${o.id}`} className="list-row">
             <div className="top">
               <span className="name">{o.party_name || "Unknown party"}</span>
-              {o.pending_fields?.length > 0 ? (
-                <span className="pending-tag">needs {o.pending_fields.length}</span>
-              ) : (
-                <span className="muted">{o.status}</span>
-              )}
+              <span className="muted" style={{ fontSize: 14 }}>
+                {o.order_date || ""}
+              </span>
             </div>
             <div className="sub">
               {o.order_no ? `${o.order_no} · ` : ""}
               {formatNumber(o.lines)} line{o.lines === 1 ? "" : "s"}
-              {o.order_date ? ` · ${o.order_date}` : ""}
               {o.promised_date ? ` · due ${o.promised_date}` : ""}
+            </div>
+            <div style={{ marginTop: 8 }}>
+              {o.pending_fields?.length > 0 ? (
+                <span className="pending-tag">needs {o.pending_fields.length}</span>
+              ) : (
+                <span className={`badge-status ${o.status}`}>{o.status}</span>
+              )}
             </div>
           </Link>
         ))

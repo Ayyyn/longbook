@@ -123,11 +123,26 @@ def order_detail(order_id: uuid.UUID, tid: TenantId, db: TenantDB) -> OrderDetai
             for m in messages
         ]
 
-    dispatched = db.execute(
-        select(func.count()).select_from(Dispatch).where(
-            Dispatch.tenant_id == tid, Dispatch.order_id == order_id
-        )
-    ).scalar_one() > 0
+    dispatches = db.execute(
+        select(Dispatch).where(Dispatch.tenant_id == tid, Dispatch.order_id == order_id)
+        .order_by(Dispatch.dispatched_on.desc().nullslast())
+    ).scalars().all()
+
+    # What happened to this order, newest first — the owner reads it as a
+    # story, not as a status column.
+    timeline = []
+    for d in dispatches:
+        if d.delivered_on:
+            timeline.append({"when": d.delivered_on.isoformat(),
+                             "what": "Delivered"})
+        if d.dispatched_on:
+            timeline.append({
+                "when": d.dispatched_on.isoformat(),
+                "what": "Dispatched" + (f" via {d.transporter}" if d.transporter else ""),
+            })
+    if order.order_date:
+        timeline.append({"when": order.order_date.isoformat(), "what": "Order recorded"})
+    timeline.sort(key=lambda t: t["when"], reverse=True)
 
     return OrderDetail(
         id=order.id,
@@ -149,7 +164,17 @@ def order_detail(order_id: uuid.UUID, tid: TenantId, db: TenantDB) -> OrderDetai
         ],
         value=round(value, 2),
         pending_fields=(order.attributes or {}).get("pending_fields", []),
-        dispatched=dispatched,
+        dispatched=bool(dispatches),
+        timeline=timeline,
+        dispatch=(
+            {
+                "challan_no": dispatches[0].challan_no,
+                "transporter": dispatches[0].transporter,
+                "lr_no": dispatches[0].lr_no,
+            }
+            if dispatches
+            else None
+        ),
         extraction_id=extraction.id if extraction else None,
         trace_id=extraction.trace_id if extraction else None,
         conversation=conversation,

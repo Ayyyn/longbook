@@ -49,6 +49,32 @@ class ExceptionCounts(BaseModel):
     headline: str | None = None  # the single most worth-reading one
 
 
+class ChasingRow(BaseModel):
+    """A party worth chasing today, worst first."""
+
+    party_id: uuid.UUID
+    party_name: str
+    outstanding: float
+    days_overdue: int
+
+
+class FlaggedRow(BaseModel):
+    """One exception, phrased as the owner would say it."""
+
+    headline: str
+    party_name: str | None = None
+    kind: str  # rate_deviation | stalled_order | slowing_payer
+    order_id: str | None = None
+    party_id: uuid.UUID | None = None
+
+
+class NewOrderRow(BaseModel):
+    id: uuid.UUID
+    party_name: str | None
+    summary: str  # "Cotton 60x60 · 450 Meters"
+    pending_fields: list[str] = Field(default_factory=list)
+
+
 class TodayDigest(BaseModel):
     date: date
     money_in: MoneyIn
@@ -59,6 +85,11 @@ class TodayDigest(BaseModel):
     needs_review: int
     agent_decisions_today: int
     recent_payments: list[RecentPayment] = Field(default_factory=list)
+
+    # The screen is a list of things to do, not a grid of numbers.
+    chasing: list[ChasingRow] = Field(default_factory=list)
+    flagged: list[FlaggedRow] = Field(default_factory=list)
+    new_orders: list[NewOrderRow] = Field(default_factory=list)
 
     # Facts the screen should label as not yet computed rather than show as 0.
     unavailable: list[str] = Field(default_factory=list)

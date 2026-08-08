@@ -75,6 +75,7 @@ export const api = {
     const query = new URLSearchParams();
     if (options.q) query.set("q", options.q);
     if (options.overdueOnly) query.set("overdue_only", "true");
+    if (options.hasOutstanding) query.set("has_outstanding", "true");
     return request(`/api/parties?${query}`);
   },
   party: (id) => request(`/api/parties/${id}`),

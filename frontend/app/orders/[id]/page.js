@@ -55,43 +55,65 @@ function OrderDetail() {
       </header>
 
       <div className="chips">
-        <span className="chip plain">{order.status}</span>
-        {order.dispatched && <span className="chip plain">dispatched</span>}
+        <span className={`badge-status ${order.status}`}>{order.status}</span>
         {order.pending_fields?.length > 0 && (
           <span className="chip">needs {order.pending_fields.join(", ")}</span>
         )}
       </div>
 
       <div className="card">
-        <h3>Items</h3>
         {order.lines.length === 0 ? (
           <p className="muted">No lines recorded.</p>
         ) : (
-          order.lines.map((line, i) => (
-            <div className="row" key={i}>
-              <div>
-                <div>{line.quality || "—"}</div>
-                <div className="muted">
-                  {line.quantity != null ? formatNumber(line.quantity) : "—"}
-                  {line.unit ? ` ${line.unit}` : ""}
-                  {line.rate != null ? ` @ ${money(line.rate)}` : ""}
-                </div>
-              </div>
-              <div style={{ fontWeight: 650 }}>
-                {line.quantity != null && line.rate != null
-                  ? money(line.quantity * line.rate)
-                  : "—"}
-              </div>
-            </div>
-          ))
-        )}
-        {order.value > 0 && (
-          <div className="row" style={{ borderTop: "2px solid var(--line)" }}>
-            <div style={{ fontWeight: 650 }}>Total</div>
-            <div style={{ fontWeight: 650 }}>{money(order.value)}</div>
-          </div>
+          <table className="items">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qty</th>
+                <th>Rate</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.lines.map((line, i) => (
+                <tr key={i}>
+                  <td>
+                    {line.quality || "—"}
+                    {line.unit ? <span className="muted"> ({line.unit})</span> : null}
+                  </td>
+                  <td>{line.quantity != null ? formatNumber(line.quantity) : "—"}</td>
+                  <td>{line.rate != null ? formatNumber(line.rate) : "—"}</td>
+                  <td>
+                    {line.quantity != null && line.rate != null
+                      ? formatNumber(line.quantity * line.rate)
+                      : "—"}
+                  </td>
+                </tr>
+              ))}
+              {order.value > 0 && (
+                <tr className="total">
+                  <td colSpan={3}>Total amount</td>
+                  <td>{money(order.value)}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         )}
       </div>
+
+      {order.timeline?.length > 0 && (
+        <div className="card">
+          <h3>Status</h3>
+          <div className="timeline">
+            {order.timeline.map((t, i) => (
+              <div className="step" key={i}>
+                <span className="when">{t.when}</span>
+                <span>{t.what}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {order.promised_date && (
         <p className="muted">Promised by {order.promised_date}.</p>
@@ -104,7 +126,7 @@ function OrderDetail() {
         <div className="know">
           <h3>Where this came from</h3>
           {order.conversation.map((m) => (
-            <div className={`msg-line${m.cited ? " cited" : ""}`} key={m.id}>
+            <div className={`bubble${m.cited ? " cited" : ""}`} key={m.id}>
               <span className="who">
                 {m.sender}
                 {m.occurred_at
@@ -114,9 +136,27 @@ function OrderDetail() {
               {m.body}
             </div>
           ))}
-          <p className="muted" style={{ marginTop: 10, marginBottom: 0 }}>
-            Highlighted lines are the ones this order was read from.
+          <p className="muted" style={{ marginTop: 12, marginBottom: 0 }}>
+            Outlined messages are the ones this order was read from.
           </p>
+        </div>
+      )}
+
+      {order.dispatch && (
+        <div className="card">
+          <h3>Dispatch details</h3>
+          {[
+            ["Challan no", order.dispatch.challan_no],
+            ["Transporter", order.dispatch.transporter],
+            ["LR number", order.dispatch.lr_no],
+          ]
+            .filter(([, v]) => v)
+            .map(([k, v]) => (
+              <div className="row" key={k}>
+                <div className="muted">{k}</div>
+                <div style={{ fontWeight: 600 }}>{v}</div>
+              </div>
+            ))}
         </div>
       )}
 

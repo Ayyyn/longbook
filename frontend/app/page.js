@@ -5,11 +5,6 @@ import Link from "next/link";
 import TokenGate from "./components/TokenGate";
 import { api, money, formatNumber } from "./lib/api";
 
-const LABELS = {
-  newly_overdue: "Newly overdue",
-  low_stock: "Low stock",
-};
-
 export default function TodayPage() {
   return (
     <TokenGate>
@@ -38,139 +33,131 @@ function Today() {
     load();
   }, [load]);
 
-  if (error) return <Banner message={error} onRetry={load} />;
+  if (error) {
+    return (
+      <>
+        <header className="bar">
+          <h1>Today</h1>
+        </header>
+        <div className="banner error">{error}</div>
+        <div className="actions">
+          <button onClick={load}>Try again</button>
+        </div>
+      </>
+    );
+  }
   if (!data) return <div className="empty">Loading…</div>;
+
+  const when = new Date(data.date).toLocaleDateString("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+  });
 
   return (
     <>
       <header className="bar">
-        <h1>{me?.business_name || "Today"}</h1>
+        <h1>Today</h1>
         <div className="sub">
-          {new Date(data.date).toLocaleDateString("en-IN", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-          })}
+          {when} · {me?.business_name}
         </div>
       </header>
 
-      <div className="stat-grid">
-        <div className="stat wide">
-          <div className="label">Money in today</div>
-          <div className="value">{money(data.money_in.today)}</div>
-          <div className="note">
-            {data.money_in.payments_today} payment
-            {data.money_in.payments_today === 1 ? "" : "s"} · {money(data.money_in.last_7_days)} this
-            week
-          </div>
-        </div>
-
-        <div className={`stat wide${data.overdue.total ? " pending" : ""}`}>
-          <div className="label">Overdue</div>
-          <div className="value">{money(data.overdue.total)}</div>
-          <div className="note">
-            {data.overdue.parties ? (
-              <Link href="/parties">
-                {data.overdue.parties}{" "}
-                {data.overdue.parties === 1 ? "party" : "parties"} past{" "}
-                {data.overdue.overdue_days} days · worst {data.overdue.worst_party} at{" "}
-                {data.overdue.worst_days}d
-              </Link>
-            ) : (
-              `nobody past ${data.overdue.overdue_days} days`
-            )}
-          </div>
-        </div>
-
-        <div className="stat">
-          <div className="label">New orders</div>
-          <div className="value">{formatNumber(data.orders.new_today)}</div>
-          <div className="note">{data.orders.new_last_7_days} this week</div>
-        </div>
-
-        <div className="stat">
-          <div className="label">Open orders</div>
-          <div className="value">{formatNumber(data.orders.open_total)}</div>
-          <div className="note">
-            <Link href="/orders">{data.orders.awaiting_confirmation} to confirm</Link>
-          </div>
-        </div>
-
-        <div className="stat">
-          <div className="label">Dispatched</div>
-          <div className="value">{formatNumber(data.dispatches_today)}</div>
-          <div className="note">today</div>
-        </div>
-
-        <div className={`stat${data.needs_review ? " pending" : ""}`}>
-          <div className="label">To review</div>
-          <div className="value">{formatNumber(data.needs_review)}</div>
-          <div className="note">
-            {data.needs_review ? <Link href="/review">Open the queue</Link> : "all clear"}
-          </div>
+      {/* Money in is the one number an owner opens the app for. */}
+      <div className="hero">
+        <div className="label">Received today</div>
+        <div className="value">{money(data.money_in.today)}</div>
+        <div className="note">
+          {data.money_in.payments_today} payment
+          {data.money_in.payments_today === 1 ? "" : "s"}
+          {data.money_in.last_7_days > data.money_in.today
+            ? ` · ${money(data.money_in.last_7_days)} this week`
+            : ""}
         </div>
       </div>
 
-      {data.exceptions.total > 0 && (
-        <div className="card">
-          <h3>Needs a look</h3>
-          {data.exceptions.headline && <p style={{ margin: "6px 0" }}>{data.exceptions.headline}</p>}
-          <div className="chips">
-            {data.exceptions.slowing_payers > 0 && (
-              <span className="chip">{data.exceptions.slowing_payers} paying slower</span>
-            )}
-            {data.exceptions.stalled_orders > 0 && (
-              <span className="chip">{data.exceptions.stalled_orders} orders overdue to send</span>
-            )}
-            {data.exceptions.rate_deviations > 0 && (
-              <span className="chip">{data.exceptions.rate_deviations} odd rates</span>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className="card">
-        <h3>Recent payments</h3>
-        {data.recent_payments.length === 0 ? (
-          <p className="muted">Nothing recorded yet.</p>
+      <Section title="Needs chasing" count={data.overdue.parties}>
+        {data.chasing.length === 0 ? (
+          <p className="section-empty">Nobody past {data.overdue.overdue_days} days.</p>
         ) : (
-          data.recent_payments.map((payment) => (
-            <div className="row" key={payment.id}>
+          data.chasing.map((p) => (
+            <Link key={p.party_id} href={`/parties/${p.party_id}`} className="section-row">
               <div>
-                <div>{payment.party_name || "Unknown party"}</div>
-                <div className="muted">
-                  {payment.mode || "—"}
-                  {payment.received_on ? ` · ${payment.received_on}` : ""}
-                </div>
+                <div className="rt">{p.party_name}</div>
+                <div className="rs warn">{p.days_overdue} days past due</div>
               </div>
-              <div style={{ fontWeight: 650 }}>
-                {payment.amount == null ? (
-                  <span className="pending-tag">amount?</span>
-                ) : (
-                  money(payment.amount)
-                )}
+              <div className="ra">
+                {money(p.outstanding)} <span className="chev">›</span>
               </div>
-            </div>
+            </Link>
           ))
         )}
-      </div>
+      </Section>
 
-      {data.unavailable.length > 0 && (
-        <div className="card">
-          <h3>Not computed yet</h3>
-          <div className="chips">
-            {data.unavailable.map((key) => (
-              <span className="chip plain" key={key}>
-                {LABELS[key] || key}
-              </span>
-            ))}
-          </div>
-          <p className="muted">
-            Shown as blank rather than zero on purpose — a zero would read as a
-            fact rather than a gap.
-          </p>
-        </div>
+      {data.flagged.length > 0 && (
+        <Section title="Flagged">
+          {data.flagged.map((f, i) => {
+            const href = f.order_id
+              ? `/orders/${f.order_id}`
+              : f.party_id
+                ? `/parties/${f.party_id}`
+                : null;
+            const body = (
+              <>
+                <div className="rt">{f.headline}</div>
+                <div className="rs">{f.party_name}</div>
+              </>
+            );
+            return href ? (
+              <Link key={i} href={href} className="section-row">
+                <div>{body}</div>
+                <div className="ra"><span className="chev">›</span></div>
+              </Link>
+            ) : (
+              <div key={i} className="section-row">
+                <div>{body}</div>
+              </div>
+            );
+          })}
+        </Section>
       )}
+
+      <Section title="New orders" count={data.orders.open_total}>
+        {data.new_orders.length === 0 ? (
+          <p className="section-empty">Nothing open.</p>
+        ) : (
+          data.new_orders.map((o) => (
+            <Link key={o.id} href={`/orders/${o.id}`} className="section-row">
+              <div>
+                <div className="rt">{o.party_name || "Unknown party"}</div>
+                <div className="rs">{o.summary}</div>
+              </div>
+              <div className="ra">
+                {o.pending_fields.length > 0 && (
+                  <span className="pending-tag">needs {o.pending_fields.length}</span>
+                )}
+                <span className="chev">›</span>
+              </div>
+            </Link>
+          ))
+        )}
+      </Section>
+
+      {data.needs_review > 0 && (
+        <Link href="/review" className="section-row cta">
+          <div>
+            <div className="rt">{formatNumber(data.needs_review)} waiting in Review</div>
+            <div className="rs">confirm what the agents were unsure about</div>
+          </div>
+          <div className="ra"><span className="chev">›</span></div>
+        </Link>
+      )}
+
+      {/* Running low needs the stock maths. Named rather than left out: an
+          absent section would read as "nothing is running low". */}
+      <Section title="Running low">
+        <p className="section-empty">Not computed yet — stock tracking is not built.</p>
+      </Section>
 
       <div className="actions">
         <button onClick={load}>Refresh</button>
@@ -179,16 +166,14 @@ function Today() {
   );
 }
 
-function Banner({ message, onRetry }) {
+function Section({ title, count, children }) {
   return (
-    <>
-      <header className="bar">
-        <h1>Today</h1>
-      </header>
-      <div className="banner error">{message}</div>
-      <div className="actions">
-        <button onClick={onRetry}>Try again</button>
-      </div>
-    </>
+    <section className="feed">
+      <h2>
+        {title}
+        {count ? <span className="count">{count}</span> : null}
+      </h2>
+      {children}
+    </section>
   );
 }

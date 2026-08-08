@@ -32,7 +32,7 @@ from sqlalchemy import func, select
 
 from app.models.catalog import Quality
 from app.models.finance import Invoice, Payment
-from app.models.ingestion import Extraction
+from app.models.ingestion import Extraction, Interaction
 from app.models.orders import Order, OrderLine
 from app.models.party import Party
 
@@ -272,7 +272,17 @@ def build_brief(db, tenant_id: uuid.UUID, party: Party, since: datetime | None =
         select(func.max(Order.order_date))
         .where(Order.tenant_id == tenant_id, Order.party_id == party.id)
     ).scalar_one()
+    last_seen = db.execute(
+        select(func.max(Interaction.occurred_at)).where(
+            Interaction.tenant_id == tenant_id,
+            Interaction.sender.isnot(None),
+        )
+    ).scalar_one()
+
     brief["totals"] = {
+        "days_since_contact": (
+            (date.today() - last_seen.date()).days if last_seen else None
+        ),
         "orders": totals,
         "last_order_on": last_order.isoformat() if last_order else None,
         "days_since_last_order": (date.today() - last_order).days if last_order else None,

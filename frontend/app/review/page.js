@@ -152,13 +152,13 @@ function Review() {
           {item.committed_type && <span className="chip plain">saved, needs one detail</span>}
         </div>
 
-        {/* What is already known and committed. */}
+        {/* What is already known and committed, as a plain table. */}
         {confirmed.length > 0 ? (
-          <dl className="confirmed">
+          <div className="record-table">
             {confirmed.map(([key, value]) => (
               <Field key={key} name={key} value={value} />
             ))}
-          </dl>
+          </div>
         ) : (
           <p className="muted">
             Nothing else was captured — read the conversation below before
@@ -208,30 +208,28 @@ function Review() {
         )}
 
         <div className="actions">
+          <button
+            disabled={busy}
+            onClick={() =>
+              items.length > 1
+                ? setIndex((i) => (i + 1) % items.length)
+                : act(() => api.accept(item.extraction_id))
+            }
+          >
+            Skip
+          </button>
           <button className="primary" disabled={busy} onClick={submit}>
-            {pending.length ? "Save" : "Accept"}
-          </button>
-          <button
-            disabled={busy}
-            onClick={() => act(() => api.accept(item.extraction_id))}
-          >
-            {pending.length ? "Leave blank" : "Looks right"}
+            Confirm
           </button>
         </div>
-        <div className="actions">
-          <button
-            className="danger"
-            disabled={busy}
-            onClick={() => act(() => api.reject(item.extraction_id, "Not a record"))}
-          >
-            Not a record
-          </button>
-          {items.length > 1 && (
-            <button disabled={busy} onClick={() => setIndex((i) => (i + 1) % items.length)}>
-              Later
-            </button>
-          )}
-        </div>
+        <button
+          className="link-button"
+          disabled={busy}
+          onClick={() => act(() => api.reject(item.extraction_id, "Not a record"))}
+        >
+          Not {"aeiou".includes((item.record_type || "")[0]) ? "an" : "a"}{" "}
+          {TYPE_LABELS[item.record_type]?.toLowerCase() || "record"}
+        </button>
 
         {/* Where this came from — collapsed, because the owner only opens it
             when the extracted fields look wrong. */}
@@ -281,10 +279,10 @@ function Field({ name, value }) {
     shown = String(value);
   }
   return (
-    <>
-      <dt>{FIELD_LABELS[name] || name}</dt>
-      <dd>{shown}</dd>
-    </>
+    <div className="line">
+      <span className="k">{FIELD_LABELS[name] || name}</span>
+      <span className="v">{shown}</span>
+    </div>
   );
 }
 

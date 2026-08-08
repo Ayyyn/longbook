@@ -105,13 +105,15 @@ function PartyDetail() {
             <div className="row" key={q.extraction_id || i}>
               <div>
                 <div>{q.quality || "—"}</div>
-                <div className="muted">
-                  {q.status || "discussed"}
-                  {q.when ? ` · ${q.when}` : ""}
-                </div>
+                <div className="muted">{q.when || "—"}</div>
               </div>
-              <div style={{ fontWeight: 650 }}>
-                {q.rate != null ? money(q.rate) : "—"}
+              <div className="ra" style={{ gap: 10 }}>
+                <span style={{ fontWeight: 650 }}>
+                  {q.rate != null ? money(q.rate) : "—"}
+                </span>
+                {q.status && (
+                  <span className={`badge-status ${q.status}`}>{q.status}</span>
+                )}
               </div>
             </div>
           ))}
@@ -234,6 +236,14 @@ function knowLines(brief, behaviour, band) {
   if (behaviour.unapplied_credit > 0) {
     lines.push(`${money(behaviour.unapplied_credit)} paid but not yet matched to a bill.`);
   }
+  const totals = brief.totals || {};
+  if (totals.days_since_contact != null) {
+    lines.push(
+      totals.days_since_contact === 0
+        ? "In touch today."
+        : `Last in touch ${totals.days_since_contact} days ago.`
+    );
+  }
   const complaints = brief.complaints || {};
   if (complaints.count) {
     const last = (complaints.recent || [])[0];
@@ -241,6 +251,8 @@ function knowLines(brief, behaviour, band) {
       `${complaints.count} complaint${complaints.count === 1 ? "" : "s"} on record` +
         (last?.what ? ` — most recently: ${last.what}` : ".")
     );
+  } else {
+    lines.push("No complaint history.");
   }
   return lines;
 }

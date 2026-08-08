@@ -23,6 +23,8 @@ class PartyRow(BaseModel):
     is_overdue: bool
     last_order_on: str | None = None
     orders: int = 0
+    # How the owner would describe them in one line.
+    summary: str = ""
 
 
 class PartySummary(BaseModel):
@@ -101,6 +103,9 @@ class OrderDetail(BaseModel):
     value: float = 0.0
     pending_fields: list[str] = Field(default_factory=list)
     dispatched: bool = False
+    # What happened to it, newest first.
+    timeline: list[dict[str, Any]] = Field(default_factory=list)
+    dispatch: dict[str, Any] | None = None
 
     # "Why does it say this?" — the conversation and the agent trail behind it.
     extraction_id: uuid.UUID | None = None

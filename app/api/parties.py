@@ -27,6 +27,33 @@ router = APIRouter()
 DEFAULT_OVERDUE_DAYS = 45
 
 
+def _summarise(brief: dict, position: dict) -> str:
+    """One line describing this party the way the owner would.
+
+    Prefers the fact that would change what they do next — an old bill first,
+    then how they pay, then what they buy — rather than restating the amount
+    already shown beside it.
+    """
+    behaviour = (brief or {}).get("payment_behaviour") or {}
+    days = position.get("days_overdue") or 0
+
+    if days > 0:
+        return f"Oldest bill {days} days past due"
+    if behaviour.get("avg_days_to_settle") is not None:
+        return f"Usually pays in {behaviour['avg_days_to_settle']:.0f} days"
+
+    buys = (brief or {}).get("buys") or []
+    if buys:
+        return f"Regular buyer of {buys[0]['quality']}"
+
+    last = ((brief or {}).get("totals") or {}).get("days_since_last_order")
+    if last is not None:
+        return f"Last order {last} days ago"
+    if not position.get("outstanding"):
+        return "No pending bills"
+    return "Within terms"
+
+
 def _overdue_days(profile) -> int:
     return int(((profile.rules if profile else {}) or {}).get(
         "overdue_days", DEFAULT_OVERDUE_DAYS))
@@ -40,6 +67,7 @@ def list_parties(
     profile: Profile,
     q: str | None = Query(None, description="name or phone"),
     overdue_only: bool = Query(False),
+    has_outstanding: bool = Query(False),
     limit: int = Query(100, ge=1, le=500),
 ) -> PartySummary:
     """Everyone, worst debt first — that is the order an owner scans in."""
@@ -59,6 +87,8 @@ def list_parties(
         position = positions.get(party.id, {})
         if overdue_only and not position.get("is_overdue"):
             continue
+        if has_outstanding and not position.get("outstanding"):
+            continue
         brief = (party.attributes or {}).get("brief") or {}
         rows.append(
             PartyRow(
@@ -73,6 +103,7 @@ def list_parties(
                 is_overdue=bool(position.get("is_overdue")),
                 last_order_on=(brief.get("totals") or {}).get("last_order_on"),
                 orders=(brief.get("totals") or {}).get("orders", 0),
+                summary=_summarise(brief, position),
             )
         )
 

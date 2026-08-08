@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import TokenGate from "../components/TokenGate";
-import { api, money, formatNumber } from "../lib/api";
+import { api, money } from "../lib/api";
 
 export default function PartiesPage() {
   return (
@@ -16,12 +16,18 @@ export default function PartiesPage() {
 function Parties() {
   const [data, setData] = useState(null);
   const [query, setQuery] = useState("");
-  const [overdueOnly, setOverdueOnly] = useState(false);
+  const [filter, setFilter] = useState("all");
   const [error, setError] = useState(null);
 
-  const load = useCallback(async (q, overdue) => {
+  const load = useCallback(async (q, which) => {
     try {
-      setData(await api.parties({ q, overdueOnly: overdue }));
+      setData(
+        await api.parties({
+          q,
+          overdueOnly: which === "overdue",
+          hasOutstanding: which === "outstanding",
+        })
+      );
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -31,9 +37,9 @@ function Parties() {
   useEffect(() => {
     // Debounced so typing a name does not fire a request per keystroke on a
     // market-grade connection.
-    const timer = setTimeout(() => load(query, overdueOnly), query ? 300 : 0);
+    const timer = setTimeout(() => load(query, filter), query ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [load, query, overdueOnly]);
+  }, [load, query, filter]);
 
   return (
     <>
@@ -58,18 +64,19 @@ function Parties() {
       />
 
       <div className="filters">
-        <button
-          className={!overdueOnly ? "primary" : ""}
-          onClick={() => setOverdueOnly(false)}
-        >
-          All
-        </button>
-        <button
-          className={overdueOnly ? "primary" : ""}
-          onClick={() => setOverdueOnly(true)}
-        >
-          Overdue{data ? ` (${data.parties.filter((p) => p.is_overdue).length})` : ""}
-        </button>
+        {[
+          { key: "all", label: "All" },
+          { key: "outstanding", label: "Has outstanding" },
+          { key: "overdue", label: "Overdue" },
+        ].map((f) => (
+          <button
+            key={f.key}
+            className={filter === f.key ? "primary" : ""}
+            onClick={() => setFilter(f.key)}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {!data ? (
@@ -89,15 +96,7 @@ function Parties() {
               <span className="name">{p.name}</span>
               <span className="amount">{p.outstanding ? money(p.outstanding) : "—"}</span>
             </div>
-            <div className="sub">
-              {p.is_overdue
-                ? `${p.days_overdue} days overdue`
-                : p.outstanding
-                  ? "within terms"
-                  : "nothing outstanding"}
-              {p.orders ? ` · ${formatNumber(p.orders)} orders` : ""}
-              {p.city ? ` · ${p.city}` : ""}
-            </div>
+            <div className="sub">{p.summary}</div>
           </Link>
         ))
       )}
