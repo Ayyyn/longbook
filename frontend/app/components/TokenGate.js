@@ -1,78 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getToken, setToken, clearToken } from "../lib/api";
+import { usePathname, useRouter } from "next/navigation";
+import { getToken } from "../lib/api";
 
-// Stands in for owner sign-in. The token is issued at onboarding and pasted in
-// once; Firebase OTP replaces this whole component later.
+// Guards every screen. There is no server session — the token in local storage
+// is the whole of sign-in — so this only has to answer "is there a token?" and
+// send them to /login if not. A 401 mid-session is handled in lib/api.js,
+// which clears the token and redirects from wherever the call was made.
 export default function TokenGate({ children }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [ready, setReady] = useState(false);
-  const [hasToken, setHasToken] = useState(false);
-  const [value, setValue] = useState("");
 
   useEffect(() => {
-    setHasToken(Boolean(getToken()));
-    setReady(true);
+    if (getToken()) {
+      setReady(true);
+      return;
+    }
+    const next = encodeURIComponent(pathname || "/");
+    router.replace(`/login?next=${next}`);
+  }, [router, pathname]);
 
-    const expired = () => setHasToken(false);
-    window.addEventListener("auth-expired", expired);
-    return () => window.removeEventListener("auth-expired", expired);
-  }, []);
+  // Nothing until we know: rendering children first would fire an API call
+  // with no token and bounce through a 401 to get to the same place.
+  if (!ready) return null;
 
-  if (!ready) return null; // avoids a flash of the sign-in card on every load
-
-  if (!hasToken) {
-    return (
-      <>
-        <header className="bar">
-          <h1>Textile Ops</h1>
-          <div className="sub">Sign in with your business token</div>
-        </header>
-        <div className="card">
-          <label htmlFor="token">Token</label>
-          <input
-            id="token"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder="tex_..."
-            autoComplete="off"
-            autoCapitalize="none"
-            spellCheck={false}
-          />
-          <div className="actions">
-            <button
-              className="primary"
-              disabled={!value.trim()}
-              onClick={() => {
-                setToken(value);
-                setHasToken(true);
-              }}
-            >
-              Continue
-            </button>
-          </div>
-          <p className="muted">
-            Given to you when your business was set up. It stays on this phone.
-          </p>
-        </div>
-      </>
-    );
-  }
-
-  return (
-    <>
-      {children}
-      <div className="actions">
-        <button
-          onClick={() => {
-            clearToken();
-            setHasToken(false);
-            setValue("");
-          }}
-        >
-          Sign out
-        </button>
-      </div>
-    </>
-  );
+  return children;
 }

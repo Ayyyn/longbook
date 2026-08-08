@@ -11,8 +11,13 @@ const TABS = [
   { href: "/activity", label: "Activity" },
 ];
 
+// Screens you reach without being signed in. The tab bar would be five dead
+// links there, and on a phone it would cover the sign-in button.
+const CHROMELESS = ["/login", "/onboarding"];
+
 export default function Tabs() {
   const pathname = usePathname();
+  if (CHROMELESS.some((p) => pathname.startsWith(p))) return null;
   return (
     <nav className="tabs">
       {TABS.map((tab) => {

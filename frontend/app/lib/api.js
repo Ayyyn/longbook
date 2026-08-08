@@ -5,6 +5,7 @@
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 const TOKEN_KEY = "textile-ops-token";
+const PHONE_KEY = "textile-ops-phone";
 
 export function getToken() {
   if (typeof window === "undefined") return null;
@@ -15,8 +16,27 @@ export function setToken(token) {
   window.localStorage.setItem(TOKEN_KEY, token.trim());
 }
 
+export function getPhone() {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(PHONE_KEY);
+}
+
+export function setPhone(phone) {
+  window.localStorage.setItem(PHONE_KEY, (phone || "").trim());
+}
+
 export function clearToken() {
   window.localStorage.removeItem(TOKEN_KEY);
+  window.localStorage.removeItem(PHONE_KEY);
+}
+
+// Phones get typed with spaces, dashes and a country code that comes and goes.
+// Compare on digits, and on the last ten of them — +91 98765 43210, 09876543210
+// and 9876543210 are one number.
+export function samePhone(a, b) {
+  const digits = (v) => (v || "").replace(/\D/g, "").slice(-10);
+  const left = digits(a);
+  return left.length === 10 && left === digits(b);
 }
 
 export class ApiError extends Error {
@@ -39,10 +59,15 @@ async function request(path, options = {}) {
 
   if (res.status === 401) {
     // The stored token is dead — a rotated token, or a database that was
-    // rebuilt under it. Drop it and send them back to sign-in rather than
-    // leaving every screen showing the same red banner forever.
+    // rebuilt under it. Drop it and send them to sign-in rather than leaving
+    // every screen showing the same red banner forever.
     clearToken();
-    window.dispatchEvent(new Event("auth-expired"));
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+      // Remember where they were so signing back in resumes the tap that
+      // failed, instead of dumping them on Today.
+      const next = window.location.pathname + window.location.search;
+      window.location.replace(`/login?next=${encodeURIComponent(next)}`);
+    }
   }
 
   if (!res.ok) {
