@@ -1,0 +1,17 @@
+.git
+.env
+.venv
+venv
+__pycache__
+**/__pycache__
+*.pyc
+var
+data
+frontend
+node_modules
+evals/runs
+evals/runs_real
+evals/real_run_v4
+evals/real_run_windows
+*.zip
+*.png

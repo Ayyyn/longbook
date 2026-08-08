@@ -174,14 +174,39 @@ from scripts.export_logs import export  # noqa: E402
 written = export(out, None, None)
 check("three files written", sorted(written), ["agent_daily.csv", "agent_runs.csv",
                                                "api_usage.csv"])
-check("a row per agent run", written["agent_runs.csv"], summary["runs"])
+# Unscoped means every tenant, so this only has to contain ours — a shared
+# dev database has other tenants' runs in it and that is not a failure.
+check("every agent run exported", written["agent_runs.csv"] >= summary["runs"], True)
+
+# Redaction must change columns, never rows: evidence that covers fewer runs
+# is not evidence. Same scope, same count, in both modes.
+red = export(out, TENANT, 30)
+with (out / "agent_runs.csv").open(encoding="utf-8") as handle:
+    red_rows = list(csv.DictReader(handle))
+check("redacted is the default", "rationale" in red_rows[0], False)
+check("  no business name in redacted", "business_name" in red_rows[0], False)
+check("  no error text in redacted", "error" in red_rows[0], False)
+check("  decision type survives redaction", "decision_type" in red_rows[0], True)
+check("  the measurable columns survive",
+      [c for c in ["created_at", "agent", "model", "confidence", "latency_ms",
+                   "input_tokens", "output_tokens", "cost_usd", "outcome",
+                   "human_override"] if c not in red_rows[0]], [])
+check("  no customer text anywhere in a redacted row",
+      any("Activity Mills" in ",".join(r.values()) for r in red_rows), False)
+
+# The content checks below run against the scoped export, so they assert on
+# this tenant's rows rather than whichever tenant happens to sort first.
+scoped = export(out, TENANT, 30, redacted=False)
+check("scoping to one tenant still works", scoped["agent_runs.csv"], summary["runs"])
+check("  redaction drops columns, not rows", red["agent_runs.csv"],
+      scoped["agent_runs.csv"])
 
 with (out / "agent_runs.csv").open(encoding="utf-8") as handle:
     rows = list(csv.DictReader(handle))
 required = ["trace_id", "model", "prompt_version", "confidence", "latency_ms",
             "input_tokens", "output_tokens", "cost_usd", "outcome", "human_override"]
 check("every observability column is present", [c for c in required if c not in rows[0]], [])
-check("business name resolved", rows[0]["business_name"], "Activity Mills")
+check("business name resolved", {r["business_name"] for r in rows}, {"Activity Mills"})
 check("overrides exported as booleans",
       {r["human_override"] for r in rows} <= {"true", "false"}, True)
 check("rationale has no newlines", all("\n" not in r["rationale"] for r in rows), True)
@@ -196,9 +221,6 @@ with (out / "agent_daily.csv").open(encoding="utf-8") as handle:
     daily = list(csv.DictReader(handle))
 check("daily rows per agent", {r["agent"] for r in daily},
       {"extractor", "resolver", "triage"})
-
-scoped = export(out, TENANT, 30)
-check("scoping to one tenant still works", scoped["agent_runs.csv"], summary["runs"])
 
 empty = export(out, uuid.uuid4(), 30)
 check("a tenant with no runs exports headers, not a crash", empty["agent_runs.csv"], 0)

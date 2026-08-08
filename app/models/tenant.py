@@ -7,7 +7,6 @@ Nothing downstream should hardcode textile assumptions — read the profile.
 """
 
 import uuid
-from datetime import datetime
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID

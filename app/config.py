@@ -59,6 +59,12 @@ class Settings(BaseSettings):
     digest_from: str = ""
     dashboard_url: str = "http://localhost:3000"
 
+    # Browser origins allowed to call the API. Comma separated. Empty means
+    # dashboard_url plus localhost, which is what a dev machine needs and
+    # what a single-frontend deployment needs. Never widen this to '*' once
+    # a real tenant's data is in the database.
+    cors_origins: str = ""
+
     # Cloud Scheduler hits the digest endpoint with this; it is not a tenant
     # token because the run is cross-tenant.
     scheduler_token: str = ""

@@ -30,12 +30,44 @@ from app.models.ingestion import Extraction
 from app.models.observability import AgentRun
 from app.models.tenant import Tenant
 
-RUN_COLUMNS = [
+# Two shapes, because these CSVs have two audiences. The redacted one goes to
+# competition judges and must carry no customer text: `rationale` and `error`
+# are model-written prose that quote party names, rates and amounts, and
+# `business_name` identifies the customer outright. What survives is the
+# measurable part — which agent decided what, how sure, how fast, at what cost.
+# `tenant_id` stays as an opaque grouping key so per-business behaviour is
+# still analysable without naming anyone.
+REDACTED_RUN_COLUMNS = [
+    "tenant_id", "run_id", "trace_id", "created_at",
+    "agent", "model", "prompt_version", "decision_type", "confidence", "outcome",
+    "latency_ms", "input_tokens", "output_tokens", "cost_usd",
+    "human_override", "reviewed_at", "input_hash",
+]
+
+FULL_RUN_COLUMNS = [
     "tenant_id", "business_name", "run_id", "trace_id", "created_at",
-    "agent", "model", "prompt_version", "confidence", "outcome",
+    "agent", "model", "prompt_version", "decision_type", "confidence", "outcome",
     "latency_ms", "input_tokens", "output_tokens", "cost_usd",
     "human_override", "reviewed_at", "rationale", "error", "input_hash",
 ]
+
+# Kept for callers that predate the redaction split.
+RUN_COLUMNS = FULL_RUN_COLUMNS
+
+
+def _decision_type(decision) -> str:
+    """The kind of thing decided, never the thing itself.
+
+    `decision` is the agent's structured output — it holds rates, quantities
+    and party names. Only the classification is safe to export.
+    """
+    if not isinstance(decision, dict):
+        return ""
+    for key in ("record_type", "type", "kind", "outcome"):
+        value = decision.get(key)
+        if isinstance(value, str):
+            return value
+    return ""
 
 
 def _rows_to_csv(path: Path, header: list[str], rows) -> int:
@@ -57,7 +89,17 @@ def _clean(value) -> str:
     return str(value).replace("\r", " ").replace("\n", " ").strip()
 
 
-def export(out_dir: Path, tenant_id: uuid.UUID | None, days: int | None) -> dict[str, int]:
+def export(
+    out_dir: Path,
+    tenant_id: uuid.UUID | None,
+    days: int | None,
+    redacted: bool = True,
+) -> dict[str, int]:
+    """Write the three evidence CSVs. Redacted by default — see the column lists.
+
+    Redaction changes which columns are written, never which rows: a redacted
+    export covers exactly the same agent runs as a full one.
+    """
     since = datetime.utcnow() - timedelta(days=days) if days else None
     written: dict[str, int] = {}
 
@@ -74,33 +116,36 @@ def export(out_dir: Path, tenant_id: uuid.UUID | None, days: int | None) -> dict
             select(AgentRun).where(*where).order_by(AgentRun.created_at.asc())
         ).scalars().all()
 
+        def run_row(run) -> list:
+            head = [_clean(run.tenant_id)]
+            if not redacted:
+                head.append(_clean(names.get(run.tenant_id)))
+            head += [
+                _clean(run.id),
+                _clean(run.trace_id),
+                _clean(run.created_at),
+                _clean(run.agent),
+                _clean(run.model),
+                _clean(run.prompt_version),
+                _clean(_decision_type(run.decision)),
+                _clean(run.confidence),
+                _clean(run.outcome),
+                _clean(run.latency_ms),
+                _clean(run.input_tokens),
+                _clean(run.output_tokens),
+                _clean(run.cost_usd),
+                "true" if run.human_override else "false",
+                _clean(run.reviewed_at),
+            ]
+            if not redacted:
+                head += [_clean(run.rationale)[:500], _clean(run.error)[:500]]
+            head.append(_clean(run.input_hash))
+            return head
+
         written["agent_runs.csv"] = _rows_to_csv(
             out_dir / "agent_runs.csv",
-            RUN_COLUMNS,
-            (
-                [
-                    _clean(run.tenant_id),
-                    _clean(names.get(run.tenant_id)),
-                    _clean(run.id),
-                    _clean(run.trace_id),
-                    _clean(run.created_at),
-                    _clean(run.agent),
-                    _clean(run.model),
-                    _clean(run.prompt_version),
-                    _clean(run.confidence),
-                    _clean(run.outcome),
-                    _clean(run.latency_ms),
-                    _clean(run.input_tokens),
-                    _clean(run.output_tokens),
-                    _clean(run.cost_usd),
-                    "true" if run.human_override else "false",
-                    _clean(run.reviewed_at),
-                    _clean(run.rationale)[:500],
-                    _clean(run.error)[:500],
-                    _clean(run.input_hash),
-                ]
-                for run in runs
-            ),
+            REDACTED_RUN_COLUMNS if redacted else FULL_RUN_COLUMNS,
+            (run_row(run) for run in runs),
         )
 
         day = func.date(AgentRun.created_at)
@@ -124,14 +169,20 @@ def export(out_dir: Path, tenant_id: uuid.UUID | None, days: int | None) -> dict
             .order_by(day, AgentRun.agent)
         ).all()
 
+        daily_columns = ["tenant_id", "day", "agent", "runs", "ok", "errors",
+                         "overrides", "override_rate", "avg_confidence",
+                         "avg_latency_ms", "input_tokens", "output_tokens", "cost_usd"]
+        if not redacted:
+            daily_columns.insert(1, "business_name")
+
         written["agent_daily.csv"] = _rows_to_csv(
             out_dir / "agent_daily.csv",
-            ["tenant_id", "business_name", "day", "agent", "runs", "ok", "errors",
-             "overrides", "override_rate", "avg_confidence", "avg_latency_ms",
-             "input_tokens", "output_tokens", "cost_usd"],
+            daily_columns,
             (
                 [
-                    _clean(tid), _clean(names.get(tid)), _clean(d), _clean(agent),
+                    _clean(tid),
+                    *([] if redacted else [_clean(names.get(tid))]),
+                    _clean(d), _clean(agent),
                     count, int(ok or 0), int(errors or 0), int(overrides or 0),
                     round(int(overrides or 0) / count, 4) if count else 0,
                     round(float(conf), 3) if conf is not None else "",
@@ -205,12 +256,20 @@ def main() -> int:
     parser.add_argument("--out", default="var/export", help="output directory")
     parser.add_argument("--tenant", help="limit to one tenant id")
     parser.add_argument("--days", type=int, help="limit to the last N days")
+    parser.add_argument(
+        "--full", action="store_true",
+        help="include customer-identifying columns (business name, rationale, "
+             "error text). Off by default: the redacted export is the one that "
+             "is safe to hand to judges.",
+    )
     args = parser.parse_args()
 
     tenant_id = uuid.UUID(args.tenant) if args.tenant else None
     out_dir = Path(args.out)
 
-    written = export(out_dir, tenant_id, args.days)
+    written = export(out_dir, tenant_id, args.days, redacted=not args.full)
+    mode = "FULL - contains customer data" if args.full else "redacted"
+    print(f"mode: {mode}")
     for name, count in written.items():
         print(f"{out_dir / name}: {count} rows")
 

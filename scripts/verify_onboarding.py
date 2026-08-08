@@ -275,8 +275,12 @@ check("  retail seed chosen", resp.json()["profile"]["modules"]["lots"], False)
 check("  retail overdue days", resp.json()["profile"]["rules"]["overdue_days"], 15)
 
 with admin_session() as db:
+    # Scoped to this run's tenant: admin_session sees every tenant, so an
+    # unscoped count grows by one each time this script is run against a
+    # database that is not freshly created.
     check("the failure was still logged as an agent run",
-          db.query(AgentRun).filter_by(agent="configurator", outcome="error").count(), 1)
+          db.query(AgentRun).filter_by(agent="configurator", outcome="error",
+                                       tenant_id=other["tenant_id"]).count(), 1)
 
 configurator_module.generate_json = fake_configurator
 

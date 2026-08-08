@@ -10,3 +10,8 @@ node_modules/
 .next/
 out/
 .claude/settings.local.json*
+
+# Real customer exports and the extraction records made from them. These carry
+# party names, rates and amounts, and the repo is shared with judges.
+data/
+evals/*/records.json

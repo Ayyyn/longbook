@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import settings
 from app.api import (
     agents,
     ingest,
@@ -17,9 +18,25 @@ from app.api import (
 
 app = FastAPI(title="Textile Ops", version="0.1.0")
 
+def _allowed_origins() -> list[str]:
+    """Who may call this from a browser.
+
+    The tenant token lives in the dashboard's local storage, so a permissive
+    origin list is how it would leak. One deployment serves one frontend;
+    anything else has to be named explicitly.
+    """
+    configured = settings().cors_origins
+    origins = (
+        [o.strip() for o in configured.split(",") if o.strip()]
+        if configured
+        else [settings().dashboard_url, "http://localhost:3000"]
+    )
+    return list(dict.fromkeys(origins))
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],          # tighten before any real customer data lands
+    allow_origins=_allowed_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -1,0 +1,14 @@
+# The dashboard's API base reaches the browser, so it cannot be a runtime env
+# var — it has to be compiled in. This config exists only to pass the deployed
+# API URL through as a build arg.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --build-arg=NEXT_PUBLIC_API_BASE=${_API}
+      - -t=${_IMAGE}
+      - .
+images:
+  - ${_IMAGE}
+options:
+  logging: CLOUD_LOGGING_ONLY
