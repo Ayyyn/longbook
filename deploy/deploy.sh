@@ -52,13 +52,20 @@ echo "==> Deploy API"
 # min-instances=1 because a cold start pays for the SQLAlchemy engine and the
 # Google SDK import on the owner's first tap of the morning, and this is a
 # phone app used in a market.
+#
+# --no-cpu-throttling is load-bearing, not a tuning knob. Ingest returns 202
+# immediately and runs the backfill as a background task; with Cloud Run's
+# default throttling the container gets essentially no CPU once the response
+# is sent, so the backfill stops partway through and never resumes. It looks
+# exactly like a hang: the job row stays open, no error is logged, and the
+# record count simply stops moving.
 gcloud run deploy textile-api \
   --image="${REPO}/api:${TAG}" \
   --region="$REGION" \
   --service-account="$SA" \
   --allow-unauthenticated \
   --min-instances=1 --max-instances=10 \
-  --cpu=1 --memory=1Gi --timeout=900 \
+  --cpu=1 --memory=1Gi --timeout=900 --no-cpu-throttling \
   --set-cloudsql-instances="$CONN" \
   --set-env-vars="ENV=prod,GCS_BUCKET=${BUCKET},BQ_DATASET=${BQ_DATASET},DATABASE_URL=${DB_URL},SMTP_PORT=587,SMTP_STARTTLS=true" \
   --set-secrets="GEMINI_API_KEY=gemini-api-key:latest,ADMIN_TOKEN=admin-token:latest,SCHEDULER_TOKEN=scheduler-token:latest,SMTP_HOST=smtp-host:latest,SMTP_USER=smtp-user:latest,SMTP_PASSWORD=smtp-password:latest,DIGEST_FROM=digest-from:latest"

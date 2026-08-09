@@ -12,6 +12,7 @@ export default function OnboardingPage() {
   const [form, setForm] = useState({
     business_name: "",
     owner_phone: "",
+    owner_email: "",
     owner_name: "",
     city: "",
   });
@@ -31,6 +32,7 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           business_name: form.business_name,
           owner_phone: form.owner_phone,
+          owner_email: form.owner_email || null,
           owner_name: form.owner_name || null,
           city: form.city || null,
         }),
@@ -114,7 +116,8 @@ export default function OnboardingPage() {
             style={{ width: "100%" }}
             onClick={() => {
               setCreated(null);
-              setForm({ business_name: "", owner_phone: "", owner_name: "", city: "" });
+              setForm({ business_name: "", owner_phone: "", owner_email: "",
+                        owner_name: "", city: "" });
               setCopied(false);
               setAcknowledged(false);
             }}
@@ -151,6 +154,7 @@ export default function OnboardingPage() {
         {[
           ["business_name", "Business name", "Ravi Fabrics"],
           ["owner_phone", "Owner phone", "98765 43210"],
+          ["owner_email", "Owner email (for the daily digest)", "owner@business.in"],
           ["owner_name", "Owner name (optional)", ""],
           ["city", "City (optional)", "Surat"],
         ].map(([key, label, placeholder]) => (

@@ -18,6 +18,10 @@ class TenantCreate(BaseModel):
     business_name: str
     owner_phone: str
     owner_name: str | None = None
+    # Where the close-of-business digest goes. The column has always been
+    # here; without capturing it at creation the digest composes every
+    # evening and silently has nowhere to send.
+    owner_email: str | None = None
     city: str | None = None
     locale: str = Field(default="en", description="en | hi | gu | mr")
 

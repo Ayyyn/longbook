@@ -1,0 +1,12 @@
+# `gcloud builds submit` reads this, not .dockerignore — without it the whole
+# of node_modules and .next gets uploaded as build context (650 MiB, and it
+# fails outright on Windows if a dev server holds any of those files open).
+# The image builds from package.json + package-lock.json via `npm ci`, so
+# none of this needs to travel.
+.gcloudignore
+.git
+.gitignore
+node_modules
+.next
+.env*
+npm-debug.log*

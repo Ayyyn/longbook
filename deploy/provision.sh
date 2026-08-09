@@ -50,9 +50,15 @@ echo "==> Cloud SQL"
 # db-g1-small (1.7GB) rather than the smaller db-f1-micro: 0.6GB is below
 # what Postgres 16 wants when a backfill runs while the dashboard is in
 # use, and an OOM mid-backfill is expensive to diagnose.
+#
+# --edition=ENTERPRISE is not optional. New projects default to
+# ENTERPRISE_PLUS, which rejects every shared-core tier and only accepts
+# db-perf-optimized-N-*, whose floor costs several times what this workload
+# needs. Without this flag the create call fails outright.
 gcloud sql instances describe "$INSTANCE" >/dev/null 2>&1 || \
   gcloud sql instances create "$INSTANCE" \
-    --database-version=POSTGRES_16 --tier=db-g1-small --region="$REGION" \
+    --database-version=POSTGRES_16 --edition=ENTERPRISE --tier=db-g1-small \
+    --region="$REGION" \
     --storage-auto-increase --backup --backup-start-time=19:00
 
 gcloud sql databases describe "$DB_NAME" --instance="$INSTANCE" >/dev/null 2>&1 || \

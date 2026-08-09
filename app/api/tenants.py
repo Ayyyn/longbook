@@ -83,6 +83,7 @@ def create_tenant(payload: TenantCreate) -> TenantCreated:
             business_name=payload.business_name,
             owner_name=payload.owner_name,
             owner_phone=payload.owner_phone,
+            owner_email=payload.owner_email,
             city=payload.city,
             locale=payload.locale,
         )
