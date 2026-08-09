@@ -1,6 +1,9 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+
+import { api } from "../lib/api";
 
 // Empty screens are the first thing a new owner sees, and "No data" tells them
 // nothing they did not already know. Every empty state here answers the same
@@ -41,6 +44,12 @@ export function SetupIncomplete() {
 // Shown while the backfill is working. It reports what has actually landed
 // rather than a spinner: an owner who just handed over six years of history
 // wants to watch it arrive.
+// How long progress may sit still before we stop calling it "reading". The
+// backfill is paced to ~10 model calls a minute, so a genuinely healthy run
+// moves well inside this; longer than this means the container that was doing
+// the work is gone.
+const STALL_MS = 120_000;
+
 export function BackfillProgress({ job }) {
   // Messages, not conversation windows. windows_* come from a per-process
   // registry, and Cloud Run answers this poll from whichever instance is free
@@ -51,6 +60,59 @@ export function BackfillProgress({ job }) {
   const done = job.processed || 0;
   const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
   const written = (job.committed || 0) + (job.needs_review || 0);
+
+  // Watch the count rather than the clock: the parent re-polls every few
+  // seconds, so a `processed` that never changes is the only reliable signal
+  // that the work has stopped.
+  const seen = useRef({ done, at: Date.now() });
+  const [stalled, setStalled] = useState(false);
+  const [resuming, setResuming] = useState(false);
+
+  useEffect(() => {
+    if (done !== seen.current.done) {
+      seen.current = { done, at: Date.now() };
+      setStalled(false);
+      return undefined;
+    }
+    const timer = setTimeout(
+      () => setStalled(Date.now() - seen.current.at >= STALL_MS),
+      STALL_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [done, job]);
+
+  if (stalled) {
+    return (
+      <div className="empty-state working">
+        <h3>Reading paused</h3>
+        <div className="progress-track">
+          <div className="progress-fill" style={{ width: `${pct}%` }} />
+        </div>
+        <div className="why">
+          {done} of {total} messages read
+          {written > 0 ? ` · ${written} records found so far` : ""}. Reading
+          stopped before it finished — nothing has been lost, and picking it up
+          again only costs the messages still left.
+        </div>
+        <button
+          className="primary"
+          disabled={resuming}
+          onClick={async () => {
+            setResuming(true);
+            try {
+              await api.resumeBackfill();
+              seen.current = { done, at: Date.now() };
+              setStalled(false);
+            } finally {
+              setResuming(false);
+            }
+          }}
+        >
+          {resuming ? "Starting…" : "Carry on reading"}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="empty-state working">

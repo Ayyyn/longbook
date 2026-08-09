@@ -73,6 +73,39 @@ def ingest_upload(
     )
 
 
+@router.post("/resume", response_model=JobStatus | None, status_code=202)
+def resume_backfill(
+    background: BackgroundTasks, tid: TenantId, db: TenantDB, profile: Profile
+) -> JobStatus | None:
+    """Pick a stalled backfill back up.
+
+    The backfill is a background task inside the API process, so anything that
+    replaces the container — a deploy, an instance recycle, a crash — kills it
+    mid-run with no error anywhere. What is left is a job that has processed
+    some of its messages and will never process the rest, which the dashboard
+    can only render as a progress bar frozen forever.
+
+    Re-running is safe and cheap: extraction is keyed on a window's content
+    hash, so windows already done are skipped and only the unfinished ones cost
+    a model call. Reusing the original job id keeps the owner's progress count
+    continuous rather than restarting it at zero.
+    """
+    job_id = db.execute(
+        select(Interaction.attributes["job_id"].astext)
+        .where(
+            Interaction.tenant_id == tid,
+            Interaction.attributes["job_id"].astext.isnot(None),
+        )
+        .order_by(Interaction.created_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if not job_id:
+        raise HTTPException(404, "Nothing has been uploaded for this tenant yet.")
+
+    background.add_task(run_backfill, tid, uuid.UUID(job_id))
+    return JobStatus(**job_status(db, tid, uuid.UUID(job_id)))
+
+
 @router.get("/jobs/latest", response_model=JobStatus | None)
 def latest_job(tid: TenantId, db: TenantDB) -> JobStatus | None:
     """The most recent backfill for this tenant, or null if there has never been one.
