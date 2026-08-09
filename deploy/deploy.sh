@@ -98,10 +98,15 @@ echo "==> Digest schedule"
 # 19:00 IST — after the market closes, before the owner sits down with the
 # day's book. Cross-tenant, so it authenticates with the scheduler token.
 SCHED_TOKEN="$(gcloud secrets versions access latest --secret=scheduler-token)"
+# `create` and `update` disagree on the header flag: create takes --headers,
+# update takes --update-headers and errors out on the other. Getting this
+# wrong only shows up on the second deploy, which is the worst time to find it.
 if gcloud scheduler jobs describe textile-digest --location="$REGION" >/dev/null 2>&1; then
   VERB=update
+  HEADER_FLAG=--update-headers
 else
   VERB=create
+  HEADER_FLAG=--headers
 fi
 gcloud scheduler jobs $VERB http textile-digest \
   --location="$REGION" \
@@ -109,7 +114,7 @@ gcloud scheduler jobs $VERB http textile-digest \
   --time-zone="Asia/Kolkata" \
   --uri="${API_URL}/api/jobs/digest" \
   --http-method=POST \
-  --headers="X-Scheduler-Token=${SCHED_TOKEN}" \
+  "$HEADER_FLAG=X-Scheduler-Token=${SCHED_TOKEN}" \
   --attempt-deadline=900s
 
 echo
