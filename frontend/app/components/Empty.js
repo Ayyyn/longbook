@@ -42,8 +42,13 @@ export function SetupIncomplete() {
 // rather than a spinner: an owner who just handed over six years of history
 // wants to watch it arrive.
 export function BackfillProgress({ job }) {
-  const total = job.windows_total || 0;
-  const done = job.windows_done || 0;
+  // Messages, not conversation windows. windows_* come from a per-process
+  // registry, and Cloud Run answers this poll from whichever instance is free
+  // — usually not the one running the backfill — so they arrive as zero and
+  // the bar would sit empty while the count underneath climbed. processed and
+  // total are counted from the database and are the same on every instance.
+  const total = job.total || 0;
+  const done = job.processed || 0;
   const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
   const written = (job.committed || 0) + (job.needs_review || 0);
 
@@ -54,9 +59,7 @@ export function BackfillProgress({ job }) {
         <div className="progress-fill" style={{ width: `${pct}%` }} />
       </div>
       <div className="why">
-        {total
-          ? `${done} of ${total} conversations read`
-          : `${job.processed || 0} of ${job.total || 0} messages read`}
+        {`${done} of ${total} messages read`}
         {written > 0 ? ` · ${written} records found so far` : ""}
       </div>
       <p className="muted" style={{ marginBottom: 0 }}>
