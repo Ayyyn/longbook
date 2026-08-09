@@ -20,7 +20,8 @@ from sqlalchemy import select
 from app.api.deps import Profile, TenantDB, TenantId
 from app.models.ingestion import Interaction
 from app.schemas.ingest import IngestAccepted, JobStatus
-from app.services.backfill import job_status, run_backfill
+from app.services.backfill import job_status
+from app.services.dispatch import dispatch_backfill
 from app.services.intake import IntakeError, interactions_from_upload
 
 router = APIRouter()
@@ -59,7 +60,7 @@ def ingest_upload(
     # Commit before queueing: the background task opens its own session and
     # must not race the request's transaction.
     db.commit()
-    background.add_task(run_backfill, tid, job_id)
+    dispatch_backfill(tid, job_id, background)
 
     return IngestAccepted(
         job_id=job_id,
@@ -102,7 +103,7 @@ def resume_backfill(
     if not job_id:
         raise HTTPException(404, "Nothing has been uploaded for this tenant yet.")
 
-    background.add_task(run_backfill, tid, uuid.UUID(job_id))
+    dispatch_backfill(tid, uuid.UUID(job_id), background)
     return JobStatus(**job_status(db, tid, uuid.UUID(job_id)))
 
 

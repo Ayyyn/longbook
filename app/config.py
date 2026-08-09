@@ -29,6 +29,21 @@ class Settings(BaseSettings):
     window_max_messages: int = 40
     window_max_chars: int = 6000
 
+    # Where the backfill actually runs.
+    #
+    # "inline" keeps it in the API process as a FastAPI background task,
+    # which is right for a dev machine and for the verify_*.py scripts.
+    # It is wrong for Cloud Run: a deploy, a crash or an instance recycle
+    # replaces the container and the backfill dies mid-run with nothing
+    # logged, halfway through a new customer's first ten minutes.
+    #
+    # "cloudrun" executes the textile-backfill Cloud Run job instead, which
+    # has its own lifecycle and outlives anything that happens to the API.
+    backfill_mode: str = "inline"          # inline | cloudrun
+    backfill_job_name: str = "textile-backfill"
+    gcp_project: str = ""
+    gcp_region: str = "asia-south1"
+
     # Concurrent windows during a backfill. Higher than the RPM allows
     # simply queues on the pacer, so this is about hiding network latency,
     # not about outrunning the quota.
@@ -40,9 +55,25 @@ class Settings(BaseSettings):
     # fine for the launch cohort; on Cloud Run it is per-instance and ephemeral.
     upload_dir: str = "var/uploads"
 
-    # Gates tenant creation. Required outside dev — without it, anyone who can
-    # reach the service can mint a tenant and its token.
+    # Gates tenant creation by an operator. Required outside dev — without
+    # it, anyone who can reach the service can mint a tenant and its token.
     admin_token: str = ""
+
+    # Gates self-serve signup. An owner signing themselves up cannot be asked
+    # for the admin token — that token mints tenants for every business, so
+    # handing it to a customer would be handing over the whole system. But
+    # signup cannot be open either: an unauthenticated endpoint that creates
+    # a tenant and returns a working token is an open door.
+    #
+    # So signup takes a shared invite code, given to a prospect along with
+    # the link. It is rotatable, carries no privileges beyond creating one
+    # business, and is worthless without also completing onboarding. Empty
+    # means self-serve signup is closed.
+    signup_code: str = ""
+
+    # A crude ceiling on how many businesses one code can create per hour.
+    # A leaked code should cost a cleanup, not a bill.
+    signup_max_per_hour: int = 10
 
     auto_commit_floor: float = 0.85
     default_overdue_days: int = 45

@@ -48,6 +48,28 @@ gcloud run jobs $CMD textile-migrate \
 
 gcloud run jobs execute textile-migrate --region="$REGION" --wait
 
+echo "==> Backfill job"
+# The backfill lives here rather than in the API process. A Cloud Run service
+# container is replaced on every deploy and whenever the platform feels like
+# it; a job execution is not, so a ten-minute backfill survives a deploy that
+# lands in the middle of it. Retries are safe because extraction is keyed on
+# each window's content hash — a finished window costs no model call.
+if gcloud run jobs describe textile-backfill --region="$REGION" >/dev/null 2>&1; then
+  BF=update
+else
+  BF=create
+fi
+gcloud run jobs $BF textile-backfill \
+  --image="${REPO}/api:${TAG}" \
+  --region="$REGION" \
+  --service-account="$SA" \
+  --set-cloudsql-instances="$CONN" \
+  --set-env-vars="ENV=prod,GCS_BUCKET=${BUCKET},BQ_DATASET=${BQ_DATASET},DATABASE_URL=${DB_URL}" \
+  --set-secrets="GEMINI_API_KEY=gemini-api-key:latest" \
+  --command=python --args=-m,scripts.backfill_job \
+  --cpu=1 --memory=1Gi \
+  --max-retries=2 --task-timeout=3600s
+
 echo "==> Deploy API"
 # min-instances=1 because a cold start pays for the SQLAlchemy engine and the
 # Google SDK import on the owner's first tap of the morning, and this is a
@@ -67,8 +89,8 @@ gcloud run deploy textile-api \
   --min-instances=1 --max-instances=10 \
   --cpu=1 --memory=1Gi --timeout=900 --no-cpu-throttling \
   --set-cloudsql-instances="$CONN" \
-  --set-env-vars="ENV=prod,GCS_BUCKET=${BUCKET},BQ_DATASET=${BQ_DATASET},DATABASE_URL=${DB_URL},SMTP_PORT=587,SMTP_STARTTLS=true" \
-  --set-secrets="GEMINI_API_KEY=gemini-api-key:latest,ADMIN_TOKEN=admin-token:latest,SCHEDULER_TOKEN=scheduler-token:latest,SMTP_HOST=smtp-host:latest,SMTP_USER=smtp-user:latest,SMTP_PASSWORD=smtp-password:latest,DIGEST_FROM=digest-from:latest"
+  --set-env-vars="ENV=prod,GCS_BUCKET=${BUCKET},BQ_DATASET=${BQ_DATASET},DATABASE_URL=${DB_URL},SMTP_PORT=587,SMTP_STARTTLS=true,BACKFILL_MODE=cloudrun,GCP_PROJECT=${PROJECT},GCP_REGION=${REGION}" \
+  --set-secrets="GEMINI_API_KEY=gemini-api-key:latest,ADMIN_TOKEN=admin-token:latest,SCHEDULER_TOKEN=scheduler-token:latest,SMTP_HOST=smtp-host:latest,SMTP_USER=smtp-user:latest,SMTP_PASSWORD=smtp-password:latest,DIGEST_FROM=digest-from:latest,SIGNUP_CODE=signup-code:latest"
 
 API_URL="$(gcloud run services describe textile-api --region="$REGION" --format='value(status.url)')"
 echo "    API at $API_URL"

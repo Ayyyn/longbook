@@ -40,8 +40,13 @@ echo "==> Service account"
 gcloud iam service-accounts describe "$SA" >/dev/null 2>&1 || \
   gcloud iam service-accounts create textile-ops --display-name="Textile Ops runtime"
 
+# run.developer lets the API launch the backfill job; iam.serviceAccountUser
+# lets it pass this same identity to that execution. Without both, the API
+# quietly falls back to running backfills in its own process — which is the
+# fragility the job exists to remove.
 for role in roles/cloudsql.client roles/secretmanager.secretAccessor \
-            roles/storage.objectAdmin roles/bigquery.dataEditor; do
+            roles/storage.objectAdmin roles/bigquery.dataEditor \
+            roles/run.developer roles/iam.serviceAccountUser; do
   gcloud projects add-iam-policy-binding "$PROJECT" \
     --member="serviceAccount:${SA}" --role="$role" --condition=None >/dev/null
 done
@@ -88,7 +93,7 @@ echo "==> Secrets"
 # SMTP credentials are secrets like any other: the digest is the only thing
 # that leaves the system, and it authenticates as the owner's own mail user.
 for name in gemini-api-key admin-token scheduler-token \
-            smtp-host smtp-user smtp-password digest-from; do
+            smtp-host smtp-user smtp-password digest-from signup-code; do
   gcloud secrets describe "$name" >/dev/null 2>&1 || \
     gcloud secrets create "$name" --replication-policy=automatic
 done

@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { api, setToken, setPhone, clearToken, samePhone } from "../lib/api";
 
 export default function LoginPage() {
@@ -97,6 +98,20 @@ function Login() {
           Both were given to you when your business was set up. They stay on
           this phone — nothing is sent anywhere else.
         </p>
+      </div>
+
+      {/* Without this, someone who has never been set up lands on a form
+          demanding a token they have no way to get, and there the journey
+          ends. */}
+      <div className="empty-state">
+        <h3>New here?</h3>
+        <div className="why">
+          Textile Ops reads your WhatsApp chats and keeps the orders, payments
+          and outstandings for you — no typing, no new app for your customers.
+        </div>
+        <Link href="/signup" className="button-link">
+          <button className="primary">Set up my business</button>
+        </Link>
       </div>
     </>
   );

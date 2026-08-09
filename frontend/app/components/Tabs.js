@@ -13,7 +13,7 @@ const TABS = [
 
 // Screens you reach without being signed in. The tab bar would be five dead
 // links there, and on a phone it would cover the sign-in button.
-const CHROMELESS = ["/login", "/onboarding"];
+const CHROMELESS = ["/login", "/signup", "/onboarding"];
 
 export default function Tabs() {
   const pathname = usePathname();

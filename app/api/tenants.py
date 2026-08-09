@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import secrets
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Header, HTTPException, UploadFile
@@ -40,7 +40,7 @@ from app.schemas.tenants import (
     TenantMe,
 )
 from app.services.auth import issue_token
-from app.services.backfill import run_backfill
+from app.services.dispatch import dispatch_backfill
 from app.services.intake import IntakeError, interactions_from_upload
 from app.services.onboarding import build_profile
 from app.services.party_import import (
@@ -72,6 +72,42 @@ def require_admin(x_admin_token: Annotated[str | None, Header()] = None) -> None
              dependencies=[Depends(require_admin)])
 def create_tenant(payload: TenantCreate) -> TenantCreated:
     """Create the business and mint its token. The token is shown once."""
+    return _create(payload)
+
+
+def require_signup_code(x_signup_code: Annotated[str | None, Header()] = None) -> None:
+    """Gate self-serve signup on a shared invite code.
+
+    Deliberately not the admin token: that one mints tenants for every
+    business, so a customer must never hold it. This code creates exactly one
+    business and nothing else, and is rotated by changing one secret.
+
+    Unset means self-serve signup is closed, which is the safe default — an
+    open endpoint that returns a working token is an open door.
+    """
+    expected = settings().signup_code
+    if not expected:
+        raise HTTPException(503, "Self-serve signup is not open on this deployment.")
+    if not x_signup_code or not secrets.compare_digest(x_signup_code, expected):
+        raise HTTPException(401, "That signup code is not valid.")
+
+
+@router.post("/signup", response_model=TenantCreated, status_code=201,
+             dependencies=[Depends(require_signup_code)])
+def signup(payload: TenantCreate) -> TenantCreated:
+    """Owner-facing tenant creation. Same result as /api/tenants, different gate."""
+    with admin_session() as db:
+        since = datetime.utcnow() - timedelta(hours=1)
+        recent = db.execute(
+            select(func.count()).select_from(Tenant).where(Tenant.created_at >= since)
+        ).scalar_one()
+    if recent >= settings().signup_max_per_hour:
+        # A leaked code should cost a cleanup, not a bill.
+        raise HTTPException(429, "Too many businesses created just now. Try again shortly.")
+    return _create(payload)
+
+
+def _create(payload: TenantCreate) -> TenantCreated:
     with admin_session() as db:
         existing = db.execute(
             select(Tenant.id).where(Tenant.owner_phone == payload.owner_phone)
@@ -249,7 +285,7 @@ def configure(
     # here watching, so this returns immediately and the screen follows the
     # job — records land as windows finish rather than all at the end.
     backfill_job = uuid.uuid4()
-    background.add_task(run_backfill, tid, backfill_job)
+    dispatch_backfill(tid, backfill_job, background)
 
     return ConfigureResult(
         tenant_id=tid,
