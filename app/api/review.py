@@ -64,7 +64,27 @@ def _conversation(db, extraction: Extraction) -> list[SourceMessage]:
     ]
 
 
+def _candidates(raw, db) -> list[dict]:
+    """Normalise the Resolver's ambiguous-party shortlist.
+
+    The Resolver used to store bare uuid strings here. Rows written before
+    that changed are still in the database and still in the queue, and a
+    schema mismatch must not take the whole review screen down with a 500 —
+    so old rows get their names looked up rather than rejected.
+    """
+    out: list[dict] = []
+    for item in raw or []:
+        if isinstance(item, dict):
+            out.append(item)
+            continue
+        party = db.get(Party, uuid.UUID(str(item))) if item else None
+        if party:
+            out.append({"id": str(party.id), "name": party.name, "score": None})
+    return out
+
+
 def _to_item(
+    db,
     extraction: Extraction,
     interaction: Interaction | None,
     party: Party | None,
@@ -94,7 +114,7 @@ def _to_item(
         committed_id=extraction.committed_id,
         party_id=party.id if party else None,
         party_name=party.name if party else None,
-        party_candidates=resolved.get("candidates", []),
+        party_candidates=_candidates(resolved.get("candidates", []), db),
         suggest_create=resolved.get("suggest_create"),
         message=flattened or (interaction.body if interaction else None),
         conversation=conversation,
@@ -174,7 +194,7 @@ def list_queue(
     for extraction, interaction in rows:
         pid = (extraction.resolved or {}).get("party_id")
         party = parties.get(uuid.UUID(str(pid))) if pid else None
-        items.append(_to_item(extraction, interaction, party, _conversation(db, extraction)))
+        items.append(_to_item(db, extraction, interaction, party, _conversation(db, extraction)))
 
     return QueuePage(items=items, total=total, limit=limit, offset=offset)
 
@@ -187,7 +207,7 @@ def get_item(extraction_id: uuid.UUID, tid: TenantId, db: TenantDB) -> QueueItem
     )
     pid = (extraction.resolved or {}).get("party_id")
     party = db.get(Party, uuid.UUID(str(pid))) if pid else None
-    return _to_item(extraction, interaction, party, _conversation(db, extraction))
+    return _to_item(db, extraction, interaction, party, _conversation(db, extraction))
 
 
 @router.post("/{extraction_id}/accept", response_model=ReviewResult)

@@ -80,7 +80,16 @@ class Resolver(Agent):
             )
 
         return Decision(
-            output={"candidates": [str(c.id) for c in candidates], "method": "ambiguous"},
+            # Name and score travel with the id: the review screen has to ask
+            # the owner which party this is, and a bare uuid is not a question
+            # anyone can answer.
+            output={
+                "candidates": [
+                    {"id": str(c.id), "name": c.name, "score": round(float(c.score), 3)}
+                    for c in candidates
+                ],
+                "method": "ambiguous",
+            },
             confidence=0.5,
             rationale=f"{len(candidates)} parties could match '{raw_name}'.",
             escalate=True,

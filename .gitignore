@@ -15,3 +15,4 @@ out/
 # party names, rates and amounts, and the repo is shared with judges.
 data/
 evals/*/records.json
+frontend/node_modules
