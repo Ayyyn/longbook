@@ -85,6 +85,8 @@ async function request(path, options = {}) {
 
 export const api = {
   today: () => request("/api/today"),
+  // null when this tenant has never uploaded anything.
+  latestJob: () => request("/api/ingest/jobs/latest"),
   me: () => request("/api/tenants/me"),
   queue: (limit = 25) => request(`/api/review/queue?limit=${limit}`),
   accept: (id) => request(`/api/review/${id}/accept`, { method: "POST" }),

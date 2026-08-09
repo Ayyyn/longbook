@@ -295,6 +295,7 @@ def me(tid: TenantId, db: TenantDB) -> TenantMe:
         business_name=tenant.business_name,
         owner_name=tenant.owner_name,
         owner_phone=tenant.owner_phone,
+        owner_email=tenant.owner_email,
         city=tenant.city,
         locale=tenant.locale or "en",
         onboarded_at=tenant.onboarded_at,

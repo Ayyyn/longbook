@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import TokenGate from "./components/TokenGate";
 import { api, money, formatNumber, getPhone, clearToken } from "./lib/api";
+import Empty, { SetupIncomplete, BackfillProgress } from "./components/Empty";
 
 export default function TodayPage() {
   return (
@@ -16,24 +17,58 @@ export default function TodayPage() {
 function Today() {
   const [data, setData] = useState(null);
   const [me, setMe] = useState(null);
+  const [job, setJob] = useState(null);
+  const [status, setStatus] = useState("loading"); // loading|ready|setup|error
   const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
+    // The job is asked for separately and never allowed to fail the screen:
+    // during setup /api/today answers 409, and the backfill is exactly what
+    // the owner needs to see at that moment.
+    const running = await api.latestJob().catch(() => null);
+    setJob(running);
     try {
       const [digest, profile] = await Promise.all([api.today(), api.me()]);
       setData(digest);
       setMe(profile);
+      setStatus("ready");
       setError(null);
     } catch (err) {
+      // 409 is "onboarding has not finished", not a failure. It is the normal
+      // state of a business created five minutes ago.
+      setStatus(err.status === 409 ? "setup" : "error");
       setError(err.message);
     }
+    return running;
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  if (error) {
+  // While a backfill is running, re-poll so records appear as they land
+  // instead of the owner staring at a screen that looks broken.
+  useEffect(() => {
+    if (!job || job.state === "done" || job.state === "failed") return undefined;
+    const timer = setTimeout(load, 5000);
+    return () => clearTimeout(timer);
+  }, [job, load]);
+
+  const working = job && job.state !== "done" && job.state !== "failed";
+
+  if (status === "setup") {
+    return (
+      <>
+        <header className="bar">
+          <h1>Today</h1>
+        </header>
+        {working ? <BackfillProgress job={job} /> : <SetupIncomplete />}
+        <SignOut />
+      </>
+    );
+  }
+
+  if (status === "error") {
     return (
       <>
         <header className="bar">
@@ -52,6 +87,15 @@ function Today() {
   }
   if (!data) return <div className="empty">Loading…</div>;
 
+  // Everything an owner could act on is empty. Worth saying out loud rather
+  // than showing four "nothing here" lines and a zero.
+  const nothingYet =
+    data.chasing.length === 0 &&
+    data.new_orders.length === 0 &&
+    data.flagged.length === 0 &&
+    data.needs_review === 0 &&
+    data.money_in.today === 0;
+
   const when = new Date(data.date).toLocaleDateString("en-IN", {
     weekday: "long",
     day: "numeric",
@@ -66,6 +110,10 @@ function Today() {
           {when} · {me?.business_name}
         </div>
       </header>
+
+      {/* While the backfill runs, say so before showing zeroes — otherwise a
+          half-read history is indistinguishable from a dead one. */}
+      {working && <BackfillProgress job={job} />}
 
       {/* Money in is the one number an owner opens the app for. */}
       <div className="hero">
@@ -155,6 +203,14 @@ function Today() {
           </div>
           <div className="ra"><span className="chev">›</span></div>
         </Link>
+      )}
+
+      {nothingYet && !working && (
+        <Empty title="Nothing has come through yet">
+          Your history has been read, but no orders, payments or dispatches
+          were found in it. New WhatsApp messages will appear here as they are
+          forwarded in.
+        </Empty>
       )}
 
       {/* Running low needs the stock maths. Named rather than left out: an

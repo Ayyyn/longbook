@@ -114,6 +114,7 @@ class TenantMe(BaseModel):
     business_name: str
     owner_name: str | None
     owner_phone: str
+    owner_email: str | None
     city: str | None
     locale: str
     onboarded_at: datetime | None

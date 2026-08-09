@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import TokenGate from "../components/TokenGate";
 import { api, money, formatNumber } from "../lib/api";
+import Empty, { SetupIncomplete, BackfillProgress } from "../components/Empty";
 
 // Fields worth showing as money rather than a bare number.
 const MONEY_FIELDS = new Set(["amount", "rate", "balance"]);
@@ -50,16 +51,22 @@ function Review() {
   const [answers, setAnswers] = useState({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [job, setJob] = useState(null);
+  const [setup, setSetup] = useState(false);
   const [done, setDone] = useState(0);
 
   const load = useCallback(async () => {
+    const running = await api.latestJob().catch(() => null);
+    setJob(running);
     try {
       const page = await api.queue();
       setItems(page.items);
       setIndex(0);
+      setSetup(false);
       setError(null);
     } catch (err) {
-      setError(err.message);
+      if (err.status === 409) setSetup(true);
+      else setError(err.message);
     }
   }, []);
 
@@ -94,6 +101,16 @@ function Review() {
     }
   }
 
+  const working = job && job.state !== "done" && job.state !== "failed";
+
+  if (setup) {
+    return (
+      <Shell title="Review">
+        {working ? <BackfillProgress job={job} /> : <SetupIncomplete />}
+      </Shell>
+    );
+  }
+
   if (error && !items) {
     return (
       <Shell title="Review">
@@ -106,13 +123,22 @@ function Review() {
   if (items.length === 0) {
     return (
       <Shell title="Review" subtitle={done ? `${done} cleared just now` : null}>
-        <div className="empty">
-          <p style={{ fontSize: 40, margin: 0 }}>✓</p>
-          <p>Nothing waiting. Everything the agents were unsure about is handled.</p>
-        </div>
-        <div className="actions">
-          <button onClick={load}>Check again</button>
-        </div>
+        {working ? (
+          <BackfillProgress job={job} />
+        ) : done > 0 ? (
+          <div className="empty">
+            <p style={{ fontSize: 40, margin: 0 }}>✓</p>
+            <p>Nothing waiting. Everything the agents were unsure about is handled.</p>
+          </div>
+        ) : (
+          // A tick and "everything is handled" would be a lie on a tenant that
+          // has never had a message read.
+          <Empty title="Nothing to confirm" action="Check again" onAction={load}>
+            When an agent reads a message and is not sure about it — a missing
+            rate, a party it cannot place — the record waits here for you to
+            confirm. Nothing is waiting right now.
+          </Empty>
+        )}
       </Shell>
     );
   }

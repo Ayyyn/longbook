@@ -15,8 +15,10 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
+from sqlalchemy import select
 
 from app.api.deps import Profile, TenantDB, TenantId
+from app.models.ingestion import Interaction
 from app.schemas.ingest import IngestAccepted, JobStatus
 from app.services.backfill import job_status, run_backfill
 from app.services.intake import IntakeError, interactions_from_upload
@@ -69,6 +71,31 @@ def ingest_upload(
             "extraction running in the background."
         ),
     )
+
+
+@router.get("/jobs/latest", response_model=JobStatus | None)
+def latest_job(tid: TenantId, db: TenantDB) -> JobStatus | None:
+    """The most recent backfill for this tenant, or null if there has never been one.
+
+    The dashboard needs this to show progress after a reload. The job id is
+    handed back once, at upload; without a way to ask "what is running now?"
+    the owner who closes the tab during a ten-minute backfill comes back to a
+    screen that looks empty rather than busy.
+    """
+    row = db.execute(
+        select(Interaction.attributes["job_id"].astext)
+        .where(
+            Interaction.tenant_id == tid,
+            Interaction.attributes["job_id"].astext.isnot(None),
+        )
+        .order_by(Interaction.created_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+
+    if not row:
+        return None
+    status = job_status(db, tid, uuid.UUID(row))
+    return JobStatus(**status) if status["total"] else None
 
 
 @router.get("/jobs/{job_id}", response_model=JobStatus)

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import TokenGate from "../components/TokenGate";
 import { api, money } from "../lib/api";
+import Empty, { SetupIncomplete, BackfillProgress } from "../components/Empty";
 
 export default function PartiesPage() {
   return (
@@ -18,8 +19,12 @@ function Parties() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [error, setError] = useState(null);
+  const [job, setJob] = useState(null);
+  const [setup, setSetup] = useState(false);
 
   const load = useCallback(async (q, which) => {
+    const running = await api.latestJob().catch(() => null);
+    setJob(running);
     try {
       setData(
         await api.parties({
@@ -28,9 +33,14 @@ function Parties() {
           hasOutstanding: which === "outstanding",
         })
       );
+      setSetup(false);
       setError(null);
     } catch (err) {
-      setError(err.message);
+      // Without this the screen kept "Loading…" on screen forever, because
+      // `data` never arrived and nothing else claimed the empty slot.
+      setData({ parties: [], total: 0, total_outstanding: 0 });
+      if (err.status === 409) setSetup(true);
+      else setError(err.message);
     }
   }, []);
 
@@ -40,6 +50,8 @@ function Parties() {
     const timer = setTimeout(() => load(query, filter), query ? 300 : 0);
     return () => clearTimeout(timer);
   }, [load, query, filter]);
+
+  const working = job && job.state !== "done" && job.state !== "failed";
 
   return (
     <>
@@ -79,12 +91,25 @@ function Parties() {
         ))}
       </div>
 
-      {!data ? (
+      {setup ? (
+        working ? <BackfillProgress job={job} /> : <SetupIncomplete />
+      ) : !data ? (
         <div className="empty">Loading…</div>
       ) : data.parties.length === 0 ? (
-        <div className="empty">
-          {query ? `Nobody matching “${query}”.` : "No parties yet."}
-        </div>
+        query ? (
+          <Empty title={`Nobody matching “${query}”`}>
+            Parties are named as they appear in your chats. Try a shorter
+            spelling, or part of the phone number.
+          </Empty>
+        ) : working ? (
+          <BackfillProgress job={job} />
+        ) : (
+          <Empty title="No parties yet">
+            Every customer and supplier here is created automatically from your
+            WhatsApp history — who they are, what they buy, and what they owe.
+            None have been found yet.
+          </Empty>
+        )
       ) : (
         data.parties.map((p) => (
           <Link

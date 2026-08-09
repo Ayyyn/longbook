@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import TokenGate from "../components/TokenGate";
 import { api, formatNumber } from "../lib/api";
+import Empty, { SetupIncomplete, BackfillProgress } from "../components/Empty";
 
 const FILTERS = [
   { key: null, label: "All" },
@@ -25,19 +26,28 @@ function Orders() {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
+  const [job, setJob] = useState(null);
+  const [setup, setSetup] = useState(false);
 
   const load = useCallback(async (which) => {
+    const running = await api.latestJob().catch(() => null);
+    setJob(running);
     try {
       setData(await api.orders({ status: which }));
+      setSetup(false);
       setError(null);
     } catch (err) {
-      setError(err.message);
+      setData({ orders: [], total: 0, by_status: {} });
+      if (err.status === 409) setSetup(true);
+      else setError(err.message);
     }
   }, []);
 
   useEffect(() => {
     load(status);
   }, [load, status]);
+
+  const working = job && job.state !== "done" && job.state !== "failed";
 
   return (
     <>
@@ -63,10 +73,24 @@ function Orders() {
         ))}
       </div>
 
-      {!data ? (
+      {setup ? (
+        working ? <BackfillProgress job={job} /> : <SetupIncomplete />
+      ) : !data ? (
         <div className="empty">Loading…</div>
       ) : data.orders.length === 0 ? (
-        <div className="empty">No orders here.</div>
+        status ? (
+          <Empty title={`No ${FILTERS.find((f) => f.key === status)?.label.toLowerCase()} orders`}>
+            Nothing is at this stage right now. Try “All” to see every order.
+          </Empty>
+        ) : working ? (
+          <BackfillProgress job={job} />
+        ) : (
+          <Empty title="No orders yet">
+            Orders are written automatically when someone asks for goods in
+            WhatsApp — quality, quantity and rate, taken from the message.
+            None have been found yet.
+          </Empty>
+        )
       ) : (
         data.orders.map((o) => (
           <Link key={o.id} href={`/orders/${o.id}`} className="list-row">

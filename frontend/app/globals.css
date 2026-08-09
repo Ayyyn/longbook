@@ -765,3 +765,54 @@ table.items tr.total td {
   white-space: nowrap;
   min-width: 62px;
 }
+
+/* Empty states. A blank screen is a new owner's first impression, so these
+   are given the same weight as a populated card rather than a grey line of
+   apology text. */
+.empty-state {
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #e4e4e7);
+  border-radius: 12px;
+  padding: 22px 20px;
+  margin-top: 14px;
+  text-align: center;
+}
+.empty-state h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: inherit;
+}
+.empty-state .why {
+  color: var(--muted, #71717a);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.empty-state button {
+  margin-top: 14px;
+  width: 100%;
+}
+.empty-state .muted {
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+/* Backfill progress. The bar is deliberately plain — the number underneath is
+   the part an owner actually reads. */
+.empty-state.working {
+  text-align: left;
+}
+.progress-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line, #e4e4e7);
+  overflow: hidden;
+  margin: 12px 0 10px;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--brand, #0b6b3a);
+  border-radius: 999px;
+  transition: width 600ms ease;
+}

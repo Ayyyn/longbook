@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import TokenGate from "../components/TokenGate";
 import { api, formatNumber } from "../lib/api";
+import Empty, { BackfillProgress } from "../components/Empty";
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -24,6 +25,7 @@ function Activity() {
   const [filter, setFilter] = useState("all");
   const [openTrace, setOpenTrace] = useState(null);
   const [error, setError] = useState(null);
+  const [job, setJob] = useState(null);
 
   const load = useCallback(async (which) => {
     try {
@@ -33,6 +35,8 @@ function Activity() {
           : which === "error"
             ? { outcome: "error" }
             : {};
+      const running = await api.latestJob().catch(() => null);
+      setJob(running);
       const [stats, feed] = await Promise.all([api.agentSummary(), api.agentRuns(options)]);
       setSummary(stats);
       setRuns(feed.items);
@@ -56,9 +60,29 @@ function Activity() {
   }
   if (!summary || !runs) return <div className="empty">Loading…</div>;
 
+  const working = job && job.state !== "done" && job.state !== "failed";
+
+  if (summary.runs === 0) {
+    return (
+      <>
+        <Header />
+        {working ? (
+          <BackfillProgress job={job} />
+        ) : (
+          <Empty title="No decisions yet">
+            Every time an agent reads a message and decides something, it is
+            logged here — what it chose, how sure it was, how long it took and
+            what it cost. Nothing has run yet, so there is nothing to show.
+          </Empty>
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       <Header />
+      {working && <BackfillProgress job={job} />}
 
       {/* The four numbers that say whether this is working. Auto-commit
           alone understates it: a record written with one blank to confirm is
