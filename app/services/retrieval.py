@@ -61,6 +61,10 @@ class Context:
     quotes: list[Evidence] = field(default_factory=list)
     messages: list[Evidence] = field(default_factory=list)
     totals: dict[str, Any] = field(default_factory=dict)
+    # What the orders list was filtered to. Without saying so, a list of
+    # undispatched orders is indistinguishable from a list of orders, and
+    # the model refuses a question it was handed the answer to.
+    orders_label: str = "Orders"
 
     @property
     def all(self) -> list[Evidence]:
@@ -310,6 +314,11 @@ def gather(db, tenant_id: uuid.UUID, question: str) -> Context:
     undispatched = "dispatch" in lowered or "not sent" in lowered or "pending" in lowered
     if asks_orders or party_ids:
         context.orders = _orders_for(db, tenant_id, party_ids or None, undispatched)
+        context.orders_label = (
+            "Orders with NO dispatch recorded against them"
+            if undispatched
+            else "Orders"
+        )
 
     if asks_rates or party_ids:
         context.quotes = _quotes_for(db, tenant_id, party_ids)
@@ -324,7 +333,8 @@ def gather(db, tenant_id: uuid.UUID, question: str) -> Context:
     # anything.
     if asks_money and not had_outstanding:
         context.totals["outstanding_summary"] = (
-            "No party has an outstanding balance on record."
+            "Every party's balance is nil. Nobody owes this business "
+            "anything on record."
         )
 
     context.totals = {
@@ -361,7 +371,7 @@ def as_prompt(context: Context) -> str:
         blocks.append("\n".join(lines))
 
     section("Outstanding and parties", context.parties)
-    section("Orders", context.orders)
+    section(context.orders_label, context.orders)
     section("Quotes and rates", context.quotes)
     section("Messages", context.messages)
 

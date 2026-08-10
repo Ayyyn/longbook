@@ -74,16 +74,6 @@ with tenant_session(EMPTY_FOR_MONEY) as db:
     db.add(BusinessProfile(tenant_id=EMPTY_FOR_MONEY, segments=["wholesaler"],
                            modules={}, vocabulary={}, rules={}, examples=[]))
     db.add(Party(tenant_id=EMPTY_FOR_MONEY, name="Nobody Owes Us", phone="9000000000"))
-
-# A tenant with a party but nothing owed, for the "nothing outstanding" case.
-EMPTY_FOR_MONEY = uuid.uuid4()
-with admin_session() as db:
-    db.add(Tenant(id=EMPTY_FOR_MONEY, business_name="Nil Mills",
-                  owner_phone=f"96{uuid.uuid4().int % 10**8:08d}"))
-with tenant_session(EMPTY_FOR_MONEY) as db:
-    db.add(BusinessProfile(tenant_id=EMPTY_FOR_MONEY, segments=["wholesaler"],
-                           modules={}, vocabulary={}, rules={}, examples=[]))
-    db.add(Party(tenant_id=EMPTY_FOR_MONEY, name="Nobody Owes Us", phone="9000000000"))
 B, TOKEN_B = make_tenant("Beta Mills", "Bharat Fabrics", 91000, "BETASECRET")
 
 print("\n-- isolation at the query layer --")
@@ -146,7 +136,7 @@ print("\n-- nothing owed is a fact, not a gap --")
 with tenant_session(EMPTY_FOR_MONEY) as db:
     ctx_nil = gather(db, EMPTY_FOR_MONEY, "who owes me the most")
 check("it states that nobody owes anything",
-      "No party has an outstanding balance" in as_prompt(ctx_nil), True)
+      "Nobody owes this business" in as_prompt(ctx_nil), True)
 
 print("\n-- citations resolve --")
 
