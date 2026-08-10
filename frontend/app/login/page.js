@@ -4,6 +4,8 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api, setToken, setPhone, clearToken, samePhone } from "../lib/api";
+import PublicPage from "../components/PublicPage";
+import { CONTACT } from "../lib/contact";
 
 export default function LoginPage() {
   return (
@@ -36,7 +38,7 @@ function Login() {
         return;
       }
       setPhone(phone);
-      router.replace(params.get("next") || "/");
+      router.replace(params.get("next") || "/today");
     } catch (err) {
       clearToken();
       setError(
@@ -50,11 +52,10 @@ function Login() {
   }
 
   return (
-    <>
-      <header className="bar">
-        <h1>Textile Ops</h1>
-        <div className="sub">Sign in to your business</div>
-      </header>
+    <PublicPage>
+      <section className="hero-public">
+        <h1>Sign in</h1>
+      </section>
 
       {error && <div className="banner error">{error}</div>}
 
@@ -112,7 +113,12 @@ function Login() {
         <Link href="/signup" className="button-link">
           <button className="primary">Set up my business</button>
         </Link>
+        <p className="muted" style={{ marginBottom: 0 }}>
+          You will need an invite code. Ring{" "}
+          <a href={CONTACT.phoneHref}>{CONTACT.phone}</a> and we will tell you
+          whether it suits your business.
+        </p>
       </div>
-    </>
+    </PublicPage>
   );
 }

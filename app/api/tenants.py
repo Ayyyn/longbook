@@ -30,6 +30,8 @@ from app.models.ingestion import Extraction, Interaction
 from app.models.party import Party
 from app.models.tenant import BusinessProfile, Tenant
 from app.schemas.tenants import (
+    PaymentRecord,
+    PaymentRecorded,
     ConfigureResult,
     PartyImportResult,
     Interview,
@@ -39,6 +41,7 @@ from app.schemas.tenants import (
     TenantCreated,
     TenantMe,
 )
+from app.services.access import access_for
 from app.services.auth import issue_token
 from app.services.dispatch import dispatch_backfill
 from app.services.intake import IntakeError, interactions_from_upload
@@ -326,12 +329,17 @@ def me(tid: TenantId, db: TenantDB) -> TenantMe:
             select(func.count()).select_from(model).where(model.tenant_id == tid, *where)
         ).scalar_one()
 
+    access = access_for(tenant)
     return TenantMe(
         tenant_id=tenant.id,
         business_name=tenant.business_name,
         owner_name=tenant.owner_name,
         owner_phone=tenant.owner_phone,
         owner_email=tenant.owner_email,
+        access_status=access.status,
+        days_remaining=access.days_remaining,
+        paid_until=tenant.paid_until,
+        plan=tenant.plan,
         city=tenant.city,
         locale=tenant.locale or "en",
         onboarded_at=tenant.onboarded_at,
@@ -351,3 +359,39 @@ def me(tid: TenantId, db: TenantDB) -> TenantMe:
         interactions=count(Interaction),
         needs_review=count(Extraction, Extraction.status == "needs_review"),
     )
+
+
+@router.post("/{tenant_id}/payment", response_model=PaymentRecorded,
+             dependencies=[Depends(require_admin)])
+def record_payment(tenant_id: uuid.UUID, payload: PaymentRecord) -> PaymentRecorded:
+    """Mark a tenant as paid until a date. Admin only.
+
+    This is the whole of billing. Money is collected in person and recorded
+    here afterwards, which is how this trade already works and keeps card
+    details out of a system with no reason to hold them.
+
+    Moving the date forward restores access immediately — nothing was deleted
+    when it lapsed, so there is nothing to restore but the date itself.
+    """
+    with admin_session() as db:
+        tenant = db.get(Tenant, tenant_id)
+        if tenant is None:
+            raise HTTPException(404, "No such tenant.")
+
+        tenant.paid_until = payload.paid_until
+        if payload.plan:
+            tenant.plan = payload.plan
+        # A payment always reopens a tenant that was switched off by hand;
+        # otherwise renewing would look like it had silently failed.
+        tenant.is_active = True
+        db.flush()
+
+        access = access_for(tenant)
+        return PaymentRecorded(
+            tenant_id=tenant.id,
+            business_name=tenant.business_name,
+            plan=tenant.plan,
+            paid_until=tenant.paid_until,
+            access_status=access.status,
+            days_remaining=access.days_remaining,
+        )

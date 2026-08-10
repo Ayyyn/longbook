@@ -18,7 +18,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import admin_session, tenant_session
-from app.models.tenant import BusinessProfile
+from app.models.tenant import BusinessProfile, Tenant
+from app.services.access import access_for
 from app.services.auth import tenant_for_token
 
 # auto_error=False so a missing header gets our 401 with a WWW-Authenticate
@@ -58,6 +59,30 @@ def tenant_db(tid: TenantId) -> Iterator[Session]:
 
 
 TenantDB = Annotated[Session, Depends(tenant_db)]
+
+
+def require_access(db: TenantDB, tid: TenantId) -> None:
+    """Block a tenant whose access has lapsed.
+
+    402 rather than 403: this is "payment required", and the dashboard keys
+    its renewal screen off exactly that. Nothing is deleted — the tenant keeps
+    every record and regains all of it the moment paid_until moves.
+
+    Deliberately not applied to /api/tenants/me, so an expired owner can still
+    load the app far enough to be told why they are locked out and who to ring.
+    """
+    tenant = db.get(Tenant, tid)
+    if tenant is None:
+        raise _UNAUTHORIZED
+    access = access_for(tenant)
+    if not access.allowed:
+        raise HTTPException(
+            status_code=402,
+            detail="This subscription has ended. Your records are safe — contact us to renew.",
+        )
+
+
+Access = Annotated[None, Depends(require_access)]
 
 
 def business_profile(db: TenantDB, tid: TenantId) -> BusinessProfile:

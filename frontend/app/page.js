@@ -1,262 +1,130 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import TokenGate from "./components/TokenGate";
-import { api, money, formatNumber, getPhone, clearToken } from "./lib/api";
-import Empty, { SetupIncomplete, BackfillProgress } from "./components/Empty";
+import PublicPage from "./components/PublicPage";
+import { CONTACT, PRICING } from "./lib/contact";
 
-export default function TodayPage() {
+export default function Home() {
   return (
-    <TokenGate>
-      <Today />
-    </TokenGate>
-  );
-}
-
-function Today() {
-  const [data, setData] = useState(null);
-  const [me, setMe] = useState(null);
-  const [job, setJob] = useState(null);
-  const [status, setStatus] = useState("loading"); // loading|ready|setup|error
-  const [error, setError] = useState(null);
-
-  const load = useCallback(async () => {
-    // The job is asked for separately and never allowed to fail the screen:
-    // during setup /api/today answers 409, and the backfill is exactly what
-    // the owner needs to see at that moment.
-    const running = await api.latestJob().catch(() => null);
-    setJob(running);
-    try {
-      const [digest, profile] = await Promise.all([api.today(), api.me()]);
-      setData(digest);
-      setMe(profile);
-      setStatus("ready");
-      setError(null);
-    } catch (err) {
-      // 409 is "onboarding has not finished", not a failure. It is the normal
-      // state of a business created five minutes ago.
-      setStatus(err.status === 409 ? "setup" : "error");
-      setError(err.message);
-    }
-    return running;
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // While a backfill is running, re-poll so records appear as they land
-  // instead of the owner staring at a screen that looks broken.
-  useEffect(() => {
-    if (!job || job.state === "done" || job.state === "failed") return undefined;
-    const timer = setTimeout(load, 5000);
-    return () => clearTimeout(timer);
-  }, [job, load]);
-
-  const working = job && job.state !== "done" && job.state !== "failed";
-
-  if (status === "setup") {
-    return (
-      <>
-        <header className="bar">
-          <h1>Today</h1>
-        </header>
-        {working ? <BackfillProgress job={job} /> : <SetupIncomplete />}
-        <SignOut />
-      </>
-    );
-  }
-
-  if (status === "error") {
-    return (
-      <>
-        <header className="bar">
-          <h1>Today</h1>
-        </header>
-        <div className="banner error">{error}</div>
-        <div className="actions">
-          <button onClick={load}>Try again</button>
-        </div>
-        {/* Sign-out belongs on the error path too. A token for a tenant that
-            cannot load Today would otherwise strand the owner here with no
-            way to sign in as anyone else. */}
-        <SignOut />
-      </>
-    );
-  }
-  if (!data) return <div className="empty">Loading…</div>;
-
-  // Everything an owner could act on is empty. Worth saying out loud rather
-  // than showing four "nothing here" lines and a zero.
-  const nothingYet =
-    data.chasing.length === 0 &&
-    data.new_orders.length === 0 &&
-    data.flagged.length === 0 &&
-    data.needs_review === 0 &&
-    data.money_in.today === 0;
-
-  const when = new Date(data.date).toLocaleDateString("en-IN", {
-    weekday: "long",
-    day: "numeric",
-    month: "short",
-  });
-
-  return (
-    <>
-      <header className="bar">
-        <h1>Today</h1>
-        <div className="sub">
-          {when} · {me?.business_name}
-        </div>
-      </header>
-
-      {/* While the backfill runs, say so before showing zeroes — otherwise a
-          half-read history is indistinguishable from a dead one. */}
-      {working && <BackfillProgress job={job} />}
-
-      {/* Money in is the one number an owner opens the app for. */}
-      <div className="hero">
-        <div className="label">Received today</div>
-        <div className="value">{money(data.money_in.today)}</div>
-        <div className="note">
-          {data.money_in.payments_today} payment
-          {data.money_in.payments_today === 1 ? "" : "s"}
-          {data.money_in.last_7_days > data.money_in.today
-            ? ` · ${money(data.money_in.last_7_days)} this week`
-            : ""}
-        </div>
-      </div>
-
-      <Section title="Needs chasing" count={data.overdue.parties}>
-        {data.chasing.length === 0 ? (
-          <p className="section-empty">Nobody past {data.overdue.overdue_days} days.</p>
-        ) : (
-          data.chasing.map((p) => (
-            <Link key={p.party_id} href={`/parties/${p.party_id}`} className="section-row">
-              <div>
-                <div className="rt">{p.party_name}</div>
-                <div className="rs warn">{p.days_overdue} days past due</div>
-              </div>
-              <div className="ra">
-                {money(p.outstanding)} <span className="chev">›</span>
-              </div>
-            </Link>
-          ))
-        )}
-      </Section>
-
-      {data.flagged.length > 0 && (
-        <Section title="Flagged">
-          {data.flagged.map((f, i) => {
-            const href = f.order_id
-              ? `/orders/${f.order_id}`
-              : f.party_id
-                ? `/parties/${f.party_id}`
-                : null;
-            const body = (
-              <>
-                <div className="rt">{f.headline}</div>
-                <div className="rs">{f.party_name}</div>
-              </>
-            );
-            return href ? (
-              <Link key={i} href={href} className="section-row">
-                <div>{body}</div>
-                <div className="ra"><span className="chev">›</span></div>
-              </Link>
-            ) : (
-              <div key={i} className="section-row">
-                <div>{body}</div>
-              </div>
-            );
-          })}
-        </Section>
-      )}
-
-      <Section title="New orders" count={data.orders.open_total}>
-        {data.new_orders.length === 0 ? (
-          <p className="section-empty">Nothing open.</p>
-        ) : (
-          data.new_orders.map((o) => (
-            <Link key={o.id} href={`/orders/${o.id}`} className="section-row">
-              <div>
-                <div className="rt">{o.party_name || "Unknown party"}</div>
-                <div className="rs">{o.summary}</div>
-              </div>
-              <div className="ra">
-                {o.pending_fields.length > 0 && (
-                  <span className="pending-tag">needs {o.pending_fields.length}</span>
-                )}
-                <span className="chev">›</span>
-              </div>
-            </Link>
-          ))
-        )}
-      </Section>
-
-      {data.needs_review > 0 && (
-        <Link href="/review" className="section-row cta">
-          <div>
-            <div className="rt">{formatNumber(data.needs_review)} waiting in Review</div>
-            <div className="rs">confirm what the agents were unsure about</div>
-          </div>
-          <div className="ra"><span className="chev">›</span></div>
+    <PublicPage active="/">
+      <section className="hero-public">
+        <h1>
+          Your WhatsApp is already your order book.
+          <br />
+          We just write it down.
+        </h1>
+        <p className="lede">
+          Orders, payments and outstandings come out of the chats you are
+          already having. Nothing new for your customers to learn. Nothing to
+          type twice.
+        </p>
+        <Link href="/pricing" className="button-link">
+          <button className="primary big">See what it costs</button>
         </Link>
-      )}
+        <p className="muted">
+          Access is by invite while we set up businesses one at a time.{" "}
+          <a href={CONTACT.phoneHref}>Call {CONTACT.phone}</a>.
+        </p>
+      </section>
 
-      {nothingYet && !working && (
-        <Empty title="Nothing has come through yet">
-          Your history has been read, but no orders, payments or dispatches
-          were found in it. New WhatsApp messages will appear here as they are
-          forwarded in.
-        </Empty>
-      )}
+      {/* Concrete before abstract. A trader decides in the first ten seconds
+          whether this is about their actual day. */}
+      <section className="slab">
+        <h2>What it actually does</h2>
+        <ul className="plain">
+          <li>
+            Ashok Textiles messages <em>&ldquo;150 mtr SR-1042 bhej dena, rate
+            wahi purana&rdquo;</em>. It becomes an order — quality, quantity,
+            and last agreed rate — waiting for you to confirm.
+          </li>
+          <li>
+            Someone sends <em>&ldquo;50,000 RTGS kar diya&rdquo;</em>. The
+            payment goes against their account and their outstanding drops.
+          </li>
+          <li>
+            On Tuesday morning it tells you Ashok Textiles has crossed 60 days,
+            and drafts the reminder. You read it, change it if you want, and
+            send it yourself from your own number.
+          </li>
+          <li>
+            A rate 20% below what that party normally pays gets flagged before
+            the goods go out, not after the bill.
+          </li>
+          <li>
+            At 7pm you get one email: what came in, what went out, who owes
+            what.
+          </li>
+        </ul>
+      </section>
 
-      {/* Running low needs the stock maths. Named rather than left out: an
-          absent section would read as "nothing is running low". */}
-      <Section title="Running low">
-        <p className="section-empty">Not computed yet — stock tracking is not built.</p>
-      </Section>
+      <section className="slab alt">
+        <h2>Who it is for</h2>
+        <p>
+          Fabric wholesalers and traders who run the business on WhatsApp and
+          keep the real numbers in their head, a diary, or a hundred chats they
+          have to scroll back through. If you have between twenty and a few
+          hundred regular parties, this is built for you.
+        </p>
+        <p>
+          If you already have a full office running Tally properly and nothing
+          important happens on WhatsApp, you do not need this.
+        </p>
+      </section>
 
-      <div className="actions">
-        <button onClick={load}>Refresh</button>
-      </div>
+      <section className="slab">
+        <h2>How it works</h2>
+        <ol className="steps">
+          <li>
+            <strong>You send us your chats.</strong> Export a WhatsApp chat —
+            it takes about thirty seconds, and we show you how. Six years of
+            history is fine.
+          </li>
+          <li>
+            <strong>It reads them.</strong> Ten minutes, and your parties,
+            orders, dispatches and payments are on screen. Anything it was not
+            sure about it asks you, one question at a time.
+          </li>
+          <li>
+            <strong>You check it each morning.</strong> Confirm what is
+            waiting, look at who needs chasing, get on with your day.
+          </li>
+        </ol>
+      </section>
 
-      <SignOut />
-    </>
-  );
-}
+      <section className="slab alt">
+        <h2>What it costs</h2>
+        <p className="price-line">
+          <strong>{PRICING.monthly}</strong> a month, or{" "}
+          <strong>{PRICING.yearly}</strong> for the year paid up front.{" "}
+          <strong>{PRICING.setup}</strong> once, to set you up.
+        </p>
+        <Link href="/pricing">See exactly what is included</Link>
+      </section>
 
-// Sign-out lives on Today rather than on every screen: it is rare, and a
-// destructive-looking button under the review queue is a mis-tap waiting to
-// happen.
-function SignOut() {
-  const phone = getPhone();
-  return (
-    <p className="muted" style={{ textAlign: "center", marginTop: 18 }}>
-      {phone ? `Signed in as ${phone}. ` : ""}
-      <button
-        className="link-button"
-        onClick={() => {
-          clearToken();
-          window.location.replace("/login");
-        }}
-      >
-        Sign out
-      </button>
-    </p>
-  );
-}
-
-function Section({ title, count, children }) {
-  return (
-    <section className="feed">
-      <h2>
-        {title}
-        {count ? <span className="count">{count}</span> : null}
-      </h2>
-      {children}
-    </section>
+      <section className="slab">
+        <h2>How to get access</h2>
+        <p>
+          We are not open to everyone yet. We set up each business ourselves —
+          we read your chats with you, check what it got right, and fix what it
+          got wrong before you rely on it. That takes a morning, and we can
+          only do a few at a time.
+        </p>
+        <p>
+          Ring or message and we will tell you honestly whether it suits your
+          business. If it does, you get an invite code and we book a time.
+        </p>
+        <div className="cta-row">
+          <a href={CONTACT.phoneHref} className="button-link">
+            <button className="primary big">Call {CONTACT.phone}</button>
+          </a>
+          <a href={CONTACT.whatsappHref} className="button-link" target="_blank" rel="noreferrer">
+            <button className="big">WhatsApp us</button>
+          </a>
+        </div>
+        <p className="muted">
+          Already have an invite code? <Link href="/signup">Set up your business</Link>.
+        </p>
+      </section>
+    </PublicPage>
   );
 }

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/", label: "Today" },
+  { href: "/today", label: "Today" },
   { href: "/review", label: "Review" },
   { href: "/parties", label: "Parties" },
   { href: "/orders", label: "Orders" },
@@ -13,10 +13,13 @@ const TABS = [
 
 // Screens you reach without being signed in. The tab bar would be five dead
 // links there, and on a phone it would cover the sign-in button.
-const CHROMELESS = ["/login", "/signup", "/onboarding"];
+// Public pages and the ways in. The tab bar is for signed-in screens only.
+const CHROMELESS = ["/login", "/signup", "/onboarding", "/about", "/pricing", "/contact"];
+const PUBLIC_HOME = "/";
 
 export default function Tabs() {
   const pathname = usePathname();
+  if (pathname === PUBLIC_HOME) return null;
   if (CHROMELESS.some((p) => pathname.startsWith(p))) return null;
   return (
     <nav className="tabs">
@@ -25,7 +28,7 @@ export default function Tabs() {
         // Parties tab lit rather than leaving the owner with no idea where
         // they are.
         const active =
-          tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href);
+          pathname === tab.href || pathname.startsWith(`${tab.href}/`);
         return (
           <Link key={tab.href} href={tab.href} className={active ? "active" : ""}>
             {tab.label}

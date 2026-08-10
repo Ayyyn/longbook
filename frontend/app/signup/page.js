@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, signup, setToken, setPhone } from "../lib/api";
+import PublicPage from "../components/PublicPage";
+import { CONTACT } from "../lib/contact";
 
 // The whole of self-serve onboarding, in the order an owner does it. Each step
 // is one screenful on a phone: a step that scrolls is a step people abandon.
@@ -147,7 +149,7 @@ export default function SignupPage() {
   }
 
   return (
-    <>
+    <PublicPage>
       <header className="bar">
         <h1>Set up your business</h1>
         <div className="sub">
@@ -193,7 +195,7 @@ export default function SignupPage() {
           created={created}
           saved={saved}
           setSaved={setSaved}
-          onFinish={() => router.replace("/")}
+          onFinish={() => router.replace("/today")}
         />
       )}
 
@@ -202,7 +204,7 @@ export default function SignupPage() {
           Already set up? <Link href="/login">Sign in</Link>
         </p>
       )}
-    </>
+    </PublicPage>
   );
 }
 
@@ -217,16 +219,35 @@ function BusinessStep({ code, setCode, details, setDetails, busy, onNext }) {
   const ready = code.trim() && details.business_name.trim() && details.owner_phone.trim();
 
   return (
-    <div className="card">
-      <label htmlFor="code">Invite code</label>
-      <input
-        id="code"
-        value={code}
-        onChange={(e) => setCode(e.target.value)}
-        placeholder="the code you were given"
-        autoComplete="off"
-        spellCheck={false}
-      />
+    <>
+      <div className="know">
+        <h3>You need an invite code</h3>
+        <p style={{ margin: "8px 0 0", lineHeight: 1.6 }}>
+          We are not open to everyone yet. We set up each business ourselves —
+          we read your chats with you and check what the system got right
+          before you rely on it — so we can only take a few at a time.
+        </p>
+        <p style={{ margin: "10px 0 0", lineHeight: 1.6 }}>
+          If you have spoken to us, your code was given to you on the phone or
+          by message. If you have not,{" "}
+          <a href={CONTACT.phoneHref}>ring {CONTACT.phone}</a> or{" "}
+          <a href={CONTACT.whatsappHref} target="_blank" rel="noreferrer">
+            message us on WhatsApp
+          </a>{" "}
+          and we will tell you honestly whether it suits how you work.
+        </p>
+      </div>
+
+      <div className="card">
+        <label htmlFor="code">Invite code</label>
+        <input
+          id="code"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="the code you were given"
+          autoComplete="off"
+          spellCheck={false}
+        />
 
       {fields.map(([key, label, placeholder, required]) => (
         <div key={key}>
@@ -250,12 +271,13 @@ function BusinessStep({ code, setCode, details, setDetails, busy, onNext }) {
         summary goes.
       </p>
 
-      <div className="actions">
-        <button className="primary" style={{ width: "100%" }} disabled={busy || !ready} onClick={onNext}>
-          {busy ? "Creating…" : "Continue"}
-        </button>
+        <div className="actions">
+          <button className="primary" style={{ width: "100%" }} disabled={busy || !ready} onClick={onNext}>
+            {busy ? "Creating…" : "Continue"}
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

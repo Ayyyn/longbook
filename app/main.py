@@ -3,7 +3,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi import Depends
+
 from app.config import settings
+from app.api.deps import require_access
 from app.api import (
     agents,
     ingest,
@@ -42,14 +45,21 @@ app.add_middleware(
 )
 
 app.include_router(tenants.router, prefix="/api/tenants", tags=["tenants"])
-app.include_router(ingest.router, prefix="/api/ingest", tags=["ingest"])
-app.include_router(review.router, prefix="/api/review", tags=["review"])
-app.include_router(ledger.router, prefix="/api/ledger", tags=["ledger"])
-app.include_router(agents.router, prefix="/api/agents", tags=["agents"])
-app.include_router(today.router, prefix="/api/today", tags=["today"])
+app.include_router(ingest.router, prefix="/api/ingest", tags=["ingest"],
+                   dependencies=[Depends(require_access)])
+app.include_router(review.router, prefix="/api/review", tags=["review"],
+                   dependencies=[Depends(require_access)])
+app.include_router(ledger.router, prefix="/api/ledger", tags=["ledger"],
+                   dependencies=[Depends(require_access)])
+app.include_router(agents.router, prefix="/api/agents", tags=["agents"],
+                   dependencies=[Depends(require_access)])
+app.include_router(today.router, prefix="/api/today", tags=["today"],
+                   dependencies=[Depends(require_access)])
 app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
-app.include_router(parties.router, prefix="/api/parties", tags=["parties"])
-app.include_router(orders.router, prefix="/api/orders", tags=["orders"])
+app.include_router(parties.router, prefix="/api/parties", tags=["parties"],
+                   dependencies=[Depends(require_access)])
+app.include_router(orders.router, prefix="/api/orders", tags=["orders"],
+                   dependencies=[Depends(require_access)])
 
 
 @app.get("/health")

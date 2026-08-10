@@ -118,7 +118,29 @@ class TenantMe(BaseModel):
     city: str | None
     locale: str
     onboarded_at: datetime | None
+    # trial | active | expired, with the countdown the app shows near expiry.
+    access_status: str = "active"
+    days_remaining: int | None = None
+    paid_until: datetime | None = None
+    plan: str | None = None
     profile: ProfileOut | None
     parties: int
     interactions: int
     needs_review: int
+
+
+class PaymentRecord(BaseModel):
+    """Payment is taken in person and marked here. There is no gateway."""
+
+    paid_until: datetime
+    plan: str | None = None
+    note: str | None = None
+
+
+class PaymentRecorded(BaseModel):
+    tenant_id: uuid.UUID
+    business_name: str
+    plan: str | None
+    paid_until: datetime
+    access_status: str
+    days_remaining: int | None
