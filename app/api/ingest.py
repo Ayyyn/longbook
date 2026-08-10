@@ -19,6 +19,7 @@ from sqlalchemy import select
 
 from app.api.deps import Profile, TenantDB, TenantId
 from app.models.ingestion import IngestSource, Interaction
+from app.models.tenant import BusinessProfile
 from app.schemas.ingest import (
     EstimateOut,
     FileEstimateOut,
@@ -262,7 +263,17 @@ def ingest_many(
 
     # Nothing new means nothing to extract; starting a job would only produce
     # a progress bar that finishes instantly and confuses the owner.
-    if rows:
+    #
+    # No profile yet means this screen was reached from "Setup isn't
+    # finished". The messages are kept, but extraction waits for the
+    # interview — the agents read the profile to know what a quality or a lot
+    # even is. The backfill that runs after configure picks these up, because
+    # it works through every stale window rather than only its own job's.
+    has_profile = db.execute(
+        select(BusinessProfile.id).where(BusinessProfile.tenant_id == tid)
+    ).scalars().first()
+
+    if rows and has_profile:
         dispatch_backfill(tid, job_id, background)
 
     return _to_out(estimate)

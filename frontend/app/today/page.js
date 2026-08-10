@@ -213,6 +213,16 @@ function Today() {
         </Empty>
       )}
 
+      <Link href="/add" className="section-row cta">
+        <div>
+          <div className="rt">Add data</div>
+          <div className="rs">
+            more chats, a bill photo, a Tally sheet
+          </div>
+        </div>
+        <div className="ra"><span className="chev">›</span></div>
+      </Link>
+
       {/* Running low needs the stock maths. Named rather than left out: an
           absent section would read as "nothing is running low". */}
       <Section title="Running low">

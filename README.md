@@ -56,6 +56,29 @@ a second cohort:
 Replacing this with phone OTP and short-lived sessions is the first thing to
 do once the launch cohort is past.
 
+## Connectors
+
+**Gmail.** Console setup is in `deploy/GMAIL_SETUP.md`. The constraint worth
+knowing before planning around it: `gmail.readonly` is a **restricted scope**,
+so publishing publicly needs a third-party CASA security assessment — weeks of
+work and an annual cost. Until then the OAuth consent screen stays in
+**Testing** mode, which means:
+
+- **100 test users maximum**, for the life of the project.
+- Every customer's email address must be **added by hand as a test user**
+  before they can connect. One who is not on the list gets `access_blocked`
+  with no explanation.
+- Customers see an "unverified app" warning and must click through
+  *Advanced → Go to Textile Ops (unsafe)*. Warn them on the phone; it looks
+  alarming.
+- **Refresh tokens expire after 7 days** in Testing mode, so customers
+  reconnect weekly until we publish.
+
+The upgrade path is OAuth verification plus a CASA assessment from a
+Google-approved assessor, after which tokens are long-lived and the test-user
+cap disappears. Worth doing when the cohort outgrows 100 mailboxes, not
+before.
+
 ## Status
 
 Models, agent contracts, pipeline graph, WhatsApp parser, and eval harness are

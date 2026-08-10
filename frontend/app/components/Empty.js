@@ -32,11 +32,11 @@ export default function Empty({ title, children, action, href, onAction }) {
 // error, and it must never reach the screen as one.
 export function SetupIncomplete() {
   return (
-    <Empty title="Setup isn't finished">
-      Your business is created, but no WhatsApp history has been read yet.
-      Send your chat export to whoever set this up for you — orders,
-      payments and parties all come from it. This screen fills in on its own
-      once that is done.
+    <Empty title="Setup isn't finished" action="Add your data" href="/add">
+      Your business is created, but nothing has been read yet. Add a WhatsApp
+      chat export, a Tally or Excel party list, or a photo of a bill — orders,
+      payments and parties all come from those. This screen fills in on its
+      own once something has been read.
     </Empty>
   );
 }

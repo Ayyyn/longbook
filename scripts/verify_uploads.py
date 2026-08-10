@@ -193,5 +193,30 @@ check("too many files is refused",
 check("another tenant sees none of this",
       client.get("/api/ingest/sources").status_code, 401)
 
+print("\n-- adding data before the interview --")
+
+# The Add-data screen is linked from "Setup isn't finished", so it must work
+# on a tenant with no BusinessProfile rather than 500 or start a doomed job.
+BARE = uuid.uuid4()
+with admin_session() as db:
+    bare = Tenant(id=BARE, business_name="No Profile Mills",
+                  owner_phone=f"96{uuid.uuid4().int % 10**8:08d}")
+    BARE_TOKEN = issue_token(bare)
+    db.add(bare)
+bh = {"Authorization": f"Bearer {BARE_TOKEN}"}
+
+pre = client.post("/api/ingest/batch", headers=bh,
+                  files=[("files", ("c.txt", chat(6, start=4000), "text/plain"))])
+check("upload works with no profile yet", pre.status_code, 202)
+check("  and the messages are kept", pre.json()["new_messages"], 6)
+with tenant_session(BARE) as db:
+    check("  really stored", db.query(Interaction).count(), 6)
+check("estimate works with no profile too",
+      client.post("/api/ingest/estimate", headers=bh,
+                  files=[("files", ("d.txt", chat(3, start=4100), "text/plain"))]).status_code,
+      200)
+check("  and the import history is visible",
+      client.get("/api/ingest/sources", headers=bh).status_code, 200)
+
 print(f"\n{ok} passed, {fail} failed")
 raise SystemExit(1 if fail else 0)
