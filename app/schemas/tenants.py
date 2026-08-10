@@ -162,3 +162,20 @@ class TenantSummary(BaseModel):
     access_status: str
     days_remaining: int | None
     paid_until: datetime | None
+
+
+class RecoveryRequest(BaseModel):
+    phone: str
+
+
+class RecoveryAccepted(BaseModel):
+    """Deliberately says the same thing whether or not the business exists."""
+
+    detail: str = (
+        "If that number belongs to a business with an email on file, we have "
+        "sent a link to it."
+    )
+
+
+class RecoveryConfirm(BaseModel):
+    token_payload: str

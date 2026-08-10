@@ -14,7 +14,7 @@ const TABS = [
 // Screens you reach without being signed in. The tab bar would be five dead
 // links there, and on a phone it would cover the sign-in button.
 // Public pages and the ways in. The tab bar is for signed-in screens only.
-const CHROMELESS = ["/login", "/signup", "/onboarding", "/about", "/pricing", "/contact"];
+const CHROMELESS = ["/login", "/signup", "/recover", "/onboarding", "/about", "/pricing", "/contact"];
 const PUBLIC_HOME = "/";
 
 export default function Tabs() {

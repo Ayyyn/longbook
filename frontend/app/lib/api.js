@@ -101,6 +101,28 @@ export async function signup(code, details) {
   return body;
 }
 
+// Recovery happens before a token exists, so these do not go through request().
+export async function requestRecovery(phone) {
+  const res = await fetch(`${BASE}/api/tenants/recover`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone }),
+  });
+  if (!res.ok) throw new ApiError(res.status, "Could not send the link. Try again.");
+  return res.json();
+}
+
+export async function confirmRecovery(tokenPayload) {
+  const res = await fetch(`${BASE}/api/tenants/recover/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token_payload: tokenPayload }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, body?.detail || "This link is not valid.");
+  return body;
+}
+
 export const api = {
   today: () => request("/api/today"),
   // null when this tenant has never uploaded anything.

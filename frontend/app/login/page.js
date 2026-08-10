@@ -99,6 +99,9 @@ function Login() {
           Both were given to you when your business was set up. They stay on
           this phone — nothing is sent anywhere else.
         </p>
+        <p className="muted" style={{ marginBottom: 0 }}>
+          <Link href="/recover">Lost your token?</Link>
+        </p>
       </div>
 
       {/* Without this, someone who has never been set up lands on a form

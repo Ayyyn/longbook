@@ -41,6 +41,9 @@ from app.models.tenant import BusinessProfile, Tenant
 from app.schemas.tenants import (
     PaymentRecord,
     PaymentRecorded,
+    RecoveryAccepted,
+    RecoveryConfirm,
+    RecoveryRequest,
     TenantSummary,
     ConfigureResult,
     PartyImportResult,
@@ -53,6 +56,8 @@ from app.schemas.tenants import (
 )
 from app.services.access import access_for
 from app.services.credentials import email_token
+from app.services import recovery as recovery_service
+from app.services.mailer import send_email
 from app.services.auth import issue_token
 from app.services.dispatch import dispatch_backfill
 from app.services.intake import IntakeError, interactions_from_upload
@@ -503,4 +508,70 @@ def reissue_token(tenant_id: uuid.UUID, email: bool = Query(True)) -> TenantCrea
             if sent
             else "New token issued. The previous token has stopped working."
         ),
+    )
+
+
+@router.post("/recover", response_model=RecoveryAccepted)
+def request_recovery(payload: RecoveryRequest) -> RecoveryAccepted:
+    """Ask for a link that will issue a new token. Public.
+
+    Nothing is rotated here. Rotation is destructive — it signs the owner's
+    phone out — so it must require the mailbox, not just the number. All this
+    does is post a signed, expiring link to the address already on file.
+
+    The response never varies. Saying "no such business" would turn this into
+    a way to test which phone numbers are customers.
+    """
+    digits = "".join(c for c in payload.phone if c.isdigit())[-10:]
+    if len(digits) < 10:
+        return RecoveryAccepted()
+
+    with admin_session() as db:
+        tenant = db.execute(
+            select(Tenant).where(Tenant.owner_phone.like(f"%{digits}"))
+        ).scalars().first()
+        if tenant is None or not tenant.owner_email:
+            return RecoveryAccepted()
+        tenant_id, name, to = tenant.id, tenant.business_name, tenant.owner_email
+
+    try:
+        link = (
+            f"{settings().dashboard_url.rstrip('/')}/recover"
+            f"?t={recovery_service.sign(tenant_id)}"
+        )
+    except recovery_service.RecoveryError:
+        return RecoveryAccepted()
+
+    text, html = recovery_service.recovery_email(name, link)
+    send_email(to, f"Getting back into Textile Ops — {name}", text, html)
+    return RecoveryAccepted()
+
+
+@router.post("/recover/confirm", response_model=TenantCreated)
+def confirm_recovery(payload: RecoveryConfirm) -> TenantCreated:
+    """Open the link: issue a new token and show it once. Public but signed."""
+    try:
+        tenant_id = recovery_service.verify(payload.token_payload)
+    except recovery_service.RecoveryError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    with admin_session() as db:
+        tenant = db.get(Tenant, tenant_id)
+        if tenant is None:
+            raise HTTPException(400, "This link is not valid.")
+        token = issue_token(tenant)
+        db.flush()
+        name, phone, to = tenant.business_name, tenant.owner_phone, tenant.owner_email
+
+    sent, _ = email_token(
+        to=to, business_name=name, phone=phone, token=token,
+        dashboard_url=settings().dashboard_url,
+    )
+    return TenantCreated(
+        tenant_id=tenant_id,
+        business_name=name,
+        token=token,
+        owner_phone=phone,
+        emailed_to=to if sent else None,
+        detail="New token issued. Your previous token has stopped working.",
     )
