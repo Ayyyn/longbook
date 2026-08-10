@@ -64,6 +64,26 @@ def make_tenant(name: str, party: str, amount: float, secret: str):
 
 
 A, TOKEN_A = make_tenant("Alpha Mills", "Ashok Textiles", 25000, "ALPHASECRET")
+
+# A tenant with a party but nothing owed, for the "nothing outstanding" case.
+EMPTY_FOR_MONEY = uuid.uuid4()
+with admin_session() as db:
+    db.add(Tenant(id=EMPTY_FOR_MONEY, business_name="Nil Mills",
+                  owner_phone=f"96{uuid.uuid4().int % 10**8:08d}"))
+with tenant_session(EMPTY_FOR_MONEY) as db:
+    db.add(BusinessProfile(tenant_id=EMPTY_FOR_MONEY, segments=["wholesaler"],
+                           modules={}, vocabulary={}, rules={}, examples=[]))
+    db.add(Party(tenant_id=EMPTY_FOR_MONEY, name="Nobody Owes Us", phone="9000000000"))
+
+# A tenant with a party but nothing owed, for the "nothing outstanding" case.
+EMPTY_FOR_MONEY = uuid.uuid4()
+with admin_session() as db:
+    db.add(Tenant(id=EMPTY_FOR_MONEY, business_name="Nil Mills",
+                  owner_phone=f"96{uuid.uuid4().int % 10**8:08d}"))
+with tenant_session(EMPTY_FOR_MONEY) as db:
+    db.add(BusinessProfile(tenant_id=EMPTY_FOR_MONEY, segments=["wholesaler"],
+                           modules={}, vocabulary={}, rules={}, examples=[]))
+    db.add(Party(tenant_id=EMPTY_FOR_MONEY, name="Nobody Owes Us", phone="9000000000"))
 B, TOKEN_B = make_tenant("Beta Mills", "Bharat Fabrics", 91000, "BETASECRET")
 
 print("\n-- isolation at the query layer --")
@@ -87,6 +107,46 @@ with tenant_session(B) as db:
     ctx_b = gather(db, B, "who owes me the most money")
 check("B sees its own", "Bharat Fabrics" in as_prompt(ctx_b), True)
 check("  and none of A's", "Ashok Textiles" in as_prompt(ctx_b), False)
+
+print("\n-- undispatched orders, and the NOT IN trap --")
+
+from app.models import Dispatch, Order, OrderLine  # noqa: E402
+
+with tenant_session(A) as db:
+    party = db.query(Party).first()
+    db.add(Order(tenant_id=A, party_id=party.id, order_no="ORD-1",
+                 order_date=date.today(), status="draft"))
+    db.add(Order(tenant_id=A, party_id=party.id, order_no="ORD-2",
+                 order_date=date.today(), status=None))
+    db.flush()
+    # A dispatch row with a NULL order_id is what poisons `NOT IN`: one NULL in
+    # the subquery makes the predicate NULL for every row, so the query returns
+    # nothing instead of everything undispatched.
+    db.add(Dispatch(tenant_id=A, order_id=None, dispatched_on=date.today()))
+
+with tenant_session(A) as db:
+    ctx_orders = gather(db, A, "which orders have not been dispatched")
+check("undispatched orders survive a NULL order_id in dispatch",
+      len(ctx_orders.orders) >= 2, True)
+check("  including one whose status is NULL",
+      any("ORD-2" in e.label for e in ctx_orders.orders), True)
+
+with tenant_session(A) as db:
+    target = db.query(Order).filter(Order.order_no == "ORD-1").first()
+    db.add(OrderLine(tenant_id=A, order_id=target.id,
+                     raw_description="Spindle bolster", quantity=None, rate=None))
+
+with tenant_session(A) as db:
+    ctx_nullqty = gather(db, A, "which orders have not been dispatched")
+check("a line with no quantity does not crash the answer",
+      any("quantity not stated" in e.detail for e in ctx_nullqty.orders), True)
+
+print("\n-- nothing owed is a fact, not a gap --")
+
+with tenant_session(EMPTY_FOR_MONEY) as db:
+    ctx_nil = gather(db, EMPTY_FOR_MONEY, "who owes me the most")
+check("it states that nobody owes anything",
+      "No party has an outstanding balance" in as_prompt(ctx_nil), True)
 
 print("\n-- citations resolve --")
 

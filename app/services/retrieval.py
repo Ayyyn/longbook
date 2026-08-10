@@ -75,9 +75,28 @@ def _money(value) -> str:
     return f"Rs {float(value or 0):,.0f}"
 
 
+# Ordinary question words. Without this a party called "Most Textiles" is
+# "matched" by any question containing "most", and its records are dragged in
+# as evidence for a question that has nothing to do with it.
+STOPWORDS = {
+    "what", "when", "which", "where", "whom", "whose", "does", "did", "have",
+    "has", "there", "them", "they", "this", "that", "these", "those", "from",
+    "with", "much", "many", "most", "least", "owes", "owed", "owe", "paid",
+    "pay", "payment", "order", "orders", "rate", "rates", "quote", "quoted",
+    "dispatch", "dispatched", "outstanding", "overdue", "days", "last", "year",
+    "month", "week", "today", "still", "about", "been", "were", "was", "are",
+    "and", "the", "for", "not", "any", "all", "show", "tell", "give", "list",
+    "business", "customer", "customers", "party", "parties", "money", "total",
+}
+
+
 def _named_parties(db, tenant_id: uuid.UUID, question: str) -> list[Party]:
     """Parties the question appears to be about, by name fragment."""
-    words = [w.strip(",.?!'\"") for w in question.split() if len(w.strip(",.?!'\"")) >= 4]
+    words = [
+        w.strip(",.?!'\"")
+        for w in question.split()
+        if len(w.strip(",.?!'\"")) >= 4 and w.strip(",.?!'\"").lower() not in STOPWORDS
+    ]
     if not words:
         return []
     clauses = [Party.name.ilike(f"%{w}%") for w in words[:8]]
@@ -115,9 +134,18 @@ def _orders_for(
     if party_ids:
         where.append(Order.party_id.in_(party_ids))
     if undispatched:
-        dispatched = select(Dispatch.order_id).where(Dispatch.tenant_id == tenant_id)
+        # isnot(None) is load-bearing: one NULL inside a NOT IN subquery makes
+        # the whole predicate NULL for every row, and the query silently
+        # returns nothing at all rather than everything undispatched.
+        dispatched = select(Dispatch.order_id).where(
+            Dispatch.tenant_id == tenant_id, Dispatch.order_id.isnot(None)
+        )
         where.append(Order.id.notin_(dispatched))
-        where.append(Order.status.notin_(["closed", "cancelled"]))
+        # Same trap on the column itself: a NULL status is not "closed", but
+        # `status NOT IN (...)` drops it.
+        where.append(
+            or_(Order.status.is_(None), Order.status.notin_(["closed", "cancelled"]))
+        )
 
     rows = db.execute(
         select(Order, Party.name)
@@ -135,11 +163,16 @@ def _orders_for(
             .where(OrderLine.order_id == order.id)
         ).all()
         value = sum(float(x.quantity or 0) * float(x.rate or 0) for x, _ in lines)
-        what = ", ".join(
-            f"{code or x.raw_description or 'item'} "
-            f"{float(x.quantity):g} {x.unit or ''}".strip()
-            for x, code in lines[:3]
-        )
+        # Quantity and rate are both nullable — a partially-committed order is
+        # the normal case, not an exception, and formatting must survive it.
+        def describe(line, code) -> str:
+            name = code or line.raw_description or "item"
+            if line.quantity is None:
+                return f"{name} (quantity not stated)"
+            unit = f" {line.unit}" if line.unit else ""
+            return f"{name} {float(line.quantity):g}{unit}"
+
+        what = ", ".join(describe(x, code) for x, code in lines[:3])
         out.append(
             Evidence(
                 kind="order",
@@ -261,8 +294,10 @@ def gather(db, tenant_id: uuid.UUID, question: str) -> Context:
         w in lowered for w in ("rate", "quote", "quoted", "price", "bhav", "offer")
     )
 
+    had_outstanding = False
     if asks_money or not (asks_orders or asks_rates):
         context.parties = _outstanding(db, tenant_id)
+        had_outstanding = bool(context.parties)
 
     if parties and not context.parties:
         context.parties = [
@@ -281,7 +316,19 @@ def gather(db, tenant_id: uuid.UUID, question: str) -> Context:
 
     context.messages = _messages(db, tenant_id, question)
 
+    # An empty outstanding list is a fact, not an absence of records. Without
+    # saying so, "who owes me the most" gets "I have no ledger records", which
+    # reads as broken rather than as "nobody owes you anything".
+    # Keyed on the ledger query, not on whether any party ended up in the
+    # context — a party matched by name is not evidence that anyone owes
+    # anything.
+    if asks_money and not had_outstanding:
+        context.totals["outstanding_summary"] = (
+            "No party has an outstanding balance on record."
+        )
+
     context.totals = {
+        **context.totals,
         "parties_on_record": db.execute(
             select(func.count()).select_from(Party).where(Party.tenant_id == tenant_id)
         ).scalar_one(),
@@ -319,9 +366,13 @@ def as_prompt(context: Context) -> str:
     section("Messages", context.messages)
 
     totals = context.totals
+    summary = totals.get("outstanding_summary")
     blocks.append(
         "## On record for this business\n"
-        f"{totals.get('parties_on_record', 0)} parties, "
+        # Stated explicitly so "nobody owes anything" can be answered as the
+        # fact it is, rather than as an absence the model has to interpret.
+        + (f"{summary}\n" if summary else "")
+        + f"{totals.get('parties_on_record', 0)} parties, "
         f"{totals.get('orders_on_record', 0)} orders, "
         f"{totals.get('messages_on_record', 0)} messages."
     )
