@@ -9,6 +9,7 @@ from app.config import settings
 from app.api.deps import require_access
 from app.api import (
     agents,
+    connect,
     ingest,
     jobs,
     ledger,
@@ -56,6 +57,9 @@ app.include_router(agents.router, prefix="/api/agents", tags=["agents"],
 app.include_router(today.router, prefix="/api/today", tags=["today"],
                    dependencies=[Depends(require_access)])
 app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
+# Not access-guarded as a whole: the poll endpoint is cross-tenant and
+# authenticates with the scheduler token instead.
+app.include_router(connect.router, prefix="/api/connect", tags=["connect"])
 app.include_router(parties.router, prefix="/api/parties", tags=["parties"],
                    dependencies=[Depends(require_access)])
 app.include_router(orders.router, prefix="/api/orders", tags=["orders"],

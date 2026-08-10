@@ -64,6 +64,21 @@ class Settings(BaseSettings):
     # it, anyone who can reach the service can mint a tenant and its token.
     admin_token: str = ""
 
+    # Inbound mail. Owners forward invoices and POs to a plus-addressed alias
+    # on this mailbox, which is read over IMAP. Deliberately separate from the
+    # SMTP settings above even though it is usually the same account: sending
+    # the digest and reading customer mail are different jobs and should be
+    # able to move apart without one breaking the other.
+    inbound_address: str = ""
+    inbound_password: str = ""      # a Gmail app password, not the login one
+    inbound_host: str = "imap.gmail.com"
+    inbound_port: int = 993
+
+    # Gmail OAuth. Empty until the console client exists, which is what
+    # the connect screen keys "not available yet" off.
+    gmail_client_id: str = ""
+    gmail_client_secret: str = ""
+
     # Gates self-serve signup. An owner signing themselves up cannot be asked
     # for the admin token — that token mints tenants for every business, so
     # handing it to a customer would be handing over the whole system. But

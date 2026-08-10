@@ -216,18 +216,81 @@ function Picker({ camera = false, onDone }) {
 }
 
 function Accounts() {
+  const [inbound, setInbound] = useState(null);
+  const [gmail, setGmail] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    api.inbound().then(setInbound).catch(() => setInbound({ configured: false }));
+    api.gmailStatus().then(setGmail).catch(() => setGmail(null));
+  }, []);
+
   return (
     <>
+      {/* Forwarding leads. It is the one that keeps working. */}
+      <div className="card">
+        <h3>Forward your invoices here</h3>
+        {inbound?.configured ? (
+          <>
+            <p
+              style={{
+                fontFamily: "ui-monospace, monospace",
+                fontSize: 15,
+                wordBreak: "break-all",
+                background: "var(--card-2)",
+                padding: "12px 14px",
+                borderRadius: 10,
+                margin: "4px 0 12px",
+              }}
+            >
+              {inbound.address}
+            </p>
+            <div className="actions">
+              <button
+                className="primary"
+                style={{ width: "100%" }}
+                onClick={() => {
+                  navigator.clipboard?.writeText(inbound.address);
+                  setCopied(true);
+                }}
+              >
+                {copied ? "Copied" : "Copy address"}
+              </button>
+            </div>
+            <ul style={{ paddingLeft: 18, lineHeight: 1.7, margin: "12px 0 0" }}>
+              {inbound.how.map((line) => (
+                <li key={line} style={{ marginBottom: 6 }}>
+                  {line}
+                </li>
+              ))}
+            </ul>
+            {inbound.limits?.length > 0 && (
+              <p className="muted" style={{ marginBottom: 0 }}>
+                {inbound.limits.join(" ")}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="muted" style={{ marginBottom: 0 }}>
+            {inbound
+              ? "Email forwarding is not switched on yet."
+              : "Loading…"}
+          </p>
+        )}
+      </div>
+
       <div className="card">
         <div className="row">
           <div>
-            <div style={{ fontWeight: 600 }}>Gmail</div>
+            <div style={{ fontWeight: 600 }}>Connect Gmail directly</div>
             <div className="muted">
-              Invoices, purchase orders and quotations, read straight from your
-              inbox as they arrive.
+              {gmail?.detail ||
+                "Reads new invoices and purchase orders without forwarding."}
             </div>
           </div>
-          <span className="chip plain">Coming soon</span>
+          <span className="chip plain">
+            {gmail?.available ? "Available" : "Not yet"}
+          </span>
         </div>
         <div className="row">
           <div>
@@ -239,10 +302,6 @@ function Accounts() {
           <span className="chip plain">Coming soon</span>
         </div>
       </div>
-      <Empty title="Not connected yet">
-        Until these are ready, export your chats and upload them here — the
-        result is the same, it just needs doing by hand.
-      </Empty>
     </>
   );
 }

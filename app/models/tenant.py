@@ -23,6 +23,8 @@ class Tenant(Base, TimestampMixin):
     owner_name = Column(String(120))
     owner_phone = Column(String(20), unique=True, nullable=False)
     owner_email = Column(String(200))  # where the close-of-business digest goes
+    # Tag in the forwarding alias, e.g. ops+<slug>@... Unique per tenant.
+    inbound_slug = Column(String(24), unique=True, index=True)
     city = Column(String(80))
     locale = Column(String(10), default="en")  # en | hi | gu | mr
 

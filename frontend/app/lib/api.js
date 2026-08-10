@@ -152,6 +152,8 @@ export const api = {
     return request("/api/ingest/batch", { method: "POST", body: form });
   },
   sources: () => request("/api/ingest/sources"),
+  inbound: () => request("/api/connect/inbound"),
+  gmailStatus: () => request("/api/connect/gmail/status"),
   me: () => request("/api/tenants/me"),
   queue: (limit = 25) => request(`/api/review/queue?limit=${limit}`),
   accept: (id) => request(`/api/review/${id}/accept`, { method: "POST" }),

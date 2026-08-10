@@ -90,7 +90,7 @@ gcloud run deploy textile-api \
   --cpu=1 --memory=1Gi --timeout=900 --no-cpu-throttling \
   --set-cloudsql-instances="$CONN" \
   --set-env-vars="ENV=prod,GCS_BUCKET=${BUCKET},BQ_DATASET=${BQ_DATASET},DATABASE_URL=${DB_URL},SMTP_PORT=587,SMTP_STARTTLS=true,BACKFILL_MODE=cloudrun,GCP_PROJECT=${PROJECT},GCP_REGION=${REGION}" \
-  --set-secrets="GEMINI_API_KEY=gemini-api-key:latest,ADMIN_TOKEN=admin-token:latest,SCHEDULER_TOKEN=scheduler-token:latest,SMTP_HOST=smtp-host:latest,SMTP_USER=smtp-user:latest,SMTP_PASSWORD=smtp-password:latest,DIGEST_FROM=digest-from:latest,SIGNUP_CODE=signup-code:latest"
+  --set-secrets="GEMINI_API_KEY=gemini-api-key:latest,ADMIN_TOKEN=admin-token:latest,SCHEDULER_TOKEN=scheduler-token:latest,SMTP_HOST=smtp-host:latest,SMTP_USER=smtp-user:latest,SMTP_PASSWORD=smtp-password:latest,DIGEST_FROM=digest-from:latest,SIGNUP_CODE=signup-code:latest,INBOUND_ADDRESS=inbound-address:latest,INBOUND_PASSWORD=inbound-password:latest"
 
 API_URL="$(gcloud run services describe textile-api --region="$REGION" --format='value(status.url)')"
 echo "    API at $API_URL"
@@ -138,6 +138,18 @@ gcloud scheduler jobs $VERB http textile-digest \
   --http-method=POST \
   "$HEADER_FLAG=X-Scheduler-Token=${SCHED_TOKEN}" \
   --attempt-deadline=900s
+
+echo "==> Inbound mail schedule"
+# Every ten minutes. Forwarded invoices should show up while the owner is
+# still at the desk, without hammering IMAP.
+if gcloud scheduler jobs describe textile-inbound --location="$REGION" >/dev/null 2>&1; then
+  IVERB=update
+  IHEADER=--update-headers
+else
+  IVERB=create
+  IHEADER=--headers
+fi
+gcloud scheduler jobs $IVERB http textile-inbound   --location="$REGION"   --schedule="*/10 * * * *"   --time-zone="Asia/Kolkata"   --uri="${API_URL}/api/connect/inbound/poll"   --http-method=POST   "$IHEADER=X-Scheduler-Token=${SCHED_TOKEN}"   --attempt-deadline=300s
 
 echo
 echo "Deployed $TAG."

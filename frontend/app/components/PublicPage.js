@@ -44,11 +44,13 @@ export default function PublicPage({ children, active }) {
           Made in Surat. We do not send anything to your customers, ever.
         </p>
         <div className="rows small">
-          {links.map(([href, label]) => (
-            <Link key={href} href={href}>
-              {label}
-            </Link>
-          ))}
+          {[...links, ["/privacy", "Privacy"], ["/terms", "Terms"]].map(
+            ([href, label]) => (
+              <Link key={href} href={href}>
+                {label}
+              </Link>
+            ),
+          )}
         </div>
       </footer>
     </div>

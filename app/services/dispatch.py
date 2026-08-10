@@ -28,13 +28,8 @@ log = logging.getLogger(__name__)
 _RUN_API = "https://run.googleapis.com/v2"
 
 
-def _execute_cloud_run_job(tenant_id: uuid.UUID, job_id: uuid.UUID) -> None:
-    """Ask Cloud Run to run one backfill, with the ids passed as env overrides.
-
-    Imported lazily: a dev machine has no metadata server and no credentials,
-    and importing google.auth at module scope would make that a startup cost
-    for everyone.
-    """
+def _session_and_name() -> tuple:
+    """Authorised session plus the fully-qualified job name."""
     import google.auth
     from google.auth.transport.requests import AuthorizedSession
 
@@ -45,13 +40,58 @@ def _execute_cloud_run_job(tenant_id: uuid.UUID, job_id: uuid.UUID) -> None:
     if not project:
         raise RuntimeError("backfill_mode=cloudrun but no GCP project is configured.")
 
-    name = (
-        f"projects/{project}/locations/{cfg.gcp_region}/jobs/{cfg.backfill_job_name}"
-    )
     credentials, _ = google.auth.default(
         scopes=["https://www.googleapis.com/auth/cloud-platform"]
     )
-    session = AuthorizedSession(credentials)
+    name = f"projects/{project}/locations/{cfg.gcp_region}/jobs/{cfg.backfill_job_name}"
+    return AuthorizedSession(credentials), name
+
+
+def _already_running(tenant_id: uuid.UUID) -> bool:
+    """Is a backfill for this tenant running right now?
+
+    Asks Cloud Run rather than keeping a lease in our own database. A lease
+    has to be heartbeated and expires wrongly in both directions — too short
+    and a long backfill gets double-dispatched at minute twenty-one, too long
+    and a crashed one blocks the retry that would have fixed it. The execution
+    list is the ground truth, and the tenant is recoverable from the env
+    override the execution was started with.
+
+    Never raises: if this check cannot be made, dispatching twice is wasteful,
+    and not dispatching at all is a customer whose data is never read.
+    """
+    try:
+        session, name = _session_and_name()
+        response = session.get(
+            f"{_RUN_API}/{name}/executions",
+            params={"pageSize": 50},
+            timeout=15,
+        )
+        response.raise_for_status()
+        for execution in response.json().get("executions", []):
+            if not execution.get("runningCount"):
+                continue
+            containers = (execution.get("template") or {}).get("containers") or []
+            for container in containers:
+                for env in container.get("env") or []:
+                    if (
+                        env.get("name") == "BACKFILL_TENANT_ID"
+                        and env.get("value") == str(tenant_id)
+                    ):
+                        return True
+    except Exception:  # noqa: BLE001 - a failed check must not block ingestion
+        log.warning("Could not check for a running backfill; dispatching anyway.")
+    return False
+
+
+def _execute_cloud_run_job(tenant_id: uuid.UUID, job_id: uuid.UUID) -> None:
+    """Ask Cloud Run to run one backfill, with the ids passed as env overrides.
+
+    Imported lazily: a dev machine has no metadata server and no credentials,
+    and importing google.auth at module scope would make that a startup cost
+    for everyone.
+    """
+    session, name = _session_and_name()
     response = session.post(
         f"{_RUN_API}/{name}:run",
         json={
@@ -79,6 +119,12 @@ def dispatch_backfill(tenant_id: uuid.UUID, job_id: uuid.UUID, background) -> st
     extracts nothing is not.
     """
     if settings().backfill_mode == "cloudrun":
+        # Configure and an upload can both ask for a backfill within a second
+        # of each other, and two executions then grind through the same
+        # windows. Content hashing makes that safe but not free.
+        if _already_running(tenant_id):
+            log.info("Backfill already running for %s; not starting another.", tenant_id)
+            return "already-running"
         try:
             _execute_cloud_run_job(tenant_id, job_id)
             return "cloudrun"
