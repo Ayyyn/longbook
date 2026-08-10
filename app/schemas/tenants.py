@@ -74,6 +74,8 @@ class SampleAccepted(BaseModel):
     kind: str
     preview: list[str] = Field(default_factory=list, description="First few messages, verbatim")
     detail: str
+    estimated_minutes: int = 0
+    duplicates: int = 0
 
 
 class PartyImportResult(BaseModel):

@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     gcp_project: str = ""
     gcp_region: str = "asia-south1"
 
+    # How many files one upload action may carry. Chosen so an owner can
+    # select every chat that matters in one go without a mis-tap queueing
+    # their whole gallery.
+    max_upload_files: int = 20
+
     # Concurrent windows during a backfill. Higher than the RPM allows
     # simply queues on the pacer, so this is about hiding network latency,
     # not about outrunning the quota.

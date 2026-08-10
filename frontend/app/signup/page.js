@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, signup, setToken, setPhone } from "../lib/api";
+import { api, signup, setToken, setPhone, formatNumber } from "../lib/api";
 import PublicPage from "../components/PublicPage";
 import { CONTACT } from "../lib/contact";
 
@@ -114,13 +114,17 @@ export default function SignupPage() {
     }
   }
 
-  async function uploadAndConfigure(file, partyFile) {
+  async function uploadAndConfigure(chats, partyFile) {
     setBusy(true);
     setError(null);
     try {
-      if (file) {
-        setNote("Reading your chat export…");
-        await api.uploadSample(file);
+      if (chats?.length) {
+        setNote(
+          chats.length === 1
+            ? "Reading your chat export…"
+            : `Reading ${chats.length} chat exports…`,
+        );
+        await api.uploadSample(chats);
       }
       if (partyFile) {
         setNote("Importing your party list…");
@@ -385,11 +389,48 @@ function TradeStep({ answers, setAnswers, onNext }) {
 // The step owners get stuck on, so the instructions are the screen rather than
 // a link off it.
 function HistoryStep({ busy, onSubmit }) {
-  const [file, setFile] = useState(null);
+  const [chats, setChats] = useState([]);
   const [partyFile, setPartyFile] = useState(null);
+  const [estimate, setEstimate] = useState(null);
+  const [checking, setChecking] = useState(false);
+
+  // Run the real parser before they commit. Handing over six years of chats
+  // and watching a spinner is a bad first minute; "4,812 messages, about
+  // eight minutes" is a fine one.
+  async function check(files) {
+    setChats(files);
+    setEstimate(null);
+    if (!files.length) return;
+    setChecking(true);
+    try {
+      setEstimate(await api.estimateUpload(files));
+    } catch {
+      // An estimate is a courtesy. If it fails, let them upload anyway.
+      setEstimate(null);
+    } finally {
+      setChecking(false);
+    }
+  }
 
   return (
     <>
+      <div className="card">
+        <label htmlFor="parties" style={{ fontWeight: 600 }}>
+          Your party list from Tally or Excel
+        </label>
+        <input
+          id="parties"
+          type="file"
+          accept=".xlsx,.xlsm"
+          onChange={(e) => setPartyFile(e.target.files?.[0] || null)}
+        />
+        <p className="muted">
+          An export of your customers and their outstandings. This is the
+          fastest way to start: names and balances are right from day one
+          instead of being learned from messages.
+        </p>
+      </div>
+
       <div className="know">
         <h3>How to export a WhatsApp chat</h3>
         <ol style={{ paddingLeft: 18, lineHeight: 1.7, margin: "8px 0 0" }}>
@@ -399,60 +440,74 @@ function HistoryStep({ busy, onSubmit }) {
             <strong>Export chat</strong>.
           </li>
           <li>
-            Choose <strong>Without media</strong> — it is much faster and the
-            text is all we need.
+            Choose <strong>Without media</strong> if you only want the text, or{" "}
+            <strong>Include media</strong> to bring the bill photos too.
           </li>
-          <li>Save the file, or send it to yourself, then pick it below.</li>
+          <li>Save the file, then repeat for your other regular parties.</li>
         </ol>
         <p className="muted" style={{ marginBottom: 0 }}>
-          On iPhone the menu is under the contact name too, near the bottom.
-          Group chats work the same way.
+          On iPhone the menu is under the contact name too. Group chats work
+          the same way.
         </p>
       </div>
 
       <div className="card">
-        <label htmlFor="chat" style={{ fontWeight: 600 }}>Your chat export</label>
+        <label htmlFor="chat" style={{ fontWeight: 600 }}>
+          Your chat exports (optional)
+        </label>
         <input
           id="chat"
           type="file"
           accept=".txt,.zip"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
+          multiple
+          onChange={(e) => check([...(e.target.files || [])])}
         />
         <p className="muted">
-          A .txt or .zip from WhatsApp. One busy chat is enough to start —
-          more can be added later.
+          Pick as many as you like — your mill, your big buyers, your
+          transporter. .txt or .zip, and zips bring the photos with them.
         </p>
-      </div>
 
-      <div className="card">
-        <label htmlFor="parties" style={{ fontWeight: 600 }}>
-          Party list from Tally or Excel (optional)
-        </label>
-        <input
-          id="parties"
-          type="file"
-          accept=".xlsx,.xlsm"
-          onChange={(e) => setPartyFile(e.target.files?.[0] || null)}
-        />
-        <p className="muted">
-          An export of your customers and outstandings, if you have one. It
-          means names and balances are right from day one instead of being
-          learned from messages.
-        </p>
+        {checking && <p className="muted">Reading the files…</p>}
+
+        {estimate && (
+          <div className="banner" style={{ marginTop: 4 }}>
+            <strong>{formatNumber(estimate.new_messages)} messages</strong>
+            {estimate.media > 0 && ` and ${formatNumber(estimate.media)} photos`}
+            {estimate.new_messages > 0 && (
+              <> · about {estimate.estimated_minutes} minute
+                {estimate.estimated_minutes === 1 ? "" : "s"} to read</>
+            )}
+            {estimate.duplicates > 0 && (
+              <> · {formatNumber(estimate.duplicates)} already read, skipped</>
+            )}
+          </div>
+        )}
+
+        {estimate?.files?.some((f) => f.error) && (
+          <div className="banner error" style={{ marginTop: 8 }}>
+            {estimate.files.filter((f) => f.error).map((f) => (
+              <div key={f.filename}>
+                {f.filename}: {f.error}
+              </div>
+            ))}
+            The rest will still be read.
+          </div>
+        )}
       </div>
 
       <div className="actions">
         <button
           className="primary"
           style={{ width: "100%" }}
-          disabled={busy || (!file && !partyFile)}
-          onClick={() => onSubmit(file, partyFile)}
+          disabled={busy || (!chats.length && !partyFile)}
+          onClick={() => onSubmit(chats, partyFile)}
         >
           {busy ? "Working…" : "Finish setup"}
         </button>
       </div>
       <p className="muted" style={{ textAlign: "center" }}>
-        Nothing is sent to your customers. Ever.
+        You can add more chats and documents any time. Nothing is sent to your
+        customers. Ever.
       </p>
     </>
   );

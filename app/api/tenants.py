@@ -32,10 +32,10 @@ from fastapi import (
 from sqlalchemy import func, select
 
 from app.api.deps import TenantDB, TenantId
-from app.api.ingest import save_upload
+from app.api.ingest import _spool_uploads, save_upload
 from app.config import settings
 from app.db import admin_session
-from app.models.ingestion import Extraction, Interaction
+from app.models.ingestion import Extraction, IngestSource, Interaction
 from app.models.party import Party
 from app.models.tenant import BusinessProfile, Tenant
 from app.schemas.tenants import (
@@ -60,7 +60,8 @@ from app.services import recovery as recovery_service
 from app.services.mailer import send_email
 from app.services.auth import issue_token
 from app.services.dispatch import dispatch_backfill
-from app.services.intake import IntakeError, interactions_from_upload
+from app.services.intake import IntakeError
+from app.services.uploads import parse_many
 from app.services.onboarding import build_profile
 from app.services.party_import import (
     import_parties,
@@ -168,31 +169,61 @@ def _create(payload: TenantCreate) -> TenantCreated:
 def upload_sample(
     tid: TenantId,
     db: TenantDB,
-    file: UploadFile = File(...),
+    files: list[UploadFile] | None = File(None),
+    file: UploadFile | None = File(None),
 ) -> SampleAccepted:
-    """Store the export. Deliberately no BusinessProfile requirement — this
-    runs before there is one, and its content is what writes it."""
+    """Store one or more exports. Deliberately no BusinessProfile requirement —
+    this runs before there is one, and its content is what writes it.
+
+    Several files in one action because a trader's business is not in one
+    chat: the mill, the two big buyers and the transporter are four exports,
+    and asking for them one at a time is how people give up halfway."""
+    # `file` is the shape this endpoint had when it took one export. Kept
+    # working so anything scripted against it does not break silently.
+    incoming = [*(files or []), *([file] if file else [])]
+    if not incoming:
+        raise HTTPException(400, "No files were sent.")
+
     job_id = uuid.uuid4()
-    tmp_path = save_upload(file)
+    spooled = _spool_uploads(incoming)
     try:
-        intake = interactions_from_upload(tid, file.filename, tmp_path, job_id)
+        rows, estimate = parse_many(db, tid, spooled, job_id)
     except IntakeError as exc:
         raise HTTPException(exc.status_code, exc.detail) from exc
     finally:
-        tmp_path.unlink(missing_ok=True)
+        for _, path in spooled:
+            path.unlink(missing_ok=True)
 
-    db.add_all(intake.interactions)
+    readable = [f for f in estimate.files if not f.error]
+    if not readable:
+        bad = estimate.files[0] if estimate.files else None
+        raise HTTPException(bad.status_code if bad else 400,
+                            bad.error if bad else "No files were sent.")
+
+    db.add_all(rows)
+    for f in estimate.files:
+        db.add(
+            IngestSource(
+                tenant_id=tid, kind="upload", label=f.filename, job_id=job_id,
+                messages=f.messages, duplicates=f.duplicates, skipped=f.skipped,
+                media=f.media, bytes=f.bytes,
+                status="failed" if f.error else "done", detail=f.error,
+            )
+        )
     db.flush()
 
-    preview = [i.body for i in intake.interactions if i.body][:PREVIEW_LINES]
+    preview = [i.body for i in rows if i.body][:PREVIEW_LINES]
     return SampleAccepted(
         job_id=job_id,
-        interactions=len(intake.interactions),
-        skipped=intake.skipped,
-        kind=intake.kind,
+        interactions=len(rows),
+        skipped=sum(f.skipped for f in estimate.files),
+        kind=readable[0].kind if readable else "unknown",
         preview=preview,
+        estimated_minutes=estimate.minutes,
+        duplicates=estimate.duplicates,
         detail=(
-            f"{len(intake.interactions)} messages read. "
+            f"{len(rows)} messages read from {len(readable)} "
+            f"{'file' if len(readable) == 1 else 'files'}. "
             "Answer the interview to configure and start the backfill."
         ),
     )

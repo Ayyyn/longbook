@@ -7,6 +7,7 @@ the request; extraction is the slow part and runs behind a job.
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 import zipfile
 from dataclasses import dataclass
@@ -43,6 +44,42 @@ class Intake:
     kind: str  # whatsapp_export | excel | image
     interactions: list[Interaction]
     skipped: int
+    media: int = 0
+
+
+def dedupe_hash(
+    tenant_id: uuid.UUID,
+    thread: str | None,
+    occurred_at,
+    sender: str | None,
+    body: str | None,
+    media_file: str | None = None,
+) -> str:
+    """Identity of a message, so the same one never lands twice.
+
+    Deliberately not a hash of the file. Uploading the identical export twice
+    is the easy case; the one that actually happens is re-exporting the same
+    chat a month later, where the file is different but most of the messages
+    are ones we already hold. Hashing the message means the second upload
+    contributes only what is new.
+
+    The thread is deliberately NOT part of the key, even though it is passed
+    in for readability at the call site. It is derived from the filename, and
+    filenames are the least stable thing about an export: the same chat
+    downloaded twice arrives as "chat.txt" and "chat (1).txt", and hashing
+    that in would let the second copy through as new. Timestamp, sender and
+    body already identify a message — two different chats carrying identical
+    text from an identically-named sender in the same second is not a case
+    worth protecting against at the cost of the one that happens weekly.
+    """
+    parts = [
+        str(tenant_id),
+        occurred_at.isoformat() if occurred_at else "",
+        (sender or "").strip().lower(),
+        (body or "").strip(),
+        (media_file or "").strip().lower(),
+    ]
+    return hashlib.sha256("".join(parts).encode("utf-8")).hexdigest()
 
 
 def _phone_from_sender(sender: str | None) -> str | None:
@@ -146,10 +183,15 @@ def interactions_from_upload(
                     media_uri=media_uri,
                     media_kind=msg.media_kind,
                     thread_key=thread,
+                    dedupe_hash=dedupe_hash(
+                        tenant_id, thread, msg.occurred_at, msg.sender,
+                        msg.body, msg.media_file,
+                    ),
                     attributes=attributes,
                 )
             )
-        return Intake("whatsapp_export", interactions, skipped)
+        media = sum(1 for _, uri in pairs if uri)
+        return Intake("whatsapp_export", interactions, skipped, media)
 
     if suffix in EXCEL_SUFFIXES:
         bodies = _rows_from_excel(path)

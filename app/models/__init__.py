@@ -4,12 +4,13 @@ from app.models.party import Party
 from app.models.catalog import Quality, Lot
 from app.models.orders import Order, OrderLine, Dispatch
 from app.models.finance import Invoice, Payment, LedgerEntry
-from app.models.ingestion import Interaction, Extraction
+from app.models.ingestion import IngestSource, Interaction, Extraction
 from app.models.ledger_state import LedgerWatermark
 from app.models.observability import AgentRun
 from app.models.window import ExtractionWindow
 
 __all__ = [
+    "IngestSource",
     "Base", "Tenant", "BusinessProfile", "Party", "Quality", "Lot",
     "Order", "OrderLine", "Dispatch", "Invoice", "Payment", "LedgerEntry",
     "Interaction", "Extraction", "AgentRun", "LedgerWatermark", "ExtractionWindow",

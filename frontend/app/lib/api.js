@@ -130,9 +130,10 @@ export const api = {
   resumeBackfill: () => request("/api/ingest/resume", { method: "POST" }),
   configure: (answers) =>
     request("/api/tenants/configure", { method: "POST", body: JSON.stringify(answers) }),
-  uploadSample: (file) => {
+  // Every upload path takes a list. A trader's business is not in one chat.
+  uploadSample: (files) => {
     const form = new FormData();
-    form.append("file", file);
+    [...files].forEach((f) => form.append("files", f));
     return request("/api/tenants/sample", { method: "POST", body: form });
   },
   uploadIngest: (file) => {
@@ -140,6 +141,17 @@ export const api = {
     form.append("file", file);
     return request("/api/ingest", { method: "POST", body: form });
   },
+  estimateUpload: (files) => {
+    const form = new FormData();
+    [...files].forEach((f) => form.append("files", f));
+    return request("/api/ingest/estimate", { method: "POST", body: form });
+  },
+  ingestBatch: (files) => {
+    const form = new FormData();
+    [...files].forEach((f) => form.append("files", f));
+    return request("/api/ingest/batch", { method: "POST", body: form });
+  },
+  sources: () => request("/api/ingest/sources"),
   me: () => request("/api/tenants/me"),
   queue: (limit = 25) => request(`/api/review/queue?limit=${limit}`),
   accept: (id) => request(`/api/review/${id}/accept`, { method: "POST" }),

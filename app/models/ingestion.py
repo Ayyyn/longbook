@@ -8,7 +8,7 @@ confidence goes to the review queue; the owner accepts or corrects it, and the
 correction is harvested as a per-tenant few-shot example.
 """
 
-from sqlalchemy import Column, DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.models.base import Base, TenantScoped
@@ -28,6 +28,12 @@ class Interaction(Base, TenantScoped):
     detected_lang = Column(String(16))     # hi | gu | mr | en | mixed
 
     thread_key = Column(String(200), index=True)   # chat/group identifier
+
+    # Identity of the message itself, not of the file it arrived in.
+    # Re-exporting a chat next month produces a different file containing
+    # mostly the same messages; this is what makes the second upload add
+    # only the new ones. Unique per tenant.
+    dedupe_hash = Column(String(64), index=True)
 
     # Which conversation window this message was segmented into. Set by
     # app/services/windowing.py, and re-pointed if a later message joins
@@ -66,3 +72,28 @@ class Extraction(Base, TenantScoped):
 
     committed_type = Column(String(32), nullable=True)
     committed_id = Column(UUID(as_uuid=True), nullable=True)
+
+
+class IngestSource(Base, TenantScoped):
+    """One import: a file, or a run of a continuous connector.
+
+    Exists so the owner can see what has been read and when, rather than
+    guessing at coverage — and so a source that syncs continuously has
+    somewhere to keep its cursor between runs.
+    """
+
+    __tablename__ = "ingest_source"
+
+    kind = Column(String(32), nullable=False)   # upload | gmail | whatsapp_cloud
+    label = Column(String(300))                 # filename, mailbox, chat name
+    job_id = Column(UUID(as_uuid=True), index=True)
+
+    messages = Column(Integer, default=0)
+    duplicates = Column(Integer, default=0)     # already held, skipped
+    skipped = Column(Integer, default=0)        # unparseable lines
+    media = Column(Integer, default=0)
+    bytes = Column(Integer, default=0)
+
+    cursor = Column(String(200))                # gmail historyId, etc.
+    status = Column(String(24), default="done")
+    detail = Column(Text)

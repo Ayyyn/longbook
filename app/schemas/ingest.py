@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel
 
@@ -31,3 +32,37 @@ class JobStatus(BaseModel):
     discarded: int
     logged: int = 0  # enquiries — context, not a business record
     errors: list[str] = []
+
+
+class FileEstimateOut(BaseModel):
+    filename: str
+    kind: str
+    messages: int
+    duplicates: int
+    skipped: int
+    media: int
+    bytes: int
+    error: str | None = None
+
+
+class EstimateOut(BaseModel):
+    """What an upload would do, before the owner commits to it."""
+
+    files: list[FileEstimateOut]
+    new_messages: int
+    duplicates: int
+    media: int
+    estimated_minutes: int
+    detail: str
+
+
+class SourceOut(BaseModel):
+    id: uuid.UUID
+    kind: str
+    label: str | None
+    messages: int
+    duplicates: int
+    media: int
+    status: str
+    detail: str | None
+    created_at: datetime
