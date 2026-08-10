@@ -23,6 +23,12 @@ export default function Tabs() {
   if (CHROMELESS.some((p) => pathname.startsWith(p))) return null;
   return (
     <nav className="tabs">
+      {/* Desktop only: the rail is tall enough to carry the name, and
+          without it the app opens with no identity at all. CSS hides it
+          on phones, where the bottom bar has no room to spare. */}
+      <Link href="/" className="rail-mark">
+        Textile Ops
+      </Link>
       {TABS.map((tab) => {
         // A detail page belongs to its section, so /parties/<id> keeps the
         // Parties tab lit rather than leaving the owner with no idea where
