@@ -53,7 +53,8 @@ client = TestClient(app)
 
 print("\n-- what the login screen calls --")
 
-resp = client.get("/api/tenants/me", headers={"Authorization": f"Bearer {TOKEN}"})
+live_headers = {"Authorization": f"Bearer {TOKEN}"}
+resp = client.get("/api/tenants/me", headers=live_headers)
 check("a good token identifies the tenant", resp.status_code, 200)
 check("  and returns the phone to check against", resp.json()["owner_phone"], f"+91{PHONE}")
 check("  and the business name to show", resp.json()["business_name"], "Login Mills")
@@ -100,6 +101,43 @@ print("\n-- every screen's data needs the token --")
 for path in ["/api/today", "/api/review/queue", "/api/parties", "/api/orders",
              "/api/agents/summary"]:
     check(f"{path} is 401 without a token", client.get(path).status_code, 401)
+
+print("\n-- losing a token, and getting back in --")
+
+from app.config import settings  # noqa: E402
+
+admin = {"X-Admin-Token": settings().admin_token}
+if not settings().admin_token:
+    print("  SKIP  admin token unset in this environment")
+else:
+    # The support call starts with a phone number, not a uuid.
+    found = client.get(f"/api/tenants/lookup?phone={PHONE}", headers=admin)
+    check("lookup by phone finds the business", found.status_code, 200)
+    check("  and returns exactly one", len(found.json()), 1)
+    check("  named correctly", found.json()[0]["business_name"], "Login Mills")
+    check("  with its access state, for the person on the call",
+          found.json()[0]["access_status"] in {"trial", "active", "expired"}, True)
+    check("  the last ten digits are enough",
+          len(client.get(f"/api/tenants/lookup?phone={PHONE[-10:]}", headers=admin).json()), 1)
+    check("lookup needs the admin token",
+          client.get(f"/api/tenants/lookup?phone={PHONE}").status_code, 401)
+    check("a number nobody has returns nothing",
+          client.get("/api/tenants/lookup?phone=0000000000", headers=admin).json(), [])
+
+    # Re-issue is the only recovery: the stored digest cannot be reversed.
+    issued = client.post(f"/api/tenants/{TENANT}/token?email=false", headers=admin)
+    check("a fresh token can be issued", issued.status_code, 200)
+    new_token = issued.json()["token"]
+    check("  and it is not the old one", new_token != TOKEN, True)
+    check("  the new one works",
+          client.get("/api/tenants/me",
+                     headers={"Authorization": f"Bearer {new_token}"}).status_code, 200)
+    check("  and the old one stops working immediately",
+          client.get("/api/tenants/me", headers=live_headers).status_code, 401)
+    check("re-issue needs the admin token",
+          client.post(f"/api/tenants/{TENANT}/token").status_code, 401)
+    check("re-issuing for a missing tenant 404s",
+          client.post(f"/api/tenants/{uuid.uuid4()}/token", headers=admin).status_code, 404)
 
 print(f"\n{ok} passed, {fail} failed")
 raise SystemExit(1 if fail else 0)

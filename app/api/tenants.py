@@ -19,7 +19,16 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Header, HTTPException, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Header,
+    HTTPException,
+    Query,
+    UploadFile,
+)
 from sqlalchemy import func, select
 
 from app.api.deps import TenantDB, TenantId
@@ -32,6 +41,7 @@ from app.models.tenant import BusinessProfile, Tenant
 from app.schemas.tenants import (
     PaymentRecord,
     PaymentRecorded,
+    TenantSummary,
     ConfigureResult,
     PartyImportResult,
     Interview,
@@ -42,6 +52,7 @@ from app.schemas.tenants import (
     TenantMe,
 )
 from app.services.access import access_for
+from app.services.credentials import email_token
 from app.services.auth import issue_token
 from app.services.dispatch import dispatch_backfill
 from app.services.intake import IntakeError, interactions_from_upload
@@ -131,7 +142,21 @@ def _create(payload: TenantCreate) -> TenantCreated:
         db.flush()
         tenant_id = tenant.id
 
-    return TenantCreated(tenant_id=tenant_id, business_name=payload.business_name, token=token)
+    sent, detail = email_token(
+        to=payload.owner_email,
+        business_name=payload.business_name,
+        phone=payload.owner_phone,
+        token=token,
+        dashboard_url=settings().dashboard_url,
+    )
+    return TenantCreated(
+        tenant_id=tenant_id,
+        business_name=payload.business_name,
+        token=token,
+        owner_phone=payload.owner_phone,
+        emailed_to=payload.owner_email if sent else None,
+        detail=detail if sent else "Store this token now — it is not shown again.",
+    )
 
 
 @router.post("/sample", response_model=SampleAccepted, status_code=202)
@@ -395,3 +420,87 @@ def record_payment(tenant_id: uuid.UUID, payload: PaymentRecord) -> PaymentRecor
             access_status=access.status,
             days_remaining=access.days_remaining,
         )
+
+
+@router.get("/lookup", response_model=list[TenantSummary],
+            dependencies=[Depends(require_admin)])
+def lookup_tenant(phone: str = Query(..., min_length=4)) -> list[TenantSummary]:
+    """Find a business by phone. Admin only.
+
+    Exists because the support call starts with a phone number, not a uuid:
+    someone rings saying they cannot get in, and this is how you find them
+    before re-issuing anything.
+
+    Matched on the last ten digits, since the number they read out will not
+    have the country code the database does.
+    """
+    digits = "".join(c for c in phone if c.isdigit())[-10:]
+    if len(digits) < 4:
+        raise HTTPException(400, "Give at least the last four digits of the number.")
+
+    with admin_session() as db:
+        rows = db.execute(
+            select(Tenant).where(Tenant.owner_phone.like(f"%{digits}"))
+        ).scalars().all()
+        out = []
+        for tenant in rows:
+            access = access_for(tenant)
+            out.append(
+                TenantSummary(
+                    tenant_id=tenant.id,
+                    business_name=tenant.business_name,
+                    owner_name=tenant.owner_name,
+                    owner_phone=tenant.owner_phone,
+                    owner_email=tenant.owner_email,
+                    city=tenant.city,
+                    access_status=access.status,
+                    days_remaining=access.days_remaining,
+                    paid_until=tenant.paid_until,
+                )
+            )
+        return out
+
+
+@router.post("/{tenant_id}/token", response_model=TenantCreated,
+             dependencies=[Depends(require_admin)])
+def reissue_token(tenant_id: uuid.UUID, email: bool = Query(True)) -> TenantCreated:
+    """Mint a fresh token for a tenant. Admin only.
+
+    The stored digest cannot be reversed, so a lost token can never be looked
+    up — only replaced. This is the answer to the phone call that starts "I
+    got a new phone and now I cannot get in".
+
+    Issuing a new token immediately stops the old one working, which is also
+    what makes this the revocation lever: if a token leaks, replace it.
+    Nothing else about the business changes.
+    """
+    with admin_session() as db:
+        tenant = db.get(Tenant, tenant_id)
+        if tenant is None:
+            raise HTTPException(404, "No such tenant.")
+        token = issue_token(tenant)
+        db.flush()
+        business_name, phone, to = tenant.business_name, tenant.owner_phone, tenant.owner_email
+
+    sent, detail = (False, "Not emailed.")
+    if email:
+        sent, detail = email_token(
+            to=to,
+            business_name=business_name,
+            phone=phone,
+            token=token,
+            dashboard_url=settings().dashboard_url,
+        )
+
+    return TenantCreated(
+        tenant_id=tenant_id,
+        business_name=business_name,
+        token=token,
+        owner_phone=phone,
+        emailed_to=to if sent else None,
+        detail=(
+            f"{detail} The previous token has stopped working."
+            if sent
+            else "New token issued. The previous token has stopped working."
+        ),
+    )

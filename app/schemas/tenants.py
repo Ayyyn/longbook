@@ -30,6 +30,10 @@ class TenantCreated(BaseModel):
     tenant_id: uuid.UUID
     business_name: str
     token: str
+    owner_phone: str | None = None
+    # Whether the token also went to their inbox. The signup screen changes
+    # what it tells the owner to do based on this.
+    emailed_to: str | None = None
     detail: str = "Store this token now — it is not shown again."
 
 
@@ -144,3 +148,17 @@ class PaymentRecorded(BaseModel):
     paid_until: datetime
     access_status: str
     days_remaining: int | None
+
+
+class TenantSummary(BaseModel):
+    """What an operator needs on the phone to find the right business."""
+
+    tenant_id: uuid.UUID
+    business_name: str
+    owner_name: str | None
+    owner_phone: str
+    owner_email: str | None
+    city: str | None
+    access_status: str
+    days_remaining: int | None
+    paid_until: datetime | None

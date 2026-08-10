@@ -193,6 +193,7 @@ export default function SignupPage() {
       {step === 3 && created && (
         <DoneStep
           created={created}
+          phone={details.owner_phone}
           saved={saved}
           setSaved={setSaved}
           onFinish={() => router.replace("/today")}
@@ -457,8 +458,23 @@ function HistoryStep({ busy, onSubmit }) {
   );
 }
 
-function DoneStep({ created, saved, setSaved, onFinish }) {
+function DoneStep({ created, phone, saved, setSaved, onFinish }) {
   const [copied, setCopied] = useState(false);
+
+  // Sending it to their own WhatsApp is the one place this trade reliably
+  // keeps things it needs to find again. "Save it somewhere safe" is not an
+  // instruction most owners can act on; "message it to yourself" is.
+  const digits = (phone || "").replace(/\D/g, "");
+  const wa = digits.length >= 10
+    ? `https://wa.me/${digits.length === 10 ? `91${digits}` : digits}?text=${encodeURIComponent(
+        `Textile Ops sign-in
+
+Phone: ${phone}
+Token: ${created.token}
+
+Keep this message.`,
+      )}`
+    : null;
   return (
     <>
       <div className="card">
@@ -488,10 +504,25 @@ function DoneStep({ created, saved, setSaved, onFinish }) {
             {copied ? "Copied" : "Copy token"}
           </button>
         </div>
-        <div className="banner error" style={{ marginTop: 12 }}>
-          Save this somewhere safe now. It is shown once and cannot be shown
-          again — it is what signs you in on another phone.
-        </div>
+        {wa && (
+          <div className="actions" style={{ marginTop: 10 }}>
+            <a className="button-link" href={wa} target="_blank" rel="noreferrer">
+              <button style={{ width: "100%" }}>Send it to my WhatsApp</button>
+            </a>
+          </div>
+        )}
+
+        {created.emailed_to ? (
+          <div className="banner" style={{ marginTop: 12 }}>
+            We have also emailed this to <strong>{created.emailed_to}</strong>.
+            Keep that email — it is how you sign in on a new phone.
+          </div>
+        ) : (
+          <div className="banner error" style={{ marginTop: 12 }}>
+            Save this somewhere safe now. It is shown once and cannot be shown
+            again — it is what signs you in on another phone.
+          </div>
+        )}
         <label
           className="line"
           style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}
