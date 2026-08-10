@@ -282,6 +282,7 @@ class Extractor(Agent):
             user=payload["body"],
             media_uri=payload.get("media_uri"),
             media_kind=payload.get("media_kind"),
+            media_mime=payload.get("media_mime"),
             examples=(self.profile.examples[:8] if self.profile else []),
         )
 

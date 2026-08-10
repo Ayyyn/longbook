@@ -1,6 +1,7 @@
 import { Instrument_Serif, Inter } from "next/font/google";
 import "./globals.css";
 import Tabs from "./components/Tabs";
+import AccountMenu from "./components/AccountMenu";
 
 // Two faces, one job each. The serif carries headlines and the money figures —
 // it is what makes the thing look considered rather than generated. Inter does
@@ -37,6 +38,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${sans.variable} ${display.variable}`}>
       <body>
+        <AccountMenu />
         <div className="shell">{children}</div>
         <Tabs />
       </body>

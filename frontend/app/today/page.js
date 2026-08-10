@@ -213,6 +213,14 @@ function Today() {
         </Empty>
       )}
 
+      <Link href="/chat" className="section-row cta">
+        <div>
+          <div className="rt">Ask a question</div>
+          <div className="rs">who owes the most, what was quoted, what is undispatched</div>
+        </div>
+        <div className="ra"><span className="chev">›</span></div>
+      </Link>
+
       <Link href="/add" className="section-row cta">
         <div>
           <div className="rt">Add data</div>

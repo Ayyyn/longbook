@@ -12,7 +12,7 @@ which is a different and much worse statement than "not built yet".
 from __future__ import annotations
 
 import uuid
-from datetime import date, timedelta
+from datetime import datetime, time, timedelta
 
 from fastapi import APIRouter
 from sqlalchemy import func, select
@@ -39,6 +39,10 @@ from app.services.ledger import outstanding_by_party, payment_trend
 
 router = APIRouter()
 
+# India-only product, and every timestamp column is UTC. A fixed offset
+# rather than a tz database: IST has no daylight saving to track.
+IST_OFFSET = timedelta(hours=5, minutes=30)
+
 OPEN_STATUSES = ("draft", "confirmed", "partially_dispatched")
 RECENT_LIMIT = 5
 CHASING_LIMIT = 6
@@ -62,10 +66,18 @@ def _summarise(order) -> str:
 @router.get("", response_model=TodayDigest)
 @router.get("/", response_model=TodayDigest, include_in_schema=False)
 def today(tid: TenantId, db: TenantDB, profile: Profile) -> TodayDigest:
-    # Server-local date. Tenant-local close of business arrives with the
-    # scheduled digest in section 4, which is when the distinction starts to
-    # matter — a job firing at the wrong hour, not a number that is wrong.
-    today_date = date.today()
+    # "Today" means today in India, and every timestamp in this database is
+    # UTC. date.today() is the server's local date, so between midnight and
+    # 05:30 IST it disagreed with the UTC dates on the rows it was compared
+    # against, and agent_decisions_today read zero every morning.
+    #
+    # The date is computed in IST; timestamp columns are compared against the
+    # UTC instants that bracket that IST day, which also keeps the comparison
+    # on the index rather than on a function of the column.
+    ist_now = datetime.utcnow() + IST_OFFSET
+    today_date = ist_now.date()
+    day_start_utc = datetime.combine(today_date, time.min) - IST_OFFSET
+    day_end_utc = day_start_utc + timedelta(days=1)
     week_ago = today_date - timedelta(days=6)
 
     def total(*where) -> float:
@@ -180,7 +192,11 @@ def today(tid: TenantId, db: TenantDB, profile: Profile) -> TodayDigest:
         ),
         dispatches_today=count(Dispatch, Dispatch.dispatched_on == today_date),
         needs_review=count(Extraction, Extraction.status == "needs_review"),
-        agent_decisions_today=count(AgentRun, func.date(AgentRun.created_at) == today_date),
+        agent_decisions_today=count(
+            AgentRun,
+            AgentRun.created_at >= day_start_utc,
+            AgentRun.created_at < day_end_utc,
+        ),
         chasing=chasing,
         flagged=flagged,
         new_orders=new_orders,

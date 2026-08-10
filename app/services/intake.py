@@ -22,8 +22,13 @@ TEXT_SUFFIXES = {".txt"}
 ZIP_SUFFIXES = {".zip"}
 EXCEL_SUFFIXES = {".xlsx", ".xlsm"}
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
+# Voice notes. Gemini reads audio natively, so there is no transcription
+# step to get wrong before the extractor sees it — which matters when the
+# recording is Gujarati and Hindi with English quality codes in the middle.
+AUDIO_SUFFIXES = {".ogg", ".oga", ".opus", ".m4a", ".mp3", ".wav", ".aac", ".webm"}
 
-SUPPORTED = TEXT_SUFFIXES | ZIP_SUFFIXES | EXCEL_SUFFIXES | IMAGE_SUFFIXES
+SUPPORTED = (TEXT_SUFFIXES | ZIP_SUFFIXES | EXCEL_SUFFIXES | IMAGE_SUFFIXES
+             | AUDIO_SUFFIXES)
 
 # A 90-day group export is a few thousand messages; well past that and the
 # upload is more likely a mistake than a business.
@@ -80,6 +85,19 @@ def dedupe_hash(
         (media_file or "").strip().lower(),
     ]
     return hashlib.sha256("".join(parts).encode("utf-8")).hexdigest()
+
+
+def _audio_mime(suffix: str) -> str:
+    """What the browser actually recorded, so the model is told the truth.
+
+    MediaRecorder gives ogg/opus on Firefox and webm/opus on Chrome, and
+    guessing wrong makes Gemini reject the part rather than mis-read it.
+    """
+    return {
+        ".ogg": "audio/ogg", ".oga": "audio/ogg", ".opus": "audio/ogg",
+        ".webm": "audio/webm", ".m4a": "audio/mp4", ".mp3": "audio/mpeg",
+        ".wav": "audio/wav", ".aac": "audio/aac",
+    }.get(suffix, "audio/ogg")
 
 
 def _phone_from_sender(sender: str | None) -> str | None:
@@ -209,6 +227,25 @@ def interactions_from_upload(
                 )
             )
         return Intake("excel", interactions, skipped)
+
+    if suffix in AUDIO_SUFFIXES:
+        uri = store_media(tenant_id, filename or "note.ogg", path.read_bytes())
+        interactions.append(
+            Interaction(
+                tenant_id=tenant_id,
+                channel="upload",
+                sender=filename,
+                body="",
+                media_uri=uri,
+                media_kind="audio",
+                thread_key=Path(filename or "voice").stem,
+                dedupe_hash=dedupe_hash(
+                    tenant_id, None, None, filename, None, uri
+                ),
+                attributes={**attributes, "mime": _audio_mime(suffix)},
+            )
+        )
+        return Intake("audio", interactions, 0, 1)
 
     if suffix in IMAGE_SUFFIXES:
         uri = store_media(tenant_id, filename or "photo.jpg", path.read_bytes())

@@ -216,8 +216,15 @@ def _process_window(
         # lets a December window resolve "1390 is our offer" against April's
         # 1440 without joining the sessions structurally.
         party_context = _party_context(db, tenant_id, name, phone)
+        # Audio as well as images. Gemini reads a voice note natively, and a
+        # window that filtered to images silently dropped every one an owner
+        # recorded — the message row existed, the model never saw it.
         media = next(
-            (m for m in segment.messages if m.media_uri and m.media_kind == "image"),
+            (
+                m
+                for m in segment.messages
+                if m.media_uri and m.media_kind in {"image", "audio", "document"}
+            ),
             None,
         )
         state = {
@@ -236,6 +243,7 @@ def _process_window(
                 "party_hints": hints,
                 "media_uri": media.media_uri if media else None,
                 "media_kind": media.media_kind if media else None,
+                "media_mime": (media.attributes or {}).get("mime") if media else None,
             },
         }
 

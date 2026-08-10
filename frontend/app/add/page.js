@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import TokenGate from "../components/TokenGate";
 import { api, formatNumber } from "../lib/api";
 import Empty from "../components/Empty";
+import FilePicker from "../components/FilePicker";
+import VoiceNote from "../components/VoiceNote";
 
 export default function AddDataPage() {
   return (
@@ -17,6 +19,7 @@ export default function AddDataPage() {
 const SOURCES = [
   { key: "upload", label: "From this device" },
   { key: "camera", label: "Take a photo" },
+  { key: "voice", label: "Speak" },
   { key: "accounts", label: "Connected accounts" },
 ];
 
@@ -53,6 +56,7 @@ function AddData() {
 
       {tab === "upload" && <Picker onDone={load} />}
       {tab === "camera" && <Picker camera onDone={load} />}
+      {tab === "voice" && <Voice onDone={load} />}
       {tab === "accounts" && <Accounts />}
 
       <History rows={history} />
@@ -67,28 +71,10 @@ function AddData() {
 function Picker({ camera = false, onDone }) {
   const [files, setFiles] = useState([]);
   const [estimate, setEstimate] = useState(null);
-  const [checking, setChecking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
-  const inputRef = useRef(null);
-
-  async function pick(picked) {
-    setFiles(picked);
-    setEstimate(null);
-    setResult(null);
-    setError(null);
-    if (!picked.length) return;
-    setChecking(true);
-    try {
-      setEstimate(await api.estimateUpload(picked));
-    } catch {
-      // The estimate is a courtesy; never block the upload on it.
-      setEstimate(null);
-    } finally {
-      setChecking(false);
-    }
-  }
+  const [nonce, setNonce] = useState(0);
 
   async function send() {
     setBusy(true);
@@ -98,7 +84,9 @@ function Picker({ camera = false, onDone }) {
       setResult(body);
       setFiles([]);
       setEstimate(null);
-      if (inputRef.current) inputRef.current.value = "";
+      // Remounting the picker is the simplest way to clear both its internal
+      // list and the native input, which does not reset itself.
+      setNonce((n) => n + 1);
       onDone?.();
     } catch (err) {
       setError(err.message);
@@ -122,80 +110,22 @@ function Picker({ camera = false, onDone }) {
         </div>
       )}
 
-      <div className="card">
-        {camera ? (
-          <>
-            <label htmlFor="shot" style={{ fontWeight: 600 }}>
-              Photograph a bill, challan or ledger page
-            </label>
-            <input
-              ref={inputRef}
-              id="shot"
-              type="file"
-              accept="image/*"
-              // Opens the camera directly rather than the gallery, which is
-              // the whole point when someone is standing at the counter with
-              // a challan in their hand.
-              capture="environment"
-              multiple
-              onChange={(e) => pick([...(e.target.files || [])])}
-            />
-            <p className="muted">
-              Take as many as you like. Photograph the whole page, straight on,
-              in good light — the text is read from the picture.
-            </p>
-          </>
-        ) : (
-          <>
-            <label htmlFor="files" style={{ fontWeight: 600 }}>
-              Choose files
-            </label>
-            <input
-              ref={inputRef}
-              id="files"
-              type="file"
-              accept=".txt,.zip,.xlsx,.xlsm,.jpg,.jpeg,.png,.webp"
-              multiple
-              onChange={(e) => pick([...(e.target.files || [])])}
-            />
-            <p className="muted">
-              WhatsApp chat exports (.txt or .zip), Tally and Excel sheets, or
-              photos of bills. Pick as many as you like.
-            </p>
-          </>
-        )}
-
-        {checking && <p className="muted">Reading the files…</p>}
-
-        {estimate && (
-          <div className="banner" style={{ marginTop: 4 }}>
-            <strong>{formatNumber(estimate.new_messages)} new</strong>
-            {estimate.media > 0 && ` · ${formatNumber(estimate.media)} photos`}
-            {estimate.new_messages > 0 && (
-              <>
-                {" "}· about {estimate.estimated_minutes} minute
-                {estimate.estimated_minutes === 1 ? "" : "s"} to read
-              </>
-            )}
-            {estimate.duplicates > 0 && (
-              <> · {formatNumber(estimate.duplicates)} already read, will be skipped</>
-            )}
-          </div>
-        )}
-
-        {estimate?.files?.some((f) => f.error) && (
-          <div className="banner error" style={{ marginTop: 8 }}>
-            {estimate.files
-              .filter((f) => f.error)
-              .map((f) => (
-                <div key={f.filename}>
-                  {f.filename}: {f.error}
-                </div>
-              ))}
-            The rest will still be read.
-          </div>
-        )}
-
+      <FilePicker
+        key={`${camera ? "cam" : "files"}-${nonce}`}
+        id={camera ? "shot" : "files"}
+        label={camera ? "Photograph a bill, challan or ledger page" : "Choose files"}
+        accept={camera ? "image/*" : ".txt,.zip,.xlsx,.xlsm,.jpg,.jpeg,.png,.webp"}
+        capture={camera ? "environment" : undefined}
+        hint={
+          camera
+            ? "Take as many as you like. Photograph the whole page, straight on, in good light — the text is read from the picture."
+            : "WhatsApp chat exports (.txt or .zip), Tally and Excel sheets, or photos of bills. Pick as many as you like."
+        }
+        onEstimate={(picked, body) => {
+          setFiles(picked);
+          setEstimate(body);
+        }}
+      >
         <div className="actions">
           <button
             className="primary"
@@ -210,7 +140,46 @@ function Picker({ camera = false, onDone }) {
                 : "Choose files first"}
           </button>
         </div>
-      </div>
+      </FilePicker>
+    </>
+  );
+}
+
+// A voice note is just another upload once it exists — same batch endpoint,
+// same dedup, same backfill. Gemini reads the audio itself.
+function Voice({ onDone }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  async function send(file) {
+    setBusy(true);
+    setError(null);
+    try {
+      const body = await api.ingestBatch([file]);
+      setResult(body);
+      onDone?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      {error && <div className="banner error">{error}</div>}
+      {result && (
+        <div className="banner">
+          Saved. It is being read now. <Link href="/today">See progress</Link>
+        </div>
+      )}
+      {busy && <div className="banner">Sending…</div>}
+      <VoiceNote
+        label="Say what happened"
+        hint="An order, a payment, a rate you agreed — say it the way you would tell someone in the shop."
+        onRecorded={send}
+      />
     </>
   );
 }

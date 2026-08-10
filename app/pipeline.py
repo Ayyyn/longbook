@@ -49,6 +49,7 @@ def build_pipeline(db, tenant_id, profile):
                 "party_context": window.get("party_context", ""),
                 "media_uri": window.get("media_uri"),
                 "media_kind": window.get("media_kind"),
+                "media_mime": window.get("media_mime"),
             },
             trace_id=state["trace_id"],
         )

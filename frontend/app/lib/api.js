@@ -191,6 +191,15 @@ export const api = {
     return request(`/api/agents/runs?${query}`);
   },
   agentTrace: (traceId) => request(`/api/agents/trace/${traceId}`),
+
+  chatSuggestions: () => request("/api/chat/suggestions"),
+  ask: (question, history = []) =>
+    request("/api/chat", { method: "POST", body: JSON.stringify({ question, history }) }),
+  askVoice: (file) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/api/chat/voice", { method: "POST", body: form });
+  },
 };
 
 // ₹1,25,000 — lakh grouping, not thousands. Getting this wrong is the fastest

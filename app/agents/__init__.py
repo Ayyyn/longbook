@@ -1,3 +1,4 @@
+from app.agents.analyst import Analyst
 from app.agents.base import Agent, Decision
 from app.agents.configurator import Configurator
 from app.agents.extractor import Extractor
@@ -17,6 +18,7 @@ __all__ = [
     "LedgerAnalyst",
     "DigestComposer",
     "DraftComposer",
+    "Analyst",
     "REGISTRY",
 ]
 
@@ -28,4 +30,5 @@ REGISTRY = {
     "ledger_analyst": LedgerAnalyst,
     "digest_composer": DigestComposer,
     "draft_composer": DraftComposer,
+    "analyst": Analyst,
 }

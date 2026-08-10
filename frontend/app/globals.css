@@ -924,3 +924,210 @@ table.items { min-width: 320px; }
 
 /* Belt and braces: nothing may widen the document. */
 html, body { overflow-x: hidden; }
+
+/* Chosen-but-not-sent files. Removing one has to be as easy as adding it —
+   this is the last point before six years of chats leave the phone. */
+.picked { margin-top: var(--s3); border-top: 1px solid var(--line); }
+.picked-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--s3) 0 var(--s2);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.picked-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s2) 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 15px;
+}
+.picked-row:last-child { border-bottom: 0; }
+.picked-name { overflow-wrap: anywhere; }
+.picked-remove {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+.picked-remove:hover { color: var(--danger); border-color: var(--danger); }
+
+/* Account control. Fixed top-right on every screen, which is where people
+   already look for it. */
+.account { position: fixed; top: var(--s3); right: var(--s3); z-index: 40; }
+.account-btn {
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  font-weight: 650;
+  font-size: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.account-btn:hover { box-shadow: var(--shadow); }
+
+.account-menu {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  min-width: 250px;
+  max-width: min(320px, calc(100vw - var(--s5)));
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: var(--s2);
+  display: flex;
+  flex-direction: column;
+}
+.account-head { padding: var(--s3); border-bottom: 1px solid var(--line); margin-bottom: var(--s2); }
+.account-head .who {
+  font-family: var(--font-head);
+  font-size: 19px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.account-head .line { font-size: 13.5px; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+.account-plan {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 0 var(--s3) var(--s3);
+  flex-wrap: wrap;
+}
+.account-plan .muted { font-size: 13px; }
+.account-menu a,
+.account-menu button[role="menuitem"] {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--s3);
+  border: 0;
+  background: none;
+  border-radius: var(--radius-sm);
+  font-size: 15.5px;
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+  min-height: 44px;
+  box-shadow: none;
+}
+.account-menu a:hover,
+.account-menu button[role="menuitem"]:hover { background: var(--card-2); box-shadow: none; }
+.account-menu .danger-item { color: var(--danger); }
+.account-sep { height: 1px; background: var(--line); margin: var(--s2) 0; }
+
+/* Keep the control clear of page chrome. */
+.public-nav { padding-right: 56px; }
+header.bar { padding-right: 56px; }
+@media (min-width: 900px) {
+  .public-nav, header.bar { padding-right: 0; }
+  .account { top: var(--s4); right: var(--s5); }
+}
+
+/* Recording state. Unmissable on purpose — nobody should wonder whether the
+   microphone is live. */
+.recording {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s4);
+  margin-top: var(--s3);
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+}
+.rec-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--danger);
+  animation: rec-pulse 1.2s ease-in-out infinite;
+  flex: 0 0 auto;
+}
+.rec-time {
+  font-family: var(--font-head);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  color: var(--danger);
+}
+@keyframes rec-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.85); }
+}
+
+/* Ask. An answer is a claim plus its proof, so the sources are part of the
+   card rather than hidden behind a disclosure. */
+.answer-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: var(--s4);
+  margin: var(--s2) 0 var(--s4);
+}
+.sources { margin-top: var(--s4); border-top: 1px solid var(--line); padding-top: var(--s3); }
+.sources-head {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: var(--s2);
+}
+.source-row {
+  display: flex;
+  gap: var(--s3);
+  align-items: baseline;
+  padding: var(--s2) 0;
+  font-size: 14.5px;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+}
+.source-row:last-child { border-bottom: 0; }
+.source-row:hover { color: var(--accent); }
+.source-row .ref {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 1px 6px;
+  border-radius: var(--s1);
+  flex: 0 0 auto;
+}
+.answer-meta { margin-top: var(--s3); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.suggestions { display: flex; flex-direction: column; gap: var(--s2); margin-top: var(--s4); }
+.suggestions button { width: 100%; text-align: left; font-size: 15px; min-height: 46px; }
+
+.ask-bar {
+  position: sticky;
+  bottom: 96px;
+  display: flex;
+  gap: var(--s2);
+  padding: var(--s2);
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-top: var(--s4);
+}
+.ask-bar input { border: 0; box-shadow: none; background: transparent; }
+.ask-bar input:focus { box-shadow: none; }
+.ask-bar button { flex: 0 0 auto; }
+.mic-btn { min-width: 50px; padding: 0; font-size: 18px; }
+@media (min-width: 900px) { .ask-bar { bottom: var(--s4); } }

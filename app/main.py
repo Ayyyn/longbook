@@ -9,6 +9,7 @@ from app.config import settings
 from app.api.deps import require_access
 from app.api import (
     agents,
+    chat,
     connect,
     ingest,
     jobs,
@@ -63,6 +64,8 @@ app.include_router(connect.router, prefix="/api/connect", tags=["connect"])
 app.include_router(parties.router, prefix="/api/parties", tags=["parties"],
                    dependencies=[Depends(require_access)])
 app.include_router(orders.router, prefix="/api/orders", tags=["orders"],
+                   dependencies=[Depends(require_access)])
+app.include_router(chat.router, prefix="/api/chat", tags=["chat"],
                    dependencies=[Depends(require_access)])
 
 

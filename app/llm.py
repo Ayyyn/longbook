@@ -93,6 +93,7 @@ def generate_json(
     media_kind: str | None = None,
     examples: list[dict] | None = None,
     locale: str = "en",
+    media_mime: str | None = None,
     max_retries: int = 2,
 ) -> tuple[dict, dict]:
     """Returns (parsed_json, usage_dict). Raises on unrecoverable parse failure."""
@@ -106,7 +107,9 @@ def generate_json(
     parts.append(types.Part.from_text(text=user))
 
     if media_uri and media_kind in {"audio", "image", "document"}:
-        parts.append(types.Part.from_uri(file_uri=media_uri, mime_type=_mime(media_kind)))
+        parts.append(types.Part.from_uri(
+            file_uri=media_uri, mime_type=media_mime or _mime(media_kind)
+        ))
 
     last_err: Exception | None = None
     for attempt in range(max_retries + 1):

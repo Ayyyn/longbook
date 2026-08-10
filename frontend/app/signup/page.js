@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, signup, setToken, setPhone, formatNumber } from "../lib/api";
 import PublicPage from "../components/PublicPage";
+import FilePicker from "../components/FilePicker";
 import { CONTACT } from "../lib/contact";
 
 // The whole of self-serve onboarding, in the order an owner does it. Each step
@@ -390,27 +391,9 @@ function TradeStep({ answers, setAnswers, onNext }) {
 // a link off it.
 function HistoryStep({ busy, onSubmit }) {
   const [chats, setChats] = useState([]);
-  const [partyFile, setPartyFile] = useState(null);
   const [estimate, setEstimate] = useState(null);
-  const [checking, setChecking] = useState(false);
-
-  // Run the real parser before they commit. Handing over six years of chats
-  // and watching a spinner is a bad first minute; "4,812 messages, about
-  // eight minutes" is a fine one.
-  async function check(files) {
-    setChats(files);
-    setEstimate(null);
-    if (!files.length) return;
-    setChecking(true);
-    try {
-      setEstimate(await api.estimateUpload(files));
-    } catch {
-      // An estimate is a courtesy. If it fails, let them upload anyway.
-      setEstimate(null);
-    } finally {
-      setChecking(false);
-    }
-  }
+  const [partyFile, setPartyFile] = useState(null);
+  const partyRef = useRef(null);
 
   return (
     <>
@@ -419,6 +402,7 @@ function HistoryStep({ busy, onSubmit }) {
           Your party list from Tally or Excel
         </label>
         <input
+          ref={partyRef}
           id="parties"
           type="file"
           accept=".xlsx,.xlsm"
@@ -429,6 +413,23 @@ function HistoryStep({ busy, onSubmit }) {
           fastest way to start: names and balances are right from day one
           instead of being learned from messages.
         </p>
+        {partyFile && (
+          <div className="picked">
+            <div className="picked-row">
+              <div className="picked-name">{partyFile.name}</div>
+              <button
+                className="picked-remove"
+                aria-label="Remove"
+                onClick={() => {
+                  setPartyFile(null);
+                  if (partyRef.current) partyRef.current.value = "";
+                }}
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="know">
@@ -451,49 +452,16 @@ function HistoryStep({ busy, onSubmit }) {
         </p>
       </div>
 
-      <div className="card">
-        <label htmlFor="chat" style={{ fontWeight: 600 }}>
-          Your chat exports (optional)
-        </label>
-        <input
-          id="chat"
-          type="file"
-          accept=".txt,.zip"
-          multiple
-          onChange={(e) => check([...(e.target.files || [])])}
-        />
-        <p className="muted">
-          Pick as many as you like — your mill, your big buyers, your
-          transporter. .txt or .zip, and zips bring the photos with them.
-        </p>
-
-        {checking && <p className="muted">Reading the files…</p>}
-
-        {estimate && (
-          <div className="banner" style={{ marginTop: 4 }}>
-            <strong>{formatNumber(estimate.new_messages)} messages</strong>
-            {estimate.media > 0 && ` and ${formatNumber(estimate.media)} photos`}
-            {estimate.new_messages > 0 && (
-              <> · about {estimate.estimated_minutes} minute
-                {estimate.estimated_minutes === 1 ? "" : "s"} to read</>
-            )}
-            {estimate.duplicates > 0 && (
-              <> · {formatNumber(estimate.duplicates)} already read, skipped</>
-            )}
-          </div>
-        )}
-
-        {estimate?.files?.some((f) => f.error) && (
-          <div className="banner error" style={{ marginTop: 8 }}>
-            {estimate.files.filter((f) => f.error).map((f) => (
-              <div key={f.filename}>
-                {f.filename}: {f.error}
-              </div>
-            ))}
-            The rest will still be read.
-          </div>
-        )}
-      </div>
+      <FilePicker
+        id="chat"
+        label="Your chat exports (optional)"
+        accept=".txt,.zip"
+        hint="Pick as many as you like — your mill, your big buyers, your transporter. .txt or .zip, and zips bring the photos with them."
+        onEstimate={(picked, body) => {
+          setChats(picked);
+          setEstimate(body);
+        }}
+      />
 
       <div className="actions">
         <button
