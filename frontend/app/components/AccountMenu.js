@@ -32,6 +32,9 @@ export default function AccountMenu() {
   useEffect(() => {
     load();
     setOpen(false);
+    // Signing in mid-flow does not navigate, so the menu has to be told.
+    window.addEventListener("auth-changed", load);
+    return () => window.removeEventListener("auth-changed", load);
   }, [load, pathname]);
 
   useEffect(() => {

@@ -14,7 +14,16 @@ export default function PublicPage({ children, active }) {
   // the nav saying "Sign in" is simply wrong — and tapping it mid-setup
   // is how someone loses their place.
   const [signedIn, setSignedIn] = useState(false);
-  useEffect(() => setSignedIn(Boolean(getToken())), []);
+  useEffect(() => {
+    const read = () => setSignedIn(Boolean(getToken()));
+    read();
+    window.addEventListener("auth-changed", read);
+    window.addEventListener("storage", read);
+    return () => {
+      window.removeEventListener("auth-changed", read);
+      window.removeEventListener("storage", read);
+    };
+  }, []);
 
   const links = [
     ["/", "Home"],

@@ -14,6 +14,11 @@ export function getToken() {
 
 export function setToken(token) {
   window.localStorage.setItem(TOKEN_KEY, token.trim());
+  // Signup signs the owner in mid-flow, without a navigation. Anything
+  // showing signed-in state has already mounted by then, so it has to be
+  // told — otherwise the nav goes on saying "Sign in" to someone holding a
+  // token, and tapping it loses their place in setup.
+  window.dispatchEvent(new Event("auth-changed"));
 }
 
 export function getPhone() {
@@ -28,6 +33,7 @@ export function setPhone(phone) {
 export function clearToken() {
   window.localStorage.removeItem(TOKEN_KEY);
   window.localStorage.removeItem(PHONE_KEY);
+  window.dispatchEvent(new Event("auth-changed"));
 }
 
 // Phones get typed with spaces, dashes and a country code that comes and goes.
