@@ -11,7 +11,7 @@ than buried.
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import Integer, func, select
@@ -19,6 +19,7 @@ from sqlalchemy import Integer, func, select
 from app.api.deps import TenantDB, TenantId
 from app.models.ingestion import Extraction, Interaction
 from app.models.observability import AgentRun
+from app.services.clock import business_day_bounds
 from app.schemas.agents import (
     AgentFeed,
     AgentRunOut,
@@ -175,10 +176,17 @@ def summary(
 
     throughput = _throughput(db, tid, since)
 
+    # Bracketed as UTC instants around the Indian day; comparing
+    # func.date(created_at) to a local date is the bug this replaces.
+    _day_start, _day_end = business_day_bounds()
     today_count = db.execute(
         select(func.count())
         .select_from(AgentRun)
-        .where(AgentRun.tenant_id == tid, func.date(AgentRun.created_at) == date.today())
+        .where(
+            AgentRun.tenant_id == tid,
+            AgentRun.created_at >= _day_start,
+            AgentRun.created_at < _day_end,
+        )
     ).scalar_one()
 
     return AgentSummary(

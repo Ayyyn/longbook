@@ -35,6 +35,7 @@ from app.models.ingestion import Extraction, Interaction
 from app.models.orders import Dispatch, Order, OrderLine
 from app.models.party import Party
 from app.services.ledger import outstanding_by_party
+from app.services.sql import not_in_subquery, not_in_values
 
 MAX_ROWS = 12
 MAX_MESSAGES = 8
@@ -138,18 +139,12 @@ def _orders_for(
     if party_ids:
         where.append(Order.party_id.in_(party_ids))
     if undispatched:
-        # isnot(None) is load-bearing: one NULL inside a NOT IN subquery makes
-        # the whole predicate NULL for every row, and the query silently
-        # returns nothing at all rather than everything undispatched.
-        dispatched = select(Dispatch.order_id).where(
-            Dispatch.tenant_id == tenant_id, Dispatch.order_id.isnot(None)
-        )
-        where.append(Order.id.notin_(dispatched))
-        # Same trap on the column itself: a NULL status is not "closed", but
-        # `status NOT IN (...)` drops it.
-        where.append(
-            or_(Order.status.is_(None), Order.status.notin_(["closed", "cancelled"]))
-        )
+        # Both halves of the NOT IN trap, handled by construction rather than
+        # by remembering: a NULL in the subquery would blank the predicate for
+        # every row, and a NULL status would be dropped by a plain NOT IN.
+        dispatched = select(Dispatch.order_id).where(Dispatch.tenant_id == tenant_id)
+        where.append(not_in_subquery(Order.id, dispatched))
+        where.append(not_in_values(Order.status, ["closed", "cancelled"]))
 
     rows = db.execute(
         select(Order, Party.name)
@@ -333,8 +328,16 @@ def gather(db, tenant_id: uuid.UUID, question: str) -> Context:
     # anything.
     if asks_money and not had_outstanding:
         context.totals["outstanding_summary"] = (
-            "Every party's balance is nil. Nobody owes this business "
-            "anything on record."
+            "NIL RESULT: no party has any outstanding balance. Nobody owes "
+            "this business anything."
+        )
+    if asks_orders and undispatched and not context.orders:
+        context.totals["dispatch_summary"] = (
+            "NIL RESULT: every order on record has a dispatch against it."
+        )
+    if asks_rates and party_ids and not context.quotes:
+        context.totals["quote_summary"] = (
+            "NIL RESULT: no quotes are on record for the party asked about."
         )
 
     context.totals = {
@@ -376,7 +379,14 @@ def as_prompt(context: Context) -> str:
     section("Messages", context.messages)
 
     totals = context.totals
-    summary = totals.get("outstanding_summary")
+    # Nil results are facts and are stated as such. "Nobody owes you anything"
+    # and "I have no balance records" mean opposite things, and only one of
+    # them is ever true.
+    summary = "\n".join(
+        value
+        for key, value in totals.items()
+        if key.endswith("_summary") and value
+    )
     blocks.append(
         "## On record for this business\n"
         # Stated explicitly so "nobody owes anything" can be answered as the

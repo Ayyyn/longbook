@@ -27,6 +27,7 @@ from app.schemas.ledger import (
 from app.services import exceptions as exception_rules
 from app.services.ledger import ageing_buckets, outstanding_by_party, party_ledger, payment_trend
 from app.services.wa import wa_link
+from app.services.clock import business_today
 
 router = APIRouter()
 
@@ -47,7 +48,7 @@ def outstanding(
     limit: int = Query(100, ge=1, le=500),
 ) -> OutstandingSummary:
     """Who owes what, oldest debt first."""
-    as_of = as_of or date.today()
+    as_of = as_of or business_today()
     overdue_days = int(_rule(profile, "overdue_days", DEFAULT_OVERDUE_DAYS))
 
     rows = outstanding_by_party(db, tid, as_of, overdue_days)
@@ -69,7 +70,7 @@ def ageing(
     as_of: date | None = Query(None),
 ) -> AgeingReport:
     """Outstanding split by how far past due it is."""
-    as_of = as_of or date.today()
+    as_of = as_of or business_today()
     overdue_days = int(_rule(profile, "overdue_days", DEFAULT_OVERDUE_DAYS))
 
     buckets = ageing_buckets(db, tid, as_of, overdue_days)
@@ -89,7 +90,7 @@ def flagged_exceptions(
     as_of: date | None = Query(None),
 ) -> Exceptions:
     """Everything worth interrupting the owner about, in one call."""
-    as_of = as_of or date.today()
+    as_of = as_of or business_today()
     threshold = float(_rule(profile, "rate_deviation_pct", DEFAULT_RATE_DEVIATION_PCT))
 
     deviations = exception_rules.rate_deviations(db, tid, threshold, as_of)
@@ -120,7 +121,7 @@ def party_statement(
     The reminder is a `wa.me` link the owner taps and sends themselves. The
     system never sends it — see BUILD_PROMPT constraint 1.
     """
-    as_of = as_of or date.today()
+    as_of = as_of or business_today()
     party = db.get(Party, party_id)
     if party is None:
         raise HTTPException(404, "Party not found.")

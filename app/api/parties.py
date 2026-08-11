@@ -9,7 +9,6 @@ surprising is "says who?".
 from __future__ import annotations
 
 import uuid
-from datetime import date
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, or_, select
@@ -21,6 +20,7 @@ from app.schemas.parties import PartyBrief, PartyDetail, PartyRow, PartySummary
 from app.services.ledger import outstanding_by_party, party_ledger
 from app.services.party_brief import refresh_party
 from app.services.wa import wa_link
+from app.services.clock import business_today
 
 router = APIRouter()
 
@@ -79,7 +79,7 @@ def list_parties(
     parties = db.execute(select(Party).where(*where)).scalars().all()
     positions = {
         row["party_id"]: row
-        for row in outstanding_by_party(db, tid, date.today(), _overdue_days(profile))
+        for row in outstanding_by_party(db, tid, business_today(), _overdue_days(profile))
     }
 
     rows = []
@@ -132,7 +132,7 @@ def party_detail(
     if refresh or not brief:
         brief = refresh_party(db, tid, party_id)
 
-    as_of = date.today()
+    as_of = business_today()
     statement = party_ledger(db, tid, party_id, as_of)
     positions = {
         row["party_id"]: row

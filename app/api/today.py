@@ -12,7 +12,7 @@ which is a different and much worse statement than "not built yet".
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, time, timedelta
+from datetime import timedelta
 
 from fastapi import APIRouter
 from sqlalchemy import func, select
@@ -23,6 +23,7 @@ from app.models.ingestion import Extraction
 from app.models.observability import AgentRun
 from app.models.orders import Dispatch, Order
 from app.models.party import Party
+from app.services.clock import business_day_bounds, business_today
 from app.schemas.today import (
     ChasingRow,
     ExceptionCounts,
@@ -39,9 +40,6 @@ from app.services.ledger import outstanding_by_party, payment_trend
 
 router = APIRouter()
 
-# India-only product, and every timestamp column is UTC. A fixed offset
-# rather than a tz database: IST has no daylight saving to track.
-IST_OFFSET = timedelta(hours=5, minutes=30)
 
 OPEN_STATUSES = ("draft", "confirmed", "partially_dispatched")
 RECENT_LIMIT = 5
@@ -74,10 +72,8 @@ def today(tid: TenantId, db: TenantDB, profile: Profile) -> TodayDigest:
     # The date is computed in IST; timestamp columns are compared against the
     # UTC instants that bracket that IST day, which also keeps the comparison
     # on the index rather than on a function of the column.
-    ist_now = datetime.utcnow() + IST_OFFSET
-    today_date = ist_now.date()
-    day_start_utc = datetime.combine(today_date, time.min) - IST_OFFSET
-    day_end_utc = day_start_utc + timedelta(days=1)
+    today_date = business_today()
+    day_start_utc, day_end_utc = business_day_bounds(today_date)
     week_ago = today_date - timedelta(days=6)
 
     def total(*where) -> float:

@@ -41,7 +41,7 @@ export default function PublicPage({ children, active }) {
           <a href={CONTACT.emailHref}>{CONTACT.email}</a>
         </div>
         <p>
-          Made in Surat. We do not send anything to your customers, ever.
+          Made in Mumbai. We do not send anything to your customers, ever.
         </p>
         <div className="rows small">
           {[...links, ["/privacy", "Privacy"], ["/terms", "Terms"]].map(

@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import statistics
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select
@@ -35,6 +35,7 @@ from app.models.finance import Invoice, Payment
 from app.models.ingestion import Extraction, Interaction
 from app.models.orders import Order, OrderLine
 from app.models.party import Party
+from app.services.clock import business_today
 
 # Enough history to say something, few enough to stay current. A trader cares
 # about the last handful of dealings, not the full three years.
@@ -178,7 +179,7 @@ def build_brief(db, tenant_id: uuid.UUID, party: Party, since: datetime | None =
     # --- how they actually pay -------------------------------------------
     from app.services.ledger import party_positions
 
-    positions = party_positions(db, tenant_id, date.today())
+    positions = party_positions(db, tenant_id, business_today())
     position = positions.get(party.id)
 
     if position is not None:
@@ -188,7 +189,7 @@ def build_brief(db, tenant_id: uuid.UUID, party: Party, since: datetime | None =
             "avg_days_to_settle": round(statistics.fmean(lags), 1) if lags else None,
             "worst_days": max(lags) if lags else None,
             "outstanding": _d(position.outstanding),
-            "days_overdue": position.days_overdue(date.today()),
+            "days_overdue": position.days_overdue(business_today()),
             "unapplied_credit": _d(position.unapplied_credit),
             "terms_days": party.credit_days or 0,
         }
@@ -281,11 +282,11 @@ def build_brief(db, tenant_id: uuid.UUID, party: Party, since: datetime | None =
 
     brief["totals"] = {
         "days_since_contact": (
-            (date.today() - last_seen.date()).days if last_seen else None
+            (business_today() - last_seen.date()).days if last_seen else None
         ),
         "orders": totals,
         "last_order_on": last_order.isoformat() if last_order else None,
-        "days_since_last_order": (date.today() - last_order).days if last_order else None,
+        "days_since_last_order": (business_today() - last_order).days if last_order else None,
     }
 
     # --- traceability -----------------------------------------------------

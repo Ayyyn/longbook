@@ -23,6 +23,8 @@ from sqlalchemy import func, select
 from app.models.catalog import Quality
 from app.models.orders import Dispatch, Order, OrderLine
 from app.models.party import Party
+from app.services.clock import business_today
+from app.services.sql import not_in_subquery
 
 # A quality needs a bit of history before "normal" means anything.
 MIN_RATES_FOR_BASELINE = 3
@@ -45,7 +47,7 @@ def rate_deviations(
     bulk deal at half price should not quietly redefine normal and hide the
     next three.
     """
-    as_of = as_of or date.today()
+    as_of = as_of or business_today()
 
     rows = db.execute(
         select(OrderLine, Order, Quality.code, Party.name)
@@ -110,11 +112,9 @@ def stalled_orders(
     An order with no promised date is judged on age instead, because "I said
     I'd send it" is a promise whether or not anyone wrote a date down.
     """
-    as_of = as_of or date.today()
+    as_of = as_of or business_today()
 
-    dispatched = select(Dispatch.order_id).where(
-        Dispatch.tenant_id == tenant_id, Dispatch.order_id.isnot(None)
-    )
+    dispatched = select(Dispatch.order_id).where(Dispatch.tenant_id == tenant_id)
 
     rows = db.execute(
         select(Order, Party.name)
@@ -122,7 +122,7 @@ def stalled_orders(
         .where(
             Order.tenant_id == tenant_id,
             Order.status.in_(OPEN_STATUSES),
-            Order.id.notin_(dispatched),
+            not_in_subquery(Order.id, dispatched),
         )
     ).all()
 
@@ -163,7 +163,7 @@ def stale_drafts(db, tenant_id: uuid.UUID, as_of: date | None = None, older_than
     Not an exception in itself, but a large number means the owner has stopped
     reading the queue, which is worth knowing before the data drifts.
     """
-    as_of = as_of or date.today()
+    as_of = as_of or business_today()
     cutoff = as_of - timedelta(days=older_than)
     return db.execute(
         select(func.count())

@@ -12,6 +12,7 @@ from typing import Any
 
 from app.agents.base import Agent, Decision
 from app.services.ledger import ageing_buckets, overdue_crossings, payment_trend
+from app.services.clock import business_today
 
 
 class LedgerAnalyst(Agent):
@@ -19,7 +20,7 @@ class LedgerAnalyst(Agent):
     prompt_version = "v1"
 
     def run(self, payload: dict[str, Any]) -> Decision:
-        as_of: date = payload.get("as_of") or date.today()
+        as_of: date = payload.get("as_of") or business_today()
         rules = (self.profile.rules if self.profile else {}) or {}
         overdue_days = rules.get("overdue_days", 45)
 

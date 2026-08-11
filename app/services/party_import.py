@@ -24,7 +24,6 @@ import re
 import uuid
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
-from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +33,7 @@ from app.models.finance import Invoice
 from app.models.ingestion import Interaction
 from app.models.party import Party
 from app.services.matching import normalize_phone
+from app.services.clock import business_today
 
 # Tally groups every party under one of these. Anything else in the ledger
 # master is a bank, a tax head, or an expense — not somebody who owes money.
@@ -381,7 +381,7 @@ def import_parties(
 ) -> ImportResult:
     """Create or merge parties, and turn any outstanding into an open invoice."""
     result = ImportResult(source=source)
-    today = date.today()
+    today = business_today()
 
     for seed in seeds:
         if not seed.name:

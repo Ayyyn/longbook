@@ -23,6 +23,7 @@ from sqlalchemy import select
 from app.models.finance import Invoice, Payment
 from app.models.ledger_state import LedgerWatermark
 from app.models.party import Party
+from app.services.clock import business_today
 
 # Deteriorating means "slower than they used to be by more than a fortnight",
 # not "paid late once". Below this, it is noise the owner should not be shown.
@@ -329,7 +330,7 @@ def payment_trend(db, tenant_id, lookback_days: int = 180) -> list[dict]:
     halves to be judged at all: one late payment after a quiet spell is not a
     trend, and calling it one costs the owner a relationship.
     """
-    as_of = date.today()
+    as_of = business_today()
     window_start = as_of - timedelta(days=lookback_days)
     midpoint = as_of - timedelta(days=lookback_days // 2)
 

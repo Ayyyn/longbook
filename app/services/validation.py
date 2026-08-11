@@ -25,6 +25,7 @@ from sqlalchemy import select
 from app.models.catalog import Quality
 from app.models.orders import Order, OrderLine
 from app.models.party import Party
+from app.services.clock import business_today
 
 PASS = "pass"
 FAIL = "fail"
@@ -152,10 +153,9 @@ def check_payment_not_over_outstanding(
                           "no amount or no party to compare against", ("amount",))
 
     from app.services.ledger import outstanding_by_party  # local: avoids a cycle
-    from datetime import date
 
     rows = {
-        r["party_id"]: r for r in outstanding_by_party(db, tenant_id, date.today(), 45)
+        r["party_id"]: r for r in outstanding_by_party(db, tenant_id, business_today(), 45)
     }
     position = rows.get(party_id if isinstance(party_id, uuid.UUID) else uuid.UUID(str(party_id)))
     if position is None:
