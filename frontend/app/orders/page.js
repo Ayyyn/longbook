@@ -87,7 +87,7 @@ function Orders() {
         ) : (
           <Empty title="No orders yet">
             Orders are written automatically when someone asks for goods in
-            WhatsApp — quality, quantity and rate, taken from the message.
+            WhatsApp — item, quantity and rate, taken from the message.
             None have been found yet.
           </Empty>
         )

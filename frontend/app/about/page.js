@@ -13,7 +13,7 @@ export default function About() {
 
       <section className="slab">
         <p>
-          Every fabric trader we know runs their business on WhatsApp. The
+          Every trader we know runs their business on WhatsApp. The
           orders are there, the rates are there, the payment confirmations are
           there, the complaints are there. And then at the end of the month
           somebody sits down and tries to remember all of it.

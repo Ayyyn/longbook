@@ -57,6 +57,7 @@ from app.schemas.tenants import (
     TenantMe,
 )
 from app.services.access import access_for
+from app.services.vocabulary import labels as vocab_labels
 from app.services.credentials import email_token
 from app.services import recovery as recovery_service
 from app.services.mailer import send_email
@@ -404,6 +405,7 @@ def me(tid: TenantId, db: TenantDB) -> TenantMe:
         days_remaining=access.days_remaining,
         paid_until=tenant.paid_until,
         plan=tenant.plan,
+        labels=vocab_labels(profile),
         city=tenant.city,
         locale=tenant.locale or "en",
         onboarded_at=tenant.onboarded_at,

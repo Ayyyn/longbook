@@ -152,7 +152,7 @@ export default function OnboardingPage() {
         />
 
         {[
-          ["business_name", "Business name", "Ravi Fabrics"],
+          ["business_name", "Business name", ""],
           ["owner_phone", "Owner phone", "98765 43210"],
           ["owner_email", "Owner email (for the daily digest)", "owner@business.in"],
           ["owner_name", "Owner name (optional)", ""],

@@ -9,9 +9,21 @@ import Empty, { SetupIncomplete, BackfillProgress } from "../components/Empty";
 const MONEY_FIELDS = new Set(["amount", "rate", "balance"]);
 const NUMERIC_FIELDS = new Set(["amount", "rate", "balance", "quantity"]);
 
+// The owner's own word for an item, capitalised. Falls back to the neutral
+// "Item" when the profile has not said otherwise.
+function labelFor(key, labels) {
+  if (key === "quality" && labels?.item) {
+    return labels.item.charAt(0).toUpperCase() + labels.item.slice(1);
+  }
+  return FIELD_LABELS[key] || key.replace(/_/g, " ");
+}
+
+// "quality" is the wire key the extractor emits, not a word for the owner.
+// What it is called on screen comes from the business's own vocabulary — a
+// fabric trader reads "Quality", a machinery dealer reads "Model".
 const FIELD_LABELS = {
   party: "Party",
-  quality: "Quality",
+  quality: "Item",
   quantity: "Quantity",
   unit: "Unit",
   rate: "Rate",
@@ -54,6 +66,9 @@ function Review() {
   const [job, setJob] = useState(null);
   const [setup, setSetup] = useState(false);
   const [done, setDone] = useState(0);
+  // What this business calls an item. Fetched once; the labels are
+  // static for a tenant and re-reading them per card is noise.
+  const [labels, setLabels] = useState({});
 
   const load = useCallback(async () => {
     const running = await api.latestJob().catch(() => null);
@@ -72,6 +87,7 @@ function Review() {
 
   useEffect(() => {
     load();
+    api.me().then((me) => setLabels(me.labels || {})).catch(() => {});
   }, [load]);
 
   const item = items?.[index];
@@ -182,7 +198,7 @@ function Review() {
         {confirmed.length > 0 ? (
           <div className="record-table">
             {confirmed.map(([key, value]) => (
-              <Field key={key} name={key} value={value} />
+              <Field key={key} name={key} value={value} labels={labels} />
             ))}
           </div>
         ) : (
@@ -200,7 +216,7 @@ function Review() {
         ) : (
           pending.map((name) => (
             <div className="field-ask" key={name}>
-              <label htmlFor={`ask-${name}`}>{FIELD_LABELS[name] || name}</label>
+              <label htmlFor={`ask-${name}`}>{labelFor(name, labels)}</label>
               <p className="why">
                 {item.pending_reasons?.[name] || "Needs confirming."}
               </p>
@@ -218,7 +234,7 @@ function Review() {
                   value={answers[name] ?? ""}
                   inputMode={NUMERIC_FIELDS.has(name) ? "decimal" : "text"}
                   onChange={(e) => setAnswers({ ...answers, [name]: e.target.value })}
-                  placeholder={FIELD_LABELS[name] || name}
+                  placeholder={labelFor(name, labels)}
                   autoComplete="off"
                 />
               )}
@@ -284,7 +300,7 @@ function Review() {
   );
 }
 
-function Field({ name, value }) {
+function Field({ name, value, labels }) {
   let shown;
   if (Array.isArray(value)) {
     shown = value
@@ -306,7 +322,7 @@ function Field({ name, value }) {
   }
   return (
     <div className="line">
-      <span className="k">{FIELD_LABELS[name] || name}</span>
+      <span className="k">{labelFor(name, labels)}</span>
       <span className="v">{shown}</span>
     </div>
   );

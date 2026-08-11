@@ -128,6 +128,9 @@ export const api = {
   // null when this tenant has never uploaded anything.
   latestJob: () => request("/api/ingest/jobs/latest"),
   resumeBackfill: () => request("/api/ingest/resume", { method: "POST" }),
+  // stage=universal needs nothing read yet; stage=generated reads the
+  // uploaded sample and writes questions from it.
+  interview: (stage) => request(`/api/tenants/interview?stage=${stage}`),
   configure: (answers) =>
     request("/api/tenants/configure", { method: "POST", body: JSON.stringify(answers) }),
   // Every upload path takes a list. A trader's business is not in one chat.

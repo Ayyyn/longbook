@@ -33,22 +33,23 @@ export default function Home() {
         <h2>What it actually does</h2>
         <ul className="plain">
           <li>
-            Ashok Textiles messages <em>&ldquo;150 mtr SR-1042 bhej dena, rate
-            wahi purana&rdquo;</em>. It becomes an order — quality, quantity,
-            and last agreed rate — waiting for you to confirm.
+            A customer messages <em>&ldquo;150 mtr SR-1042 bhej dena, rate wahi
+            purana&rdquo;</em> — or <em>&ldquo;5000pc bobbin, knurling ke
+            baad&rdquo;</em>. It becomes an order — item, quantity and last
+            agreed rate — waiting for you to confirm.
           </li>
           <li>
             Someone sends <em>&ldquo;50,000 RTGS kar diya&rdquo;</em>. The
             payment goes against their account and their outstanding drops.
           </li>
           <li>
-            On Tuesday morning it tells you Ashok Textiles has crossed 60 days,
+            On Tuesday morning it tells you Ashok &amp; Sons has crossed 60 days,
             and drafts the reminder. You read it, change it if you want, and
             send it yourself from your own number.
           </li>
           <li>
-            A rate 20% below what that party normally pays gets flagged before
-            the goods go out, not after the bill.
+            A rate 20% below what that customer normally pays gets flagged
+            before the goods go out, not after the bill.
           </li>
           <li>
             At 7pm you get one email: what came in, what went out, who owes
@@ -60,10 +61,12 @@ export default function Home() {
       <section className="slab alt">
         <h2>Who it is for</h2>
         <p>
-          Fabric wholesalers and traders who run the business on WhatsApp and
-          keep the real numbers in their head, a diary, or a hundred chats they
-          have to scroll back through. If you have between twenty and a few
-          hundred regular parties, this is built for you.
+          Wholesalers, distributors and traders who run the business on
+          WhatsApp and keep the real numbers in their head, a diary, or a
+          hundred chats they have to scroll back through. Fabric, machine
+          parts, chemicals, garments — it reads whatever your messages are
+          about. If you have between twenty and a few hundred regular
+          customers, this is built for you.
         </p>
         <p>
           If you already have a full office running Tally properly and nothing

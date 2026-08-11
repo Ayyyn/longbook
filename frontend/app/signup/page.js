@@ -8,75 +8,16 @@ import PublicPage from "../components/PublicPage";
 import FilePicker from "../components/FilePicker";
 import { CONTACT } from "../lib/contact";
 
-// The whole of self-serve onboarding, in the order an owner does it. Each step
-// is one screenful on a phone: a step that scrolls is a step people abandon.
-const STEPS = ["Your business", "About your trade", "Your WhatsApp history", "Done"];
-
-// The Configurator reads these answers as prose, so they are questions an
-// owner can answer out loud rather than fields to be filled correctly.
-const TRADE_QUESTIONS = [
-  {
-    key: "segments",
-    q: "What kind of business is this?",
-    type: "multi",
-    options: ["wholesaler", "retail"],
-    hint: "Pick both if you do both.",
-  },
-  {
-    key: "what_you_sell",
-    q: "What do you sell?",
-    type: "text",
-    placeholder: "cotton shirting, 60x60 and 40x40, mostly greige",
-    hint: "In your own words — qualities, counts, whatever you'd tell a new buyer.",
-  },
-  {
-    key: "units",
-    q: "What do you sell it by?",
-    type: "text",
-    placeholder: "meter, thaan",
-    hint: "The units you quote in.",
-  },
-  {
-    key: "tracks_lots",
-    q: "Do you track dye lots or batch numbers?",
-    type: "bool",
-    hint: "Say no if lot numbers never come up in your messages.",
-  },
-  {
-    key: "gives_credit",
-    q: "Do you give credit?",
-    type: "bool",
-    hint: "Do buyers pay after delivery rather than upfront?",
-  },
-  {
-    key: "credit_days",
-    q: "How many days credit, normally?",
-    type: "number",
-    placeholder: "45",
-    hint: "Leave blank if it varies. Used to decide who is overdue.",
-    onlyIf: (a) => a.gives_credit === true,
-  },
-  {
-    key: "rate_negotiated",
-    q: "Are rates negotiated per order, or mostly fixed?",
-    type: "choice",
-    options: ["Negotiated each time", "Mostly fixed"],
-    hint: "Tells us whether a rate that moves is normal or worth flagging.",
-  },
-  {
-    key: "dispatch_how",
-    q: "How do goods usually go out?",
-    type: "text",
-    placeholder: "transport, LR sent on WhatsApp",
-    hint: "Courier, transport, customer pickup — however you send them.",
-  },
-  {
-    key: "notes",
-    q: "Anything else we should know?",
-    type: "text",
-    placeholder: "job work for two mills; PO numbers matter",
-    hint: "Optional.",
-  },
+// The order matters and it changed. Data comes before questions, because the
+// questions are written from the data: asking "do you track batch numbers?"
+// before reading anything is a guess, and asking "I can see lot numbers like
+// BL-4471 in your chats — do those matter?" is not.
+const STEPS = [
+  "Your business",
+  "Your data",
+  "About your work",
+  "A few more",
+  "Done",
 ];
 
 export default function SignupPage() {
@@ -90,8 +31,11 @@ export default function SignupPage() {
     owner_email: "",
     city: "",
   });
-  const [answers, setAnswers] = useState({ segments: [] });
   const [created, setCreated] = useState(null);
+  const [universal, setUniversal] = useState([]);
+  const [generated, setGenerated] = useState([]);
+  const [answers, setAnswers] = useState({});
+  const [uploaded, setUploaded] = useState(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState(null);
   const [error, setError] = useState(null);
@@ -102,8 +46,9 @@ export default function SignupPage() {
     setError(null);
     try {
       const body = await signup(code, details);
-      // Sign in immediately: the owner should never have to copy their own
-      // token from one screen into another to finish setting up.
+      // Signed in immediately: everything after this needs a token, and making
+      // someone copy their own token between two screens of the same flow is a
+      // step with no purpose.
       setToken(body.token);
       setPhone(details.owner_phone);
       setCreated(body);
@@ -115,36 +60,86 @@ export default function SignupPage() {
     }
   }
 
-  async function uploadAndConfigure(chats, partyFile) {
+  async function sendData(chats, partyFile) {
     setBusy(true);
     setError(null);
     try {
       if (chats?.length) {
         setNote(
-          chats.length === 1
-            ? "Reading your chat export…"
-            : `Reading ${chats.length} chat exports…`,
+          chats.length === 1 ? "Reading your chat…" : `Reading ${chats.length} chats…`,
         );
-        await api.uploadSample(chats);
+        setUploaded(await api.uploadSample(chats));
       }
       if (partyFile) {
-        setNote("Importing your party list…");
+        setNote("Reading your customer list…");
         await api.uploadIngest(partyFile);
       }
-      setNote("Working out how your business runs…");
+      setNote(null);
+      const set = await api.interview("universal").catch(() => ({ questions: [] }));
+      setUniversal(set.questions || []);
+      setStep(2);
+    } catch (err) {
+      setNote(null);
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Generated after the universal answers, so both the messages and what the
+  // owner just said are available to write against.
+  async function loadGenerated() {
+    setBusy(true);
+    setNote("Reading what you sent, to work out what else to ask…");
+    try {
+      const set = await api.interview("generated");
+      setGenerated(set.questions || []);
+    } catch {
+      // Never a dead end: if generation fails, setup still finishes.
+      setGenerated([]);
+    } finally {
+      setNote(null);
+      setBusy(false);
+      setStep(3);
+    }
+  }
+
+  async function finish() {
+    setBusy(true);
+    setError(null);
+    setNote("Working out how your business runs…");
+    try {
+      const all = [...universal, ...generated];
+      const byPurpose = (purpose) =>
+        all.find((q) => q.purpose === purpose && answers[q.key] != null);
+      const units = byPurpose("units");
+      const batch = byPurpose("batch_tracking");
+      const credit = all.find(
+        (q) => q.purpose === "credit_terms" && q.type === "number" && answers[q.key],
+      );
+
+      // Everything travels as prose too. The Configurator reads that, and it
+      // means a question we could not map to a fixed field is not lost.
+      const prose = {};
+      for (const q of all) {
+        const value = answers[q.key];
+        if (value === null || value === undefined || value === "") continue;
+        prose[q.question] = String(value);
+      }
+
       await api.configure({
-        segments: answers.segments?.length ? answers.segments : ["wholesaler"],
+        segments: [],
         what_you_sell: answers.what_you_sell || null,
-        units: answers.units || null,
-        tracks_lots: answers.tracks_lots ?? null,
-        gives_credit: answers.gives_credit ?? null,
-        credit_days: answers.credit_days ? Number(answers.credit_days) : null,
-        notes: [answers.notes, answers.rate_negotiated, answers.dispatch_how]
-          .filter(Boolean)
-          .join("; ") || null,
+        units: units ? String(answers[units.key]) : null,
+        tracks_lots:
+          batch && typeof answers[batch.key] === "boolean" ? answers[batch.key] : null,
+        gives_credit: null,
+        credit_days: credit ? Number(answers[credit.key]) : null,
+        notes: answers.what_kind || null,
+        answers: prose,
       });
       setNote(null);
-      setStep(3);
+      setStep(4);
     } catch (err) {
       setNote(null);
       setError(err.message);
@@ -183,22 +178,42 @@ export default function SignupPage() {
         />
       )}
 
-      {step === 1 && (
-        <TradeStep
+      {step === 1 && <DataStep busy={busy} onSubmit={sendData} />}
+
+      {step === 2 && (
+        <QuestionStep
+          title="Tell us about your work"
+          intro="Three quick ones, then we will ask about what we found in your messages."
+          questions={universal}
           answers={answers}
           setAnswers={setAnswers}
-          onNext={() => setStep(2)}
+          busy={busy}
+          onNext={loadGenerated}
         />
       )}
 
-      {step === 2 && (
-        <HistoryStep busy={busy} onSubmit={uploadAndConfigure} />
+      {step === 3 && (
+        <QuestionStep
+          title={generated.length ? "A few more, from your own messages" : "Nearly done"}
+          intro={
+            generated.length
+              ? "These come from what we just read, so you can correct anything we got wrong."
+              : "Nothing more to ask. You can finish here."
+          }
+          questions={generated}
+          answers={answers}
+          setAnswers={setAnswers}
+          busy={busy}
+          nextLabel="Finish setup"
+          onNext={finish}
+        />
       )}
 
-      {step === 3 && created && (
+      {step === 4 && created && (
         <DoneStep
           created={created}
           phone={details.owner_phone}
+          uploaded={uploaded}
           saved={saved}
           setSaved={setSaved}
           onFinish={() => router.replace("/today")}
@@ -216,11 +231,11 @@ export default function SignupPage() {
 
 function BusinessStep({ code, setCode, details, setDetails, busy, onNext }) {
   const fields = [
-    ["business_name", "Business name", "Ravi Fabrics", true],
+    ["business_name", "Business name", "", true],
     ["owner_name", "Your name", "", false],
     ["owner_phone", "Your phone number", "98765 43210", true],
     ["owner_email", "Your email", "you@business.in", false],
-    ["city", "City", "Surat", false],
+    ["city", "City", "", false],
   ];
   const ready = code.trim() && details.business_name.trim() && details.owner_phone.trim();
 
@@ -229,16 +244,14 @@ function BusinessStep({ code, setCode, details, setDetails, busy, onNext }) {
       <div className="know">
         <h3>You need an invite code</h3>
         <p style={{ margin: "8px 0 0", lineHeight: 1.6 }}>
-          We are not open to everyone yet. We set up each business ourselves —
-          we read your chats with you and check what the system got right
-          before you rely on it — so we can only take a few at a time.
+          We are not open to everyone yet. We set up each business ourselves,
+          so we can only take a few at a time.
         </p>
         <p style={{ margin: "10px 0 0", lineHeight: 1.6 }}>
-          If you have spoken to us, your code was given to you on the phone or
-          by message. If you have not,{" "}
-          <a href={CONTACT.phoneHref}>ring {CONTACT.phone}</a> or{" "}
+          If you have spoken to us, your code was given to you on the phone. If
+          not, <a href={CONTACT.phoneHref}>ring {CONTACT.phone}</a> or{" "}
           <a href={CONTACT.whatsappHref} target="_blank" rel="noreferrer">
-            message us on WhatsApp
+            message us
           </a>{" "}
           and we will tell you honestly whether it suits how you work.
         </p>
@@ -255,30 +268,37 @@ function BusinessStep({ code, setCode, details, setDetails, busy, onNext }) {
           spellCheck={false}
         />
 
-      {fields.map(([key, label, placeholder, required]) => (
-        <div key={key}>
-          <label htmlFor={key} style={{ marginTop: 14 }}>
-            {label}
-            {required ? "" : " (optional)"}
-          </label>
-          <input
-            id={key}
-            value={details[key]}
-            placeholder={placeholder}
-            type={key === "owner_phone" ? "tel" : key === "owner_email" ? "email" : "text"}
-            onChange={(e) => setDetails({ ...details, [key]: e.target.value })}
-            autoComplete="off"
-          />
-        </div>
-      ))}
+        {fields.map(([key, label, placeholder, required]) => (
+          <div key={key}>
+            <label htmlFor={key} style={{ marginTop: 14 }}>
+              {label}
+              {required ? "" : " (optional)"}
+            </label>
+            <input
+              id={key}
+              value={details[key]}
+              placeholder={placeholder}
+              type={
+                key === "owner_phone" ? "tel" : key === "owner_email" ? "email" : "text"
+              }
+              onChange={(e) => setDetails({ ...details, [key]: e.target.value })}
+              autoComplete="off"
+            />
+          </div>
+        ))}
 
-      <p className="muted">
-        Your phone number is how you sign in. Your email is where the daily
-        summary goes.
-      </p>
+        <p className="muted">
+          Your phone number is how you sign in. Your email is where the daily
+          summary goes.
+        </p>
 
         <div className="actions">
-          <button className="primary" style={{ width: "100%" }} disabled={busy || !ready} onClick={onNext}>
+          <button
+            className="primary"
+            style={{ width: "100%" }}
+            disabled={busy || !ready}
+            onClick={onNext}
+          >
             {busy ? "Creating…" : "Continue"}
           </button>
         </div>
@@ -287,26 +307,137 @@ function BusinessStep({ code, setCode, details, setDetails, busy, onNext }) {
   );
 }
 
-function TradeStep({ answers, setAnswers, onNext }) {
-  const set = (key, value) => setAnswers({ ...answers, [key]: value });
-  const visible = TRADE_QUESTIONS.filter((q) => !q.onlyIf || q.onlyIf(answers));
+// Data first. Everything after this is written from what lands here.
+function DataStep({ busy, onSubmit }) {
+  const [chats, setChats] = useState([]);
+  const [partyFile, setPartyFile] = useState(null);
+  const partyRef = useRef(null);
 
   return (
     <>
       <p className="muted">
-        Nine quick questions. They decide what the system looks for in your
-        messages — you can change any of it later.
+        We read this first, so the questions we ask next are about your actual
+        business rather than a form.
       </p>
 
-      {visible.map((q) => (
+      <div className="know">
+        <h3>How to export a WhatsApp chat</h3>
+        <ol style={{ paddingLeft: 18, lineHeight: 1.7, margin: "8px 0 0" }}>
+          <li>Open the chat with a regular customer or supplier.</li>
+          <li>
+            Tap their name at the top, scroll down, tap{" "}
+            <strong>Export chat</strong>.
+          </li>
+          <li>
+            Choose <strong>Without media</strong> for text only, or{" "}
+            <strong>Include media</strong> to bring the photos too.
+          </li>
+          <li>Save it, then repeat for your other regular customers.</li>
+        </ol>
+        <p className="muted" style={{ marginBottom: 0 }}>
+          On iPhone the menu is under their name too. Group chats work the same
+          way.
+        </p>
+      </div>
+
+      <FilePicker
+        id="chat"
+        label="Your chat exports"
+        accept=".txt,.zip"
+        hint="Pick as many as you like — your suppliers, your regular buyers, your transporter."
+        onEstimate={(picked) => setChats(picked)}
+      />
+
+      <div className="card">
+        <label htmlFor="parties" style={{ fontWeight: 600 }}>
+          Your customer list from Tally or Excel (optional)
+        </label>
+        <input
+          ref={partyRef}
+          id="parties"
+          type="file"
+          accept=".xlsx,.xlsm"
+          onChange={(e) => setPartyFile(e.target.files?.[0] || null)}
+        />
+        <p className="muted">
+          If you have one, names and balances are right from day one instead of
+          being learned from messages.
+        </p>
+        {partyFile && (
+          <div className="picked">
+            <div className="picked-row">
+              <div className="picked-name">{partyFile.name}</div>
+              <button
+                className="picked-remove"
+                aria-label="Remove"
+                onClick={() => {
+                  setPartyFile(null);
+                  if (partyRef.current) partyRef.current.value = "";
+                }}
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="actions">
+        <button
+          className="primary"
+          style={{ width: "100%" }}
+          disabled={busy || (!chats.length && !partyFile)}
+          onClick={() => onSubmit(chats, partyFile)}
+        >
+          {busy ? "Reading…" : "Continue"}
+        </button>
+      </div>
+      <p className="muted" style={{ textAlign: "center" }}>
+        Nothing is sent to your customers. Ever.
+      </p>
+    </>
+  );
+}
+
+// One renderer for both sets — they arrive in the same shape, and the owner
+// should not be able to tell which were written for them.
+function QuestionStep({
+  title,
+  intro,
+  questions,
+  answers,
+  setAnswers,
+  busy,
+  onNext,
+  nextLabel = "Continue",
+}) {
+  const set = (key, value) => setAnswers({ ...answers, [key]: value });
+
+  return (
+    <>
+      <div className="know">
+        <h3>{title}</h3>
+        <p style={{ margin: "8px 0 0", lineHeight: 1.6 }}>{intro}</p>
+      </div>
+
+      {questions.map((q) => (
         <div className="card" key={q.key}>
-          <label htmlFor={q.key} style={{ fontWeight: 600 }}>{q.q}</label>
+          <label
+            htmlFor={q.key}
+            style={{
+              fontWeight: 600,
+              textTransform: "none",
+              fontSize: 16,
+              letterSpacing: 0,
+            }}
+          >
+            {q.question}
+          </label>
 
           {q.type === "text" && (
             <input
               id={q.key}
               value={answers[q.key] || ""}
-              placeholder={q.placeholder}
               onChange={(e) => set(q.key, e.target.value)}
             />
           )}
@@ -316,8 +447,7 @@ function TradeStep({ answers, setAnswers, onNext }) {
               id={q.key}
               type="number"
               inputMode="numeric"
-              value={answers[q.key] || ""}
-              placeholder={q.placeholder}
+              value={answers[q.key] ?? ""}
               onChange={(e) => set(q.key, e.target.value)}
             />
           )}
@@ -350,156 +480,49 @@ function TradeStep({ answers, setAnswers, onNext }) {
             </div>
           )}
 
-          {q.type === "multi" && (
-            <div className="filters">
-              {q.options.map((option) => {
-                const on = (answers.segments || []).includes(option);
-                return (
-                  <button
-                    key={option}
-                    className={on ? "primary" : ""}
-                    onClick={() =>
-                      set(
-                        "segments",
-                        on
-                          ? answers.segments.filter((v) => v !== option)
-                          : [...(answers.segments || []), option],
-                      )
-                    }
-                  >
-                    {option}
-                  </button>
-                );
-              })}
-            </div>
+          {q.hint && (
+            <p className="muted" style={{ marginBottom: 0 }}>
+              {q.hint}
+            </p>
           )}
-
-          <p className="muted" style={{ marginBottom: 0 }}>{q.hint}</p>
         </div>
       ))}
-
-      <div className="actions">
-        <button className="primary" style={{ width: "100%" }} onClick={onNext}>
-          Continue
-        </button>
-      </div>
-    </>
-  );
-}
-
-// The step owners get stuck on, so the instructions are the screen rather than
-// a link off it.
-function HistoryStep({ busy, onSubmit }) {
-  const [chats, setChats] = useState([]);
-  const [estimate, setEstimate] = useState(null);
-  const [partyFile, setPartyFile] = useState(null);
-  const partyRef = useRef(null);
-
-  return (
-    <>
-      <div className="card">
-        <label htmlFor="parties" style={{ fontWeight: 600 }}>
-          Your party list from Tally or Excel
-        </label>
-        <input
-          ref={partyRef}
-          id="parties"
-          type="file"
-          accept=".xlsx,.xlsm"
-          onChange={(e) => setPartyFile(e.target.files?.[0] || null)}
-        />
-        <p className="muted">
-          An export of your customers and their outstandings. This is the
-          fastest way to start: names and balances are right from day one
-          instead of being learned from messages.
-        </p>
-        {partyFile && (
-          <div className="picked">
-            <div className="picked-row">
-              <div className="picked-name">{partyFile.name}</div>
-              <button
-                className="picked-remove"
-                aria-label="Remove"
-                onClick={() => {
-                  setPartyFile(null);
-                  if (partyRef.current) partyRef.current.value = "";
-                }}
-              >
-                ×
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="know">
-        <h3>How to export a WhatsApp chat</h3>
-        <ol style={{ paddingLeft: 18, lineHeight: 1.7, margin: "8px 0 0" }}>
-          <li>Open the chat with a regular customer or supplier.</li>
-          <li>
-            Tap the contact&apos;s name at the top, then scroll down to{" "}
-            <strong>Export chat</strong>.
-          </li>
-          <li>
-            Choose <strong>Without media</strong> if you only want the text, or{" "}
-            <strong>Include media</strong> to bring the bill photos too.
-          </li>
-          <li>Save the file, then repeat for your other regular parties.</li>
-        </ol>
-        <p className="muted" style={{ marginBottom: 0 }}>
-          On iPhone the menu is under the contact name too. Group chats work
-          the same way.
-        </p>
-      </div>
-
-      <FilePicker
-        id="chat"
-        label="Your chat exports (optional)"
-        accept=".txt,.zip"
-        hint="Pick as many as you like — your mill, your big buyers, your transporter. .txt or .zip, and zips bring the photos with them."
-        onEstimate={(picked, body) => {
-          setChats(picked);
-          setEstimate(body);
-        }}
-      />
 
       <div className="actions">
         <button
           className="primary"
           style={{ width: "100%" }}
-          disabled={busy || (!chats.length && !partyFile)}
-          onClick={() => onSubmit(chats, partyFile)}
+          disabled={busy}
+          onClick={onNext}
         >
-          {busy ? "Working…" : "Finish setup"}
+          {busy ? "Working…" : nextLabel}
         </button>
       </div>
       <p className="muted" style={{ textAlign: "center" }}>
-        You can add more chats and documents any time. Nothing is sent to your
-        customers. Ever.
+        You can skip anything you are not sure about.
       </p>
     </>
   );
 }
 
-function DoneStep({ created, phone, saved, setSaved, onFinish }) {
+function DoneStep({ created, phone, uploaded, saved, setSaved, onFinish }) {
   const [copied, setCopied] = useState(false);
-
-  // Sending it to their own WhatsApp is the one place this trade reliably
-  // keeps things it needs to find again. "Save it somewhere safe" is not an
-  // instruction most owners can act on; "message it to yourself" is.
   const digits = (phone || "").replace(/\D/g, "");
-  const wa = digits.length >= 10
-    ? `https://wa.me/${digits.length === 10 ? `91${digits}` : digits}?text=${encodeURIComponent(
-        `Textile Ops sign-in
+  const wa =
+    digits.length >= 10
+      ? `https://wa.me/${digits.length === 10 ? `91${digits}` : digits}?text=${encodeURIComponent(
+          `Sign-in details\n\nPhone: ${phone}\nToken: ${created.token}\n\nKeep this message.`,
+        )}`
+      : null;
 
-Phone: ${phone}
-Token: ${created.token}
-
-Keep this message.`,
-      )}`
-    : null;
   return (
     <>
+      {uploaded?.interactions > 0 && (
+        <div className="banner">
+          {formatNumber(uploaded.interactions)} messages are being read now.
+        </div>
+      )}
+
       <div className="card">
         <h3>Your access token</h3>
         <p
@@ -507,9 +530,9 @@ Keep this message.`,
             fontFamily: "ui-monospace, monospace",
             fontSize: 16,
             wordBreak: "break-all",
-            background: "var(--surface-2, #f4f4f4)",
+            background: "var(--card-2)",
             padding: "12px 14px",
-            borderRadius: 8,
+            borderRadius: 10,
             margin: "8px 0 12px",
           }}
         >
@@ -527,6 +550,7 @@ Keep this message.`,
             {copied ? "Copied" : "Copy token"}
           </button>
         </div>
+
         {wa && (
           <div className="actions" style={{ marginTop: 10 }}>
             <a className="button-link" href={wa} target="_blank" rel="noreferrer">
@@ -543,9 +567,10 @@ Keep this message.`,
         ) : (
           <div className="banner error" style={{ marginTop: 12 }}>
             Save this somewhere safe now. It is shown once and cannot be shown
-            again — it is what signs you in on another phone.
+            again.
           </div>
         )}
+
         <label
           className="line"
           style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}
@@ -571,8 +596,8 @@ Keep this message.`,
         </button>
       </div>
       <p className="muted" style={{ textAlign: "center" }}>
-        Your history is being read now. The dashboard shows progress as records
-        come in.
+        Your messages are being read now. The dashboard shows progress as
+        records come in.
       </p>
     </>
   );

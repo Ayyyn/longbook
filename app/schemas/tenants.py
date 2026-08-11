@@ -145,6 +145,9 @@ class TenantMe(BaseModel):
     days_remaining: int | None = None
     paid_until: datetime | None = None
     plan: str | None = None
+    # What this business calls things, resolved from its profile. The UI
+    # renders these rather than guessing at a trade.
+    labels: dict[str, Any] = Field(default_factory=dict)
     profile: ProfileOut | None
     parties: int
     interactions: int
