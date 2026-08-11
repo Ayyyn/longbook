@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, signup, setToken, setPhone, formatNumber } from "../lib/api";
@@ -38,6 +38,11 @@ export default function SignupPage() {
   const [uploaded, setUploaded] = useState(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState(null);
+  // Elapsed seconds against an expected duration. A step that takes 20
+  // seconds behind an unlabelled spinner is a step people tap twice or
+  // abandon, and this is the moment a customer is watching over a
+  // shoulder.
+  const [work, setWork] = useState(null);
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
 
@@ -90,7 +95,14 @@ export default function SignupPage() {
   // owner just said are available to write against.
   async function loadGenerated() {
     setBusy(true);
-    setNote("Reading what you sent, to work out what else to ask…");
+    setWork({
+      title: "Reading your messages",
+      steps: [
+        "Going through what you sent",
+        "Working out what we still need to ask",
+      ],
+      expect: 20,
+    });
     try {
       const set = await api.interview("generated");
       setGenerated(set.questions || []);
@@ -98,7 +110,7 @@ export default function SignupPage() {
       // Never a dead end: if generation fails, setup still finishes.
       setGenerated([]);
     } finally {
-      setNote(null);
+      setWork(null);
       setBusy(false);
       setStep(3);
     }
@@ -107,7 +119,15 @@ export default function SignupPage() {
   async function finish() {
     setBusy(true);
     setError(null);
-    setNote("Working out how your business runs…");
+    setWork({
+      title: "Setting up your business",
+      steps: [
+        "Saving your answers",
+        "Working out how your business runs",
+        "Starting to read your history",
+      ],
+      expect: 25,
+    });
     try {
       const all = [...universal, ...generated];
       const byPurpose = (purpose) =>
@@ -138,10 +158,10 @@ export default function SignupPage() {
         notes: answers.what_kind || null,
         answers: prose,
       });
-      setNote(null);
+      setWork(null);
       setStep(4);
     } catch (err) {
-      setNote(null);
+      setWork(null);
       setError(err.message);
     } finally {
       setBusy(false);
@@ -166,6 +186,7 @@ export default function SignupPage() {
 
       {error && <div className="banner error">{error}</div>}
       {note && <div className="banner">{note}</div>}
+      {work && <Working {...work} />}
 
       {step === 0 && (
         <BusinessStep
@@ -226,6 +247,41 @@ export default function SignupPage() {
         </p>
       )}
     </PublicPage>
+  );
+}
+
+// Says what is happening and roughly how long, and keeps moving. Anything
+// over about three seconds needs this rather than a spinner.
+function Working({ title, steps, expect }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Advance through the named steps across the expected duration, then hold
+  // on the last one rather than claiming to be finished.
+  const index = Math.min(steps.length - 1, Math.floor(elapsed / (expect / steps.length)));
+  const pct = Math.min(96, Math.round((elapsed / expect) * 100));
+  const over = elapsed > expect + 5;
+
+  return (
+    <div className="empty-state working">
+      <h3>{title}</h3>
+      <div className="progress-track">
+        <div className="progress-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="why">
+        {steps[index]}…{" "}
+        {over
+          ? "taking longer than usual, still going"
+          : `about ${Math.max(1, expect - elapsed)} seconds left`}
+      </div>
+      <p className="muted" style={{ marginBottom: 0 }}>
+        Do not close this page.
+      </p>
+    </div>
   );
 }
 

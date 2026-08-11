@@ -41,14 +41,16 @@ export default function TokenGate({ children }) {
   return (
     <>
       {children}
-      {me?.days_remaining != null && me.days_remaining <= 14 && (
+      {/* Only near the end. A 14-day window on a 14-day trial means it
+          shows from the first minute, which reads as nagging. */}
+      {me?.days_remaining != null && me.days_remaining <= 5 && (
         <Countdown days={me.days_remaining} status={me.access_status} />
       )}
     </>
   );
 }
 
-// Deliberately quiet, and only in the last two weeks. An owner who has paid
+// Deliberately quiet, and only in the last few days. An owner who has paid
 // should not be reminded of it every morning.
 function Countdown({ days, status }) {
   return (

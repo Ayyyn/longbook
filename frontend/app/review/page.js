@@ -163,6 +163,22 @@ function Review() {
   const confirmed = Object.entries(item.fields || {}).filter(
     ([key, value]) => !pending.includes(key) && value !== null && value !== ""
   );
+
+  // What was ordered is the thing you most need before confirming a quantity,
+  // and it was missing whenever the extractor left it blank — leaving a card
+  // that asked "how many?" without saying how many of what. Fall back to the
+  // first line, then to the message itself.
+  const fields = item.fields || {};
+  const firstLine = Array.isArray(fields.lines) ? fields.lines[0] : null;
+  const itemName =
+    fields.quality ||
+    fields.item ||
+    firstLine?.quality ||
+    firstLine?.description ||
+    null;
+  const showItem =
+    item.record_type === "order" && !pending.includes("quality") &&
+    !confirmed.some(([k]) => k === "quality");
   const failedRule = (item.validations || []).find((v) => v.status === "fail");
 
   function submit() {
@@ -191,10 +207,29 @@ function Review() {
           {item.confidence != null && (
             <span className="chip plain">{Math.round(item.confidence * 100)}% sure</span>
           )}
-          {item.committed_type && <span className="chip plain">saved, needs one detail</span>}
+          {item.committed_type && (
+            <span className="chip plain" title="Already saved to your books. Confirming fills in the missing field.">
+              already saved · one field missing
+            </span>
+          )}
         </div>
 
         {/* What is already known and committed, as a plain table. */}
+        {showItem && (
+          <div className="record-table">
+            <div className="line">
+              <span className="k">{labelFor("quality", labels)}</span>
+              <span className="v">
+                {itemName || (
+                  <span className="muted">
+                    not named — see the conversation below
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+        )}
+
         {confirmed.length > 0 ? (
           <div className="record-table">
             {confirmed.map(([key, value]) => (

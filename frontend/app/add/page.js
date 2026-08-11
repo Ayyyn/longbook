@@ -312,7 +312,7 @@ function History({ rows }) {
               <span className="warn">{r.detail || "Could not be read"}</span>
             ) : (
               <>
-                {formatNumber(r.messages)} record{r.messages === 1 ? "" : "s"}
+                {formatNumber(r.messages)} message{r.messages === 1 ? "" : "s"}
                 {r.media > 0 && ` · ${formatNumber(r.media)} photos`}
                 {r.duplicates > 0 && ` · ${formatNumber(r.duplicates)} already had`}
                 {` · from ${r.kind === "upload" ? "a file" : r.kind}`}

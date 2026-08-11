@@ -50,6 +50,24 @@ class PartyMatch:
     score: float
 
 
+def store_phone(phone: str | None) -> str | None:
+    """The canonical form an owner's number is STORED in: digits only.
+
+    Formatting is where this went wrong. "98250 66554" was stored verbatim
+    because that is how the owner typed it, and every lookup that stripped
+    the query to digits then failed to match it — including token recovery,
+    which answers identically whether it found you or not. The owner waits
+    for an email that will never arrive and support cannot find them.
+
+    Any leading country code is kept; matching is done on the last ten
+    digits, which is what identifies an Indian mobile.
+    """
+    if not phone:
+        return None
+    digits = re.sub(r"\D", "", phone)
+    return digits or None
+
+
 def normalize_phone(phone: str | None) -> str | None:
     """Last 10 digits, which is what identifies an Indian mobile.
 

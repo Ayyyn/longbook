@@ -56,6 +56,7 @@ from app.schemas.tenants import (
     TenantCreated,
     TenantMe,
 )
+from app.services.matching import normalize_phone, store_phone
 from app.services.access import access_for
 from app.services.vocabulary import labels as vocab_labels
 from app.services.credentials import email_token
@@ -133,8 +134,15 @@ def signup(payload: TenantCreate) -> TenantCreated:
 
 def _create(payload: TenantCreate) -> TenantCreated:
     with admin_session() as db:
+        # Matched on the last ten digits, not on the string. Otherwise the
+        # same owner signing up as "+91 98250 66554" and "9825066554" gets two
+        # businesses and neither has all their data.
+        last10 = normalize_phone(payload.owner_phone)
         existing = db.execute(
-            select(Tenant.id).where(Tenant.owner_phone == payload.owner_phone)
+            select(Tenant.id).where(
+                Tenant.owner_phone.like(f"%{last10}") if last10
+                else Tenant.owner_phone == payload.owner_phone
+            )
         ).scalars().first()
         if existing:
             raise HTTPException(409, "A tenant already exists for that owner phone.")
@@ -142,7 +150,9 @@ def _create(payload: TenantCreate) -> TenantCreated:
         tenant = Tenant(
             business_name=payload.business_name,
             owner_name=payload.owner_name,
-            owner_phone=payload.owner_phone,
+            # Stored digits-only. See store_phone: a number kept in the
+            # shape someone typed it is a number nothing can find.
+            owner_phone=store_phone(payload.owner_phone) or payload.owner_phone,
             owner_email=payload.owner_email,
             city=payload.city,
             locale=payload.locale,

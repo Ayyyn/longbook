@@ -120,7 +120,7 @@ export default function FilePicker({
             </>
           )}
           {estimate.duplicates > 0 && (
-            <> · {formatNumber(estimate.duplicates)} already read, will be skipped</>
+            <> · {formatNumber(estimate.duplicates)} duplicates in your files, skipped</>
           )}
         </div>
       )}

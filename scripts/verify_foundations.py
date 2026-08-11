@@ -133,6 +133,32 @@ as_utc = one_am_ist - IST_OFFSET
 check("A ROW WRITTEN AT 1AM IST FALLS IN TODAY", start <= as_utc < end, True)
 check("  even though its UTC date is yesterday", as_utc.date() != business_today(), True)
 
+print("\n-- stored phone numbers are digits only --")
+
+from app.services.matching import normalize_phone, store_phone  # noqa: E402
+
+for raw, want in [
+    ("98250 66554", "9825066554"),
+    ("+91 98250 66554", "919825066554"),
+    ("+919825066554", "919825066554"),
+    ("(98250) 66554", "9825066554"),
+]:
+    check(f"store_phone({raw!r})", store_phone(raw), want)
+
+check("all forms agree on the last ten digits",
+      len({normalize_phone(p) for p in
+           ["98250 66554", "+91 98250 66554", "+919825066554", "(98250) 66554"]}), 1)
+
+# The bug this guards: a stored number containing a space is invisible to
+# every digits-only LIKE, including the one token recovery runs — and recovery
+# answers identically whether it found the business or not.
+with admin_session() as db:
+    stored = db.execute(
+        text("SELECT owner_phone FROM tenant WHERE owner_phone IS NOT NULL")
+    ).scalars().all()
+check("NO STORED NUMBER CONTAINS PUNCTUATION",
+      [p for p in stored if p and not p.isdigit()], [])
+
 print("\n-- nobody reintroduces them --")
 
 app_files = [p for p in Path("app").rglob("*.py")]

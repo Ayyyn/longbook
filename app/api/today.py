@@ -41,6 +41,22 @@ from app.services.ledger import outstanding_by_party, payment_trend
 router = APIRouter()
 
 
+def _age(days: int | None) -> str:
+    """Readable age. "2225 days" is arithmetically right and reads as a bug.
+
+    Old history is normal — an owner uploads six years of chats and the
+    oldest open order really is that old — but a number in the thousands on
+    a first-run screen looks like something went wrong.
+    """
+    days = int(days or 0)
+    if days < 60:
+        return f"{days} days"
+    if days < 365:
+        return f"{days // 30} months"
+    years = days / 365
+    return "over a year" if years < 2 else f"over {int(years)} years"
+
+
 OPEN_STATUSES = ("draft", "confirmed", "partially_dispatched")
 RECENT_LIMIT = 5
 CHASING_LIMIT = 6
@@ -122,7 +138,7 @@ def today(tid: TenantId, db: TenantDB, profile: Profile) -> TodayDigest:
         ))
     for row in stalled[:3]:
         flagged.append(FlaggedRow(
-            headline=f"Order not dispatched, {row['late_by_days']} days",
+            headline=f"Order not dispatched, {_age(row['late_by_days'])}",
             party_name=row["party_name"], kind="stalled_order",
             order_id=row["order_id"],
         ))

@@ -1131,3 +1131,15 @@ header.bar { padding-right: 56px; }
 .ask-bar button { flex: 0 0 auto; }
 .mic-btn { min-width: 50px; padding: 0; font-size: 18px; }
 @media (min-width: 900px) { .ask-bar { bottom: var(--s4); } }
+
+/* A disabled button must look disabled. A pale-green primary reads as active
+   and gets tapped repeatedly by someone who thinks the page is stuck. */
+button:disabled,
+button.primary:disabled {
+  background: var(--card-2);
+  border-color: var(--line);
+  color: var(--muted);
+  opacity: 1;
+  box-shadow: none;
+  cursor: not-allowed;
+}

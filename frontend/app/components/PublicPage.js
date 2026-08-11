@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getToken } from "../lib/api";
 import { CONTACT } from "../lib/contact";
 
 // Chrome for the pages a stranger sees. Read on a phone, in daylight, by
@@ -8,6 +10,12 @@ import { CONTACT } from "../lib/contact";
 // so: big type, hard contrast, no gradients, and nothing that has to be
 // scrolled past to reach the point.
 export default function PublicPage({ children, active }) {
+  // Signup hands the owner a token at step one, so from step two onward
+  // the nav saying "Sign in" is simply wrong — and tapping it mid-setup
+  // is how someone loses their place.
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => setSignedIn(Boolean(getToken())), []);
+
   const links = [
     ["/", "Home"],
     ["/pricing", "Pricing"],
@@ -27,8 +35,8 @@ export default function PublicPage({ children, active }) {
               {label}
             </Link>
           ))}
-          <Link href="/login" className="on">
-            Sign in
+          <Link href={signedIn ? "/today" : "/login"} className="on">
+            {signedIn ? "My dashboard" : "Sign in"}
           </Link>
         </div>
       </nav>
