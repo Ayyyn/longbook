@@ -39,7 +39,9 @@ from app.models.ingestion import Extraction, IngestSource, Interaction
 from app.models.party import Party
 from app.models.tenant import BusinessProfile, Tenant
 from app.schemas.tenants import (
+    InterviewQuestions,
     PaymentRecord,
+    Question,
     PaymentRecorded,
     RecoveryAccepted,
     RecoveryConfirm,
@@ -62,7 +64,8 @@ from app.services.auth import issue_token
 from app.services.dispatch import dispatch_backfill
 from app.services.intake import IntakeError
 from app.services.uploads import parse_many
-from app.services.onboarding import build_profile
+from app.agents.interviewer import UNIVERSAL, Interviewer
+from app.services.onboarding import build_profile, sample_messages
 from app.services.party_import import (
     import_parties,
     parse_upload,
@@ -605,4 +608,34 @@ def confirm_recovery(payload: RecoveryConfirm) -> TenantCreated:
         owner_phone=phone,
         emailed_to=to if sent else None,
         detail="New token issued. Your previous token has stopped working.",
+    )
+
+
+@router.get("/interview", response_model=InterviewQuestions)
+def interview_questions(
+    tid: TenantId, db: TenantDB, stage: str = Query("universal")
+) -> InterviewQuestions:
+    """The questions to ask this owner.
+
+    `stage=universal` returns the three that are true of any business and can
+    be asked before anything has been read. `stage=generated` reads the
+    uploaded sample and writes the rest — which is why upload now comes first.
+    """
+    if stage != "generated":
+        return InterviewQuestions(
+            questions=[Question(**q) for q in UNIVERSAL],
+            generated=False,
+            observations=[],
+        )
+
+    messages = sample_messages(db, tid)
+    decision = Interviewer(db, tid).execute({
+        "messages": messages,
+        "answers": {},
+    })
+    output = decision.output or {}
+    return InterviewQuestions(
+        questions=[Question(**q) for q in output.get("questions") or []],
+        generated=bool(output.get("generated")),
+        observations=output.get("observations") or [],
     )

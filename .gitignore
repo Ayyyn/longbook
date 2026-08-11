@@ -16,3 +16,7 @@ out/
 data/
 evals/*/records.json
 frontend/node_modules
+# Synthetic samples are committed deliberately (see the header in each file);
+# only real customer data is excluded, which data/ above already covers.
+!data/synthetic/
+!data/synthetic/**

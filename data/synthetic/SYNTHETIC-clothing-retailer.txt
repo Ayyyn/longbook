@@ -1,0 +1,59 @@
+SYNTHETIC SAMPLE — NOT REAL CUSTOMER DATA
+=========================================
+Written by hand to test whether the interview generator adapts its questions
+to a trade it has never seen. Every name, number and figure below is invented.
+
+It is NOT evidence of extraction accuracy and must never be quoted in an
+accuracy measurement, an eval baseline, or a submission. The only claim it
+supports is "the generator asked different questions for a different trade".
+
+Real measurements come from data/real_chat/ only.
+=========================================
+
+12/06/2026, 10:02 - Meena Boutique: Good morning. Do you have the printed kurti sets in stock?
+12/06/2026, 10:04 - You: Yes ma'am, MK-220 and MK-224 both available
+12/06/2026, 10:05 - Meena Boutique: What sizes
+12/06/2026, 10:06 - You: S M L XL, full size set. XXL only in MK-220
+12/06/2026, 10:09 - Meena Boutique: Send 12 pieces MK-220, size set. Rate?
+12/06/2026, 10:11 - You: 640 per piece for you ma'am
+12/06/2026, 10:12 - Meena Boutique: Last time you gave 610
+12/06/2026, 10:15 - You: That was old stock ma'am. This is new lot, 625 final
+12/06/2026, 10:16 - Meena Boutique: Ok done. 12 pieces
+12/06/2026, 14:20 - Meena Boutique: Colours? I want maroon and navy only
+12/06/2026, 14:22 - You: Maroon available. Navy finished, can give bottle green
+12/06/2026, 14:23 - Meena Boutique: Ok green fine
+
+13/06/2026, 11:30 - Sharma Collection: Bhaiya party wear lehenga ka kya chal raha hai
+13/06/2026, 11:34 - You: New designs aaye hain, LH-88 se LH-96 tak. 2400 se 4800 range
+13/06/2026, 11:36 - Sharma Collection: Photo bhejo
+13/06/2026, 11:37 - You: <Media omitted>
+13/06/2026, 11:52 - Sharma Collection: LH-91 aur LH-93 ka 4-4 piece bhejo
+13/06/2026, 11:53 - Sharma Collection: Bill pe 20 din likhna, Diwali ke baad payment
+13/06/2026, 11:55 - You: Theek hai bhaiya, 20 days
+
+14/06/2026, 09:15 - Rekha Fashion: Return karna hai, 3 piece MK-224 me stitching problem
+14/06/2026, 09:18 - You: Photo bhejiye
+14/06/2026, 09:19 - Rekha Fashion: <Media omitted>
+14/06/2026, 09:25 - You: Ha dikh raha hai. Exchange kar denge, next delivery me
+14/06/2026, 09:26 - Rekha Fashion: Credit note de dena
+
+16/06/2026, 12:40 - Sharma Collection: 45000 transfer kiya hai, check karo
+16/06/2026, 12:44 - You: Mil gaya bhaiya, thank you
+16/06/2026, 12:45 - Sharma Collection: Baki 18000 next week
+
+18/06/2026, 16:05 - Meena Boutique: Courier se bheja hai ya transport?
+18/06/2026, 16:07 - You: DTDC se bheja ma'am, docket 4471882
+18/06/2026, 16:08 - Meena Boutique: Kitne din
+18/06/2026, 16:09 - You: 2-3 din me pahunch jayega
+
+20/06/2026, 10:30 - Anita Garments: Wholesale rate list bhejo saree ka
+20/06/2026, 10:33 - You: Georgette 480, chiffon 520, silk blend 890 per piece
+20/06/2026, 10:35 - Anita Garments: Minimum kitna lena padega
+20/06/2026, 10:36 - You: 6 piece per design minimum
+20/06/2026, 10:40 - Anita Garments: Ok georgette 12 piece, mix colour
+
+22/06/2026, 15:10 - Rekha Fashion: Ladies top ka new stock aaya?
+22/06/2026, 15:12 - You: Ha, TP series. TP-301 se TP-318
+22/06/2026, 15:14 - Rekha Fashion: Rate
+22/06/2026, 15:15 - You: 290 se 420 per piece, design ke hisab se
+22/06/2026, 15:20 - Rekha Fashion: TP-305 ka 10 piece, size M aur L

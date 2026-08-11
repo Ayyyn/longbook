@@ -2,6 +2,7 @@ from app.agents.analyst import Analyst
 from app.agents.base import Agent, Decision
 from app.agents.configurator import Configurator
 from app.agents.extractor import Extractor
+from app.agents.interviewer import Interviewer
 from app.agents.resolver import Resolver
 from app.agents.triage import Triage
 from app.agents.ledger_analyst import LedgerAnalyst
@@ -19,6 +20,7 @@ __all__ = [
     "DigestComposer",
     "DraftComposer",
     "Analyst",
+    "Interviewer",
     "REGISTRY",
 ]
 
@@ -31,4 +33,5 @@ REGISTRY = {
     "digest_composer": DigestComposer,
     "draft_composer": DraftComposer,
     "analyst": Analyst,
+    "interviewer": Interviewer,
 }

@@ -218,7 +218,12 @@ def _quotes_for(db, tenant_id: uuid.UUID, party_ids: list[uuid.UUID]) -> list[Ev
         out.append(
             Evidence(
                 kind="quote",
-                label=f"{payload.get('quality') or 'quote'} at {_money(rate)}",
+                # "quality" is the wire key the extractor emits, not a word
+                # shown to anyone — the label falls back to neutral text.
+                label=(
+                    f"{payload.get('item') or payload.get('quality') or 'quote'}"
+                    f" at {_money(rate)}"
+                ),
                 detail=f"status {payload.get('status') or 'offered'}",
                 record_id=str(row.id),
                 party_id=str(resolved.get("party_id")),

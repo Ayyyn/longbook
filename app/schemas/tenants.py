@@ -48,16 +48,32 @@ class Interview(BaseModel):
     credit_days: int | None = None
     notes: str | None = None
 
+    # Answers to the questions the Interviewer wrote for this business.
+    # Free-form because the questions are: {question: answer}. They reach the
+    # Configurator as prose, which is what it reads anyway — no schema is
+    # invented from them and nothing is stored per-key.
+    answers: dict[str, str] = Field(default_factory=dict)
+
     def render(self) -> str:
         """Flatten to the text the Configurator reads."""
         lines = [
             f"Segments the owner selected: {', '.join(self.segments) or 'not stated'}",
             f"What they sell: {self.what_you_sell or 'not stated'}",
             f"Units they quote in: {self.units or 'not stated'}",
-            f"Tracks dye lots: {_yes_no(self.tracks_lots)}",
+            f"Tracks batches or lot numbers: {_yes_no(self.tracks_lots)}",
             f"Gives credit: {_yes_no(self.gives_credit)}",
             f"Typical credit days: {self.credit_days if self.credit_days is not None else 'not stated'}",
         ]
+        # These were asked because the owner's own messages prompted them, so
+        # they carry more signal than the fixed fields above and get their own
+        # block rather than being flattened into notes.
+        if self.answers:
+            lines.append("What the owner said about their own business:")
+            lines.extend(
+                f"  {question} -> {answer}"
+                for question, answer in self.answers.items()
+                if str(answer).strip()
+            )
         if self.notes:
             lines.append(f"Other notes: {self.notes}")
         return "\n".join(lines)
@@ -181,3 +197,20 @@ class RecoveryAccepted(BaseModel):
 
 class RecoveryConfirm(BaseModel):
     token_payload: str
+
+
+class Question(BaseModel):
+    key: str
+    purpose: str
+    type: str            # text | bool | number | choice
+    question: str
+    hint: str = ""
+    options: list[str] = []
+
+
+class InterviewQuestions(BaseModel):
+    questions: list[Question]
+    # False when the neutral fallback set was used — the UI says nothing
+    # different, but it matters when reading the logs.
+    generated: bool
+    observations: list[str] = []

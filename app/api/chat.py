@@ -21,11 +21,14 @@ from app.api.deps import Profile, TenantDB, TenantId
 router = APIRouter()
 
 # What an owner is likely to want on day one, in their words rather than ours.
+# Trade-neutral by construction. "What did we last quote for cotton?" is a
+# fine question for a fabric trader and a baffling one for a bearing dealer,
+# and the suggestions are the first thing a new owner reads.
 SUGGESTIONS = [
     "Who owes me the most?",
     "Which orders haven't been dispatched?",
     "Who has crossed their credit days?",
-    "What did we last quote for cotton?",
+    "What did we last quote this party?",
     "What came in this week?",
 ]
 
@@ -102,7 +105,7 @@ def ask(payload: Ask, tid: TenantId, db: TenantDB, profile: Profile) -> Answer:
 
 TRANSCRIBE = """Write out exactly what is said in this recording, as one line.
 
-The speaker is an Indian textile trader. They will mix Hindi, Gujarati,
+The speaker is an Indian business owner. They will mix Hindi, Gujarati,
 Marathi and English in the same sentence, and that is normal — keep the words
 they used rather than translating. Item codes and numbers matter most; get
 those exactly right.
