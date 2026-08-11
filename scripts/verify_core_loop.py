@@ -107,7 +107,7 @@ EXPORT = """[04/06/26, 10:12:03 AM] Ashok Bhai: Bhai 150 mtr SR-1042 blue chahiy
 [05/06/26, 10:00:00 AM] Ashok Bhai: SR-1042 thoda sa bhej dena
 """
 
-seed = yaml.safe_load(Path("app/profiles/wholesaler.yaml").read_text(encoding="utf-8"))
+seed = yaml.safe_load(Path("app/profiles/universal.yaml").read_text(encoding="utf-8"))
 
 with admin_session() as db:
     tenant = Tenant(id=TENANT, business_name="Verify Mills",

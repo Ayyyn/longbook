@@ -98,20 +98,28 @@ def clamp_rules(
 
 
 @lru_cache
-def seed_profile(name: str) -> dict[str, Any]:
+def seed_profile(name: str = "universal") -> dict[str, Any]:
     path = PROFILE_DIR / f"{name}.yaml"
     if not path.exists():
-        path = PROFILE_DIR / "wholesaler.yaml"
+        path = PROFILE_DIR / "universal.yaml"
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
 
 def seed_for(segments: list[str]) -> dict[str, Any]:
-    """Retail only when retail is the whole story — a shop that also wholesales
-    needs the wholesaler modules (lots, dispatch) switched on."""
-    lowered = {s.strip().lower() for s in segments}
-    if lowered == {"retail"}:
-        return seed_profile("retail")
-    return seed_profile("wholesaler")
+    """One seed, whatever the trade.
+
+    There used to be a wholesaler seed and a retail seed, both written for
+    fabric. They were not a head start — the Configurator derives vocabulary
+    and rate basis from the owner's own messages perfectly well, and every
+    trade-specific default it failed to override shipped as a wrong answer to
+    a business in a different trade.
+
+    `segments` is kept because the caller has it and the Configurator reads
+    it as evidence; it no longer selects a file.
+    """
+    seed = dict(seed_profile("universal"))
+    seed["segments"] = [s.strip().lower() for s in segments if s and s.strip()]
+    return seed
 
 
 def sample_messages(db, tenant_id: uuid.UUID, limit: int = SAMPLE_SIZE) -> list[str]:

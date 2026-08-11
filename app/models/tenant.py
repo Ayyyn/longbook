@@ -56,7 +56,7 @@ class BusinessProfile(Base, TimestampMixin):
     segments = Column(JSONB, default=list, nullable=False)
 
     # Which modules are switched on for this tenant.
-    # e.g. {"lots": true, "job_work": false, "dispatch": true, "catalog": false}
+    # e.g. {"batches": true, "job_work": false, "dispatch": true, "catalog": false}
     modules = Column(JSONB, default=dict, nullable=False)
 
     # How this business actually talks: units, code formats, party aliases.

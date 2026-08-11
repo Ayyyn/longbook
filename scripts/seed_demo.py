@@ -88,7 +88,7 @@ def state(tenant_id, interaction_id, record_type, fields, confidence, reason="",
 
 def main() -> None:
     seed = yaml.safe_load(
-        (Path("app/profiles/wholesaler.yaml")).read_text(encoding="utf-8")
+        (Path("app/profiles/universal.yaml")).read_text(encoding="utf-8")
     )
     phone = f"98{uuid.uuid4().int % 10**8:08d}"
 

@@ -271,8 +271,14 @@ resp = client.post("/api/tenants/configure", headers=other_headers,
 check("onboarding still completes", resp.status_code, 200)
 check("  from the seed", resp.json()["profile"]["source"], "seed")
 check("  and says why", "unavailable" in resp.json()["profile"]["rationale"].lower(), True)
-check("  retail seed chosen", resp.json()["profile"]["modules"]["lots"], False)
-check("  retail overdue days", resp.json()["profile"]["rules"]["overdue_days"], 15)
+# One seed now, and it assumes nothing: every module off except the
+# credit ledger, which is the premise of the product.
+check("  batches off until evidence says otherwise",
+      resp.json()["profile"]["modules"].get("batches"), False)
+check("  credit ledger is the one thing assumed",
+      resp.json()["profile"]["modules"].get("credit_ledger"), True)
+check("  overdue days from the universal seed",
+      resp.json()["profile"]["rules"]["overdue_days"], 45)
 
 with admin_session() as db:
     # Scoped to this run's tenant: admin_session sees every tenant, so an

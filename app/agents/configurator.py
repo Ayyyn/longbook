@@ -25,7 +25,7 @@ messages from the business's WhatsApp history.
 Infer how this business actually works and return JSON only:
 {
   "segments": ["wholesaler"|"retail"],
-  "modules": {"lots": bool, "dispatch": bool, "job_work": bool,
+  "modules": {"batches": bool, "dispatch": bool, "job_work": bool,
               "catalog": bool, "credit_ledger": bool},
   "vocabulary": {"quantity_units": [...], "rate_basis": "...",
                  "quality_code_example": "...", "party_terms": [...]},

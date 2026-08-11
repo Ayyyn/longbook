@@ -1,0 +1,51 @@
+# The only seed. Deliberately assumes almost nothing.
+#
+# The Configurator writes the real profile from evidence in the owner's own
+# messages, and it does that well — the engine derived per-piece rates and
+# machinery-spares vocabulary from a fabric seed, which is what proved this
+# layer is not a textile app. A seed full of fabric defaults is therefore not
+# a head start, it is a set of wrong answers the agent has to argue its way
+# out of, and every one it fails to override ships as a bug: a garment
+# retailer asked about dye lots, a bearing quoted per meter.
+#
+# So this seed carries only what is true of any business that sells things to
+# other businesses, and leaves the specifics blank. Blank is recoverable. A
+# confident wrong default is not.
+segments: []
+
+modules:
+  # Everything off. Each is switched on by evidence, not by assumption:
+  # batches only if batch or lot numbers actually appear in the messages,
+  # dispatch only if goods visibly move, job_work only if processing
+  # challans show up.
+  batches: false
+  dispatch: false
+  job_work: false
+  catalog: false
+  # The one exception. If a business is on WhatsApp asking other businesses
+  # for goods, somebody is owed money — that is the whole premise, and no
+  # trade this serves is cash-only in practice.
+  credit_ledger: true
+
+vocabulary:
+  # Empty rather than guessed. app/services/vocabulary.py falls back to the
+  # neutral words ("item", "batch", "party"), which are bland everywhere and
+  # wrong nowhere.
+  quantity_units: []
+  rate_basis: ""
+  item_term: ""
+  batch_term: ""
+  party_terms: [party, customer, buyer]
+
+rules:
+  # Only the ones with a defensible universal answer.
+  #
+  # 45 days: the usual credit period across Indian B2B trade, and the
+  # Configurator overrides it the moment the interview or the messages say
+  # otherwise.
+  overdue_days: 45
+  # 20%: a rate this far from what this party normally pays is worth a look
+  # in any trade. It is a flag, not a block.
+  rate_deviation_pct: 20
+  # No stock threshold. It depends entirely on what is being sold and we do
+  # not track stock anyway.

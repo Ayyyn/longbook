@@ -27,7 +27,7 @@ PARTIES = ["Ravi Fabrics Surat", "Shree Krishna Textiles"]
 
 def main() -> None:
     seed = yaml.safe_load(
-        Path("app/profiles/wholesaler.yaml").read_text(encoding="utf-8")
+        Path("app/profiles/universal.yaml").read_text(encoding="utf-8")
     )
 
     with admin_session() as db:
