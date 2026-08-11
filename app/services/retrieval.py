@@ -30,7 +30,7 @@ from typing import Any
 
 from sqlalchemy import func, or_, select
 
-from app.models.catalog import Quality
+from app.models.catalog import Item
 from app.models.ingestion import Extraction, Interaction
 from app.models.orders import Dispatch, Order, OrderLine
 from app.models.party import Party
@@ -157,8 +157,8 @@ def _orders_for(
     out: list[Evidence] = []
     for order, party_name in rows:
         lines = db.execute(
-            select(OrderLine, Quality.code)
-            .outerjoin(Quality, Quality.id == OrderLine.quality_id)
+            select(OrderLine, Item.code)
+            .outerjoin(Item, Item.id == OrderLine.item_id)
             .where(OrderLine.order_id == order.id)
         ).all()
         value = sum(float(x.quantity or 0) * float(x.rate or 0) for x, _ in lines)

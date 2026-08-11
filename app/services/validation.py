@@ -22,7 +22,7 @@ from typing import Any
 
 from sqlalchemy import select
 
-from app.models.catalog import Quality
+from app.models.catalog import Item
 from app.models.orders import Order, OrderLine
 from app.models.party import Party
 from app.services.clock import business_today
@@ -231,7 +231,7 @@ def check_quality_format(db, tenant_id: uuid.UUID, profile, fields: dict[str, An
     known = {
         c.lower()
         for c in db.execute(
-            select(Quality.code).where(Quality.tenant_id == tenant_id)
+            select(Item.code).where(Item.tenant_id == tenant_id)
         ).scalars().all()
     }
     pattern = ((profile.vocabulary if profile else {}) or {}).get("quality_code_regex")

@@ -23,13 +23,14 @@ from typing import Any
 
 from sqlalchemy import func, select
 
-from app.models.catalog import Quality
+from app.models.catalog import Item
 from app.models.finance import Payment
 from app.models.ingestion import Extraction
 from app.models.observability import AgentRun
 from app.models.orders import Dispatch, Order, OrderLine
 from app.models.party import Party
 from app.models.tenant import BusinessProfile
+from app.services.vocabulary import default_unit
 
 AUTO_COMMIT_FLOOR = 0.85
 MAX_EXAMPLES = 40
@@ -238,7 +239,7 @@ def _record_extraction(
 
 def _resolve_quality(
     db, tenant_id, code: str | None, confidence: float, source: str, source_ref: str | None
-) -> tuple[Quality | None, bool]:
+) -> tuple[Item | None, bool]:
     """Find the quality, or mint it when we are confident enough to.
 
     Returns (quality, needs_review). A code nobody has seen before is either a
@@ -249,8 +250,8 @@ def _resolve_quality(
         return None, False
 
     existing = db.execute(
-        select(Quality).where(
-            Quality.tenant_id == tenant_id, func.lower(Quality.code) == code.lower()
+        select(Item).where(
+            Item.tenant_id == tenant_id, func.lower(Item.code) == code.lower()
         )
     ).scalars().first()
     if existing:
@@ -259,7 +260,7 @@ def _resolve_quality(
     if confidence < AUTO_COMMIT_FLOOR:
         return None, True
 
-    quality = Quality(
+    quality = Item(
         tenant_id=tenant_id, code=code, name=code, source=source, source_ref=source_ref
     )
     db.add(quality)
@@ -306,13 +307,18 @@ def commit_record(db, state: dict[str, Any]) -> dict[str, Any]:
 def _commit_order(
     db, state, fields, confidence, tenant_id, party_id, source, source_ref
 ) -> dict[str, Any]:
+    # Read once: the unit a business quotes in is profile-driven, and the
+    # alternative is a hardcoded textile default on every line.
+    profile = db.execute(
+        select(BusinessProfile).where(BusinessProfile.tenant_id == tenant_id)
+    ).scalars().first()
     lines = _lines(fields)
     if not lines and not _pending(state):
         return queue_for_review(db, state, flags=["order_without_lines"])
 
-    # Resolve every quality first: one unknown code sends the whole order to
+    # Resolve every item first: one unknown code sends the whole order to
     # review rather than committing a half-mapped order the owner has to unpick.
-    resolved: list[tuple[dict[str, Any], Quality | None]] = []
+    resolved: list[tuple[dict[str, Any], Item | None]] = []
     for line in lines:
         quality, needs_review = _resolve_quality(
             db, tenant_id, _text(line.get("quality")), confidence, source, source_ref
@@ -343,10 +349,13 @@ def _commit_order(
             OrderLine(
                 tenant_id=tenant_id,
                 order_id=order.id,
-                quality_id=quality.id if quality else None,
+                item_id=quality.id if quality else None,
                 raw_description=_text(line.get("description") or line.get("quality")),
                 quantity=_num(line.get("quantity")),
-                unit=_text(line.get("unit")) or "meter",
+                # No textile default. If the message did not say a unit and
+                # the profile has none, the unit is simply unknown — better
+                # blank than metres of bearings.
+                unit=_text(line.get("unit")) or default_unit(profile),
                 rate=_num(line.get("rate")),
             )
         )

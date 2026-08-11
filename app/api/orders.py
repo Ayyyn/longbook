@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
 
 from app.api.deps import TenantDB, TenantId
-from app.models.catalog import Quality
+from app.models.catalog import Item
 from app.models.ingestion import Extraction, Interaction
 from app.models.orders import Dispatch, Order, OrderLine
 from app.models.party import Party
@@ -86,8 +86,8 @@ def order_detail(order_id: uuid.UUID, tid: TenantId, db: TenantDB) -> OrderDetai
     party = db.get(Party, order.party_id) if order.party_id else None
 
     lines = db.execute(
-        select(OrderLine, Quality.code)
-        .outerjoin(Quality, Quality.id == OrderLine.quality_id)
+        select(OrderLine, Item.code)
+        .outerjoin(Item, Item.id == OrderLine.item_id)
         .where(OrderLine.order_id == order_id)
     ).all()
 

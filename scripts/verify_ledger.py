@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 
 import app.agents.digest as digest_module
 from app.db import admin_session, tenant_session
-from app.models import BusinessProfile, Dispatch, Invoice, Order, OrderLine, Party, Payment, Quality
+from app.models import BusinessProfile, Dispatch, Invoice, Order, OrderLine, Party, Payment, Item
 from app.models import Tenant
 from app.services.auth import issue_token
 from app.services.exceptions import rate_deviations, stalled_orders
@@ -200,7 +200,7 @@ with tenant_session(TENANT) as db:
 print("\n-- exceptions --")
 
 with tenant_session(TENANT) as db:
-    quality = Quality(tenant_id=TENANT, code="SR-1042", name="SR-1042")
+    quality = Item(tenant_id=TENANT, code="SR-1042", name="SR-1042")
     db.add(quality)
     db.flush()
 
@@ -210,7 +210,7 @@ with tenant_session(TENANT) as db:
                       status="confirmed", order_date=days_ago(10 - index))
         db.add(order)
         db.flush()
-        db.add(OrderLine(tenant_id=TENANT, order_id=order.id, quality_id=quality.id,
+        db.add(OrderLine(tenant_id=TENANT, order_id=order.id, item_id=quality.id,
                          quantity=100, rate=rate, unit="meter"))
 
 with tenant_session(TENANT) as db:

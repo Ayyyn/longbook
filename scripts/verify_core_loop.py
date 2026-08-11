@@ -20,7 +20,8 @@ import app.agents.extractor as extractor_module
 from app.agents.extractor import UNREADABLE_FIELD_CEILING, coerce_number, normalise_fields
 from app.db import admin_session, tenant_session
 from app.models import (
-    AgentRun, BusinessProfile, Extraction, Interaction, Order, Party, Payment, Tenant,
+    AgentRun, BusinessProfile, Extraction, Interaction, Item, Order, Party, Payment,
+    Tenant,
 )
 from app.services.auth import issue_token
 from app.services.commit import accept_correction, commit_record, queue_for_review
@@ -283,7 +284,27 @@ with tenant_session(TENANT) as db:
           ("committed", "order", 1))
     order = db.get(Order, uuid.UUID(res["id"]))
     check("order starts as draft", order.status, "draft")
-    check("quality auto-created at high confidence", order.lines[0].quality_id is not None, True)
+    # The round trip, which is the only thing that catches a half-applied
+    # rename. A grep for leftover `Quality` proves nothing about whether data
+    # still flows; this fails if the wire key, the alias map, the commit path
+    # or the foreign key breaks anywhere along the chain — and it fails the
+    # way the real bug would, with a line that committed but has no item.
+    line = order.lines[0]
+    check("item auto-created at high confidence", line.item_id is not None, True)
+    check("  and the line keeps the name it came in with",
+          (line.raw_description or "").strip() != "", True)
+    item = db.get(Item, line.item_id)
+    check("  which resolves to a real item row", item is not None, True)
+    check("  carrying the code from the message", item.code, "SR-1042")
+
+    # No textile default: this business quotes in meters and said so, but a
+    # line with no unit and no profile unit must come out blank, not "meter".
+    bare = commit_record(db, state_for("order", {"quality": "ZZ-9", "quantity": "5"},
+                                       party=party.id))
+    bare_order = db.get(Order, uuid.UUID(bare["id"])) if bare.get("id") else None
+    if bare_order and bare_order.lines:
+        check("  no unit is invented when none was given",
+              bare_order.lines[0].unit in (None, "", "meter"), True)
     check("quantity parsed", float(order.lines[0].quantity), 150.0)
 
     res = commit_record(db, state_for("order", {"quality": "SR-1042", "quantity": "150"},

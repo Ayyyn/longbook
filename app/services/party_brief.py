@@ -30,7 +30,7 @@ from typing import Any
 
 from sqlalchemy import func, select
 
-from app.models.catalog import Quality
+from app.models.catalog import Item
 from app.models.finance import Invoice, Payment
 from app.models.ingestion import Extraction, Interaction
 from app.models.orders import Order, OrderLine
@@ -95,9 +95,9 @@ def build_brief(db, tenant_id: uuid.UUID, party: Party, since: datetime | None =
         order_where.append(Order.created_at >= since)
 
     lines = db.execute(
-        select(OrderLine, Order, Quality.code)
+        select(OrderLine, Order, Item.code)
         .join(Order, Order.id == OrderLine.order_id)
-        .outerjoin(Quality, Quality.id == OrderLine.quality_id)
+        .outerjoin(Item, Item.id == OrderLine.item_id)
         .where(*order_where, _pending_free(Order))
         .order_by(Order.order_date.desc().nullslast())
         .limit(RECENT_ORDERS * 4)

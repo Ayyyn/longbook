@@ -29,8 +29,8 @@ class OrderLine(Base, TenantScoped):
     __tablename__ = "order_line"
 
     order_id = Column(UUID(as_uuid=True), ForeignKey("order.id", ondelete="CASCADE"))
-    quality_id = Column(UUID(as_uuid=True), ForeignKey("quality.id"), nullable=True)
-    lot_id = Column(UUID(as_uuid=True), ForeignKey("lot.id"), nullable=True)
+    item_id = Column(UUID(as_uuid=True), ForeignKey("item.id"), nullable=True)
+    batch_id = Column(UUID(as_uuid=True), ForeignKey("batch.id"), nullable=True)
 
     # Kept as free text too, because extraction often gets a code we can't map yet.
     raw_description = Column(String(300))

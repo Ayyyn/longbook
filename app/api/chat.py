@@ -104,7 +104,7 @@ TRANSCRIBE = """Write out exactly what is said in this recording, as one line.
 
 The speaker is an Indian textile trader. They will mix Hindi, Gujarati,
 Marathi and English in the same sentence, and that is normal — keep the words
-they used rather than translating. Quality codes and numbers matter most; get
+they used rather than translating. Item codes and numbers matter most; get
 those exactly right.
 
 Return JSON: {"question": "..."}"""

@@ -20,7 +20,7 @@ from app.models import (
     OrderLine,
     Party,
     Payment,
-    Quality,
+    Item,
     Tenant,
 )
 from app.services.auth import issue_token
@@ -72,8 +72,8 @@ with tenant_session(TENANT) as db:
 
 with tenant_session(TENANT) as db:
     party = db.query(Party).filter_by(name="Ashok Textiles").one()
-    quality = Quality(tenant_id=TENANT, code="SR-1042", name="SR-1042")
-    other = Quality(tenant_id=TENANT, code="SR-1188", name="SR-1188")
+    quality = Item(tenant_id=TENANT, code="SR-1042", name="SR-1042")
+    other = Item(tenant_id=TENANT, code="SR-1188", name="SR-1188")
     db.add_all([quality, other])
     db.flush()
 
@@ -85,7 +85,7 @@ with tenant_session(TENANT) as db:
                       status="confirmed", order_date=ago(60 - index * 10))
         db.add(order)
         db.flush()
-        db.add(OrderLine(tenant_id=TENANT, order_id=order.id, quality_id=code.id,
+        db.add(OrderLine(tenant_id=TENANT, order_id=order.id, item_id=code.id,
                          quantity=100, unit="meter", rate=rate))
 
     # Two settled bills, both paid late, so the behaviour is measurable.
@@ -166,8 +166,8 @@ with tenant_session(TENANT) as db:
                   status="confirmed", order_date=TODAY)
     db.add(order)
     db.flush()
-    quality = db.query(Quality).filter_by(code="SR-1042").one()
-    db.add(OrderLine(tenant_id=TENANT, order_id=order.id, quality_id=quality.id,
+    quality = db.query(Item).filter_by(code="SR-1042").one()
+    db.add(OrderLine(tenant_id=TENANT, order_id=order.id, item_id=quality.id,
                      quantity=200, unit="meter", rate=66))
     db.flush()
 

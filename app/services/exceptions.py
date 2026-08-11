@@ -20,7 +20,7 @@ from typing import Any
 
 from sqlalchemy import func, select
 
-from app.models.catalog import Quality
+from app.models.catalog import Item
 from app.models.orders import Dispatch, Order, OrderLine
 from app.models.party import Party
 from app.services.clock import business_today
@@ -50,14 +50,14 @@ def rate_deviations(
     as_of = as_of or business_today()
 
     rows = db.execute(
-        select(OrderLine, Order, Quality.code, Party.name)
+        select(OrderLine, Order, Item.code, Party.name)
         .join(Order, Order.id == OrderLine.order_id)
-        .outerjoin(Quality, Quality.id == OrderLine.quality_id)
+        .outerjoin(Item, Item.id == OrderLine.item_id)
         .outerjoin(Party, Party.id == Order.party_id)
         .where(
             OrderLine.tenant_id == tenant_id,
             OrderLine.rate.isnot(None),
-            OrderLine.quality_id.isnot(None),
+            OrderLine.item_id.isnot(None),
         )
         .order_by(Order.order_date.desc().nullslast())
         .limit(RECENT_LINES)
@@ -65,11 +65,11 @@ def rate_deviations(
 
     by_quality: dict[uuid.UUID, list[Decimal]] = {}
     for line, _order, _code, _party in rows:
-        by_quality.setdefault(line.quality_id, []).append(_d(line.rate))
+        by_quality.setdefault(line.item_id, []).append(_d(line.rate))
 
     flags: list[dict] = []
     for line, order, code, party_name in rows:
-        rates = by_quality.get(line.quality_id, [])
+        rates = by_quality.get(line.item_id, [])
         if len(rates) < MIN_RATES_FOR_BASELINE:
             continue
 

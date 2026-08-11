@@ -37,7 +37,7 @@ UNREADABLE_FIELD_CEILING = 0.6
 
 SYSTEM = """You extract structured records from Indian textile trade messages.
 The business uses these units: {units}
-Quality/design codes usually look like: {code_hint}
+Item/design codes usually look like: {code_hint}
 Known party names include: {party_hint}
 {party_context}
 
