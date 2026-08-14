@@ -217,3 +217,47 @@ class InterviewQuestions(BaseModel):
     # different, but it matters when reading the logs.
     generated: bool
     observations: list[str] = []
+
+
+class BusinessAnswer(BaseModel):
+    """One line of the interview as the owner should see it."""
+
+    question: str
+    answer: str | None = None
+    hint: str | None = None
+    stage: str = "generated"  # universal | generated
+
+
+class BusinessProfileView(BaseModel):
+    """Everything we believe about this business, and where it came from.
+
+    Deliberately readable when onboarding was never finished: `configured` is
+    false, `answers` holds whatever was said before they stopped, and the
+    derived fields are empty rather than absent.
+    """
+
+    business_name: str
+    configured: bool
+    onboarded_at: datetime | None = None
+    asked_at: str | None = None
+    answered_at: str | None = None
+    answers: list[BusinessAnswer] = []
+    observations: list[str] = []
+    # What the Configurator made of it. Empty until configure() has run.
+    segments: list[str] = []
+    modules: dict[str, Any] = {}
+    vocabulary: dict[str, Any] = {}
+    rules: dict[str, Any] = {}
+    version: str | None = None
+    # Free-text basics captured alongside the questions.
+    basics: dict[str, Any] = {}
+
+
+class BusinessUpdate(BaseModel):
+    """Corrected answers. Anything omitted keeps its current value."""
+
+    answers: dict[str, str] = Field(default_factory=dict)
+    basics: dict[str, Any] = Field(default_factory=dict)
+    # Re-run the Configurator over the corrected answers. Off by default so a
+    # typo fix does not silently rewrite the profile and every threshold in it.
+    reconfigure: bool = False

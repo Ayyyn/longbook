@@ -3,14 +3,14 @@
 The BusinessProfile is the single most important object in the system. It is
 produced by the Configurator agent at onboarding and it parameterises
 extraction prompts, which modules are active, field labels, and alert rules.
-Nothing downstream should hardcode textile assumptions — read the profile.
+Nothing downstream should hardcode trade assumptions — read the profile.
 """
 
 import uuid
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 
 from app.models.base import Base, TimestampMixin
 
@@ -27,6 +27,28 @@ class Tenant(Base, TimestampMixin):
     inbound_slug = Column(String(24), unique=True, index=True)
     city = Column(String(80))
     locale = Column(String(10), default="en")  # en | hi | gu | mr
+
+    # A phone kept in the shape someone typed it is a phone nothing can
+    # find: the lookups are digits-only LIKEs, and both signup and token
+    # recovery answer identically whether they found the business or not.
+    # That silence cost us two live tenants once. The API path normalised,
+    # but scripts and fixtures wrote straight to the model and put the
+    # punctuation back — so the guarantee belongs here, where every path
+    # goes through it, not in each caller.
+    @validates("owner_phone")
+    def _normalise_phone(self, _key, value):
+        from app.services.matching import store_phone
+
+        if value is None:
+            return value
+        return store_phone(value) or value
+
+    # The interview: what we asked and what the owner said. Kept here rather
+    # than on BusinessProfile because a profile only exists once configure()
+    # has run, and the business that stopped halfway through onboarding is
+    # precisely the one whose answers we most need to be able to show.
+    # See migration 0012 for the shape.
+    interview = Column(JSONB, default=dict, nullable=False, server_default="{}")
 
     onboarded_at = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)

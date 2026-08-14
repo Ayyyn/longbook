@@ -55,7 +55,12 @@ from app.schemas.tenants import (
     TenantCreate,
     TenantCreated,
     TenantMe,
+    BusinessAnswer,
+    BusinessProfileView,
+    BusinessUpdate,
 )
+from sqlalchemy.orm.attributes import flag_modified
+
 from app.services.matching import normalize_phone, store_phone
 from app.services.access import access_for
 from app.services.vocabulary import labels as vocab_labels
@@ -189,7 +194,7 @@ def upload_sample(
     """Store one or more exports. Deliberately no BusinessProfile requirement —
     this runs before there is one, and its content is what writes it.
 
-    Several files in one action because a trader's business is not in one
+    Several files in one action because an owner's business is not in one
     chat: the mill, the two big buyers and the transporter are four exports,
     and asking for them one at a time is how people give up halfway."""
     # `file` is the shape this endpoint had when it took one export. Kept
@@ -301,6 +306,22 @@ def configure(
 
     trace_id = uuid.uuid4()
     built = build_profile(db, tid, interview.render(), interview.segments, trace_id)
+
+    # Keep what was actually said, so it can be shown back and corrected later.
+    kept = dict(tenant.interview or {})
+    kept["answers"] = {**(kept.get("answers") or {}), **(interview.answers or {})}
+    kept["basics"] = {
+        "segments": interview.segments,
+        "what_you_sell": interview.what_you_sell,
+        "units": interview.units,
+        "tracks_lots": interview.tracks_lots,
+        "gives_credit": interview.gives_credit,
+        "credit_days": interview.credit_days,
+        "notes": interview.notes,
+    }
+    kept["answered_at"] = datetime.utcnow().isoformat()
+    tenant.interview = kept
+    flag_modified(tenant, "interview")
 
     profile = db.execute(
         select(BusinessProfile).where(BusinessProfile.tenant_id == tid)
@@ -589,7 +610,7 @@ def request_recovery(payload: RecoveryRequest) -> RecoveryAccepted:
         return RecoveryAccepted()
 
     text, html = recovery_service.recovery_email(name, link)
-    send_email(to, f"Getting back into Textile Ops — {name}", text, html)
+    send_email(to, f"Getting back into Longbook — {name}", text, html)
     return RecoveryAccepted()
 
 
@@ -646,8 +667,144 @@ def interview_questions(
         "answers": {},
     })
     output = decision.output or {}
+    questions = [Question(**q) for q in output.get("questions") or []]
+
+    # Written down as soon as they are asked. Generating them costs a model
+    # call and is not deterministic, so an owner who reloads the page would
+    # otherwise be shown a different interview than the one they started.
+    tenant = db.get(Tenant, tid)
+    if tenant is not None and questions:
+        kept = dict(tenant.interview or {})
+        kept["questions"] = (
+            [{**q, "stage": "universal"} for q in UNIVERSAL]
+            + [{**q.model_dump(), "stage": "generated"} for q in questions]
+        )
+        kept["observations"] = output.get("observations") or []
+        kept["asked_at"] = datetime.utcnow().isoformat()
+        tenant.interview = kept
+        flag_modified(tenant, "interview")
+
     return InterviewQuestions(
-        questions=[Question(**q) for q in output.get("questions") or []],
+        questions=questions,
         generated=bool(output.get("generated")),
         observations=output.get("observations") or [],
     )
+
+
+def _business_view(db, tid: uuid.UUID) -> BusinessProfileView:
+    """Assemble the 'about the business' picture from whatever exists.
+
+    Both halves are optional and independent: the interview may be answered
+    with no profile written (onboarding abandoned), and in principle a profile
+    may exist for a tenant onboarded before the interview was kept. Neither
+    case may 404 — this screen is the one place an owner can see what we think
+    their business is, and it has to work when things are half-finished.
+    """
+    tenant = db.get(Tenant, tid)
+    if tenant is None:
+        raise HTTPException(404, "Tenant not found.")
+
+    kept = tenant.interview or {}
+    answers = kept.get("answers") or {}
+    asked = kept.get("questions") or []
+
+    rows: list[BusinessAnswer] = [
+        BusinessAnswer(
+            question=q.get("question", ""),
+            answer=answers.get(q.get("question", "")),
+            hint=q.get("hint"),
+            stage=q.get("stage", "generated"),
+        )
+        for q in asked
+        if q.get("question")
+    ]
+    # Answers to questions we no longer have a record of asking still belong to
+    # the owner — losing them because the question list changed would be worse
+    # than showing one without its hint.
+    seen = {r.question for r in rows}
+    rows.extend(
+        BusinessAnswer(question=q, answer=a, stage="generated")
+        for q, a in answers.items()
+        if q not in seen
+    )
+
+    profile = db.execute(
+        select(BusinessProfile).where(BusinessProfile.tenant_id == tid)
+    ).scalars().first()
+
+    return BusinessProfileView(
+        business_name=tenant.business_name,
+        configured=profile is not None,
+        onboarded_at=tenant.onboarded_at,
+        asked_at=kept.get("asked_at"),
+        answered_at=kept.get("answered_at"),
+        answers=rows,
+        observations=kept.get("observations") or [],
+        segments=(profile.segments if profile else []) or [],
+        modules=(profile.modules if profile else {}) or {},
+        vocabulary=(profile.vocabulary if profile else {}) or {},
+        rules=(profile.rules if profile else {}) or {},
+        version=profile.version if profile else None,
+        basics=kept.get("basics") or {},
+    )
+
+
+@router.get("/business", response_model=BusinessProfileView)
+def business(tid: TenantId, db: TenantDB) -> BusinessProfileView:
+    """What we asked, what you told us, and what we made of it."""
+    return _business_view(db, tid)
+
+
+@router.put("/business", response_model=BusinessProfileView)
+def update_business(
+    payload: BusinessUpdate, tid: TenantId, db: TenantDB
+) -> BusinessProfileView:
+    """Correct the answers, and optionally rebuild the profile from them.
+
+    Rebuilding is opt-in. The Configurator decides thresholds and which modules
+    are on, so re-running it on every keystroke-level correction would quietly
+    change how the whole system behaves because somebody fixed a spelling.
+    """
+    tenant = db.get(Tenant, tid)
+    if tenant is None:
+        raise HTTPException(404, "Tenant not found.")
+
+    kept = dict(tenant.interview or {})
+    if payload.answers:
+        kept["answers"] = {**(kept.get("answers") or {}), **payload.answers}
+    if payload.basics:
+        kept["basics"] = {**(kept.get("basics") or {}), **payload.basics}
+    kept["answered_at"] = datetime.utcnow().isoformat()
+    tenant.interview = kept
+    flag_modified(tenant, "interview")
+
+    if payload.reconfigure:
+        basics = kept.get("basics") or {}
+        interview = Interview(
+            segments=basics.get("segments") or [],
+            what_you_sell=basics.get("what_you_sell"),
+            units=basics.get("units"),
+            tracks_lots=basics.get("tracks_lots"),
+            gives_credit=basics.get("gives_credit"),
+            credit_days=basics.get("credit_days"),
+            notes=basics.get("notes"),
+            answers=kept.get("answers") or {},
+        )
+        built = build_profile(
+            db, tid, interview.render(), interview.segments, uuid.uuid4()
+        )
+        profile = db.execute(
+            select(BusinessProfile).where(BusinessProfile.tenant_id == tid)
+        ).scalars().first()
+        if profile is None:
+            profile = BusinessProfile(tenant_id=tid, examples=[])
+            db.add(profile)
+        else:
+            profile.version = str(int(profile.version or "1") + 1)
+        profile.segments = built["segments"]
+        profile.modules = built["modules"]
+        profile.vocabulary = built["vocabulary"]
+        profile.rules = built["rules"]
+        db.flush()
+
+    return _business_view(db, tid)

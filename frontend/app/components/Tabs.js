@@ -8,6 +8,7 @@ const TABS = [
   { href: "/review", label: "Review" },
   { href: "/parties", label: "Parties" },
   { href: "/orders", label: "Orders" },
+  { href: "/business", label: "Business" },
   { href: "/activity", label: "Activity" },
 ];
 
@@ -27,7 +28,7 @@ export default function Tabs() {
           without it the app opens with no identity at all. CSS hides it
           on phones, where the bottom bar has no room to spare. */}
       <Link href="/" className="rail-mark">
-        Textile Ops
+        Longbook
       </Link>
       {TABS.map((tab) => {
         // A detail page belongs to its section, so /parties/<id> keeps the
