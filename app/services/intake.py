@@ -21,14 +21,29 @@ from app.services.storage import store_media
 TEXT_SUFFIXES = {".txt"}
 ZIP_SUFFIXES = {".zip"}
 EXCEL_SUFFIXES = {".xlsx", ".xlsm"}
-IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
+# Same row-per-message treatment as a sheet. Tally and most accounting
+# packages export CSV long before they export xlsx, so leaving it out meant
+# telling people to open and re-save the file we had just asked them for.
+CSV_SUFFIXES = {".csv"}
+# .heic is not an edge case: it is what an iPhone produces by default, so
+# without it "photograph the bill" fails for half the phones in the market.
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
+IMAGE_MIMES = {
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+    ".webp": "image/webp", ".heic": "image/heic", ".heif": "image/heif",
+}
+# Bills, purchase orders and challans arrive as PDF more often than anything
+# else. Gemini reads them natively — pages, tables and all — so they go the
+# same way as a photograph rather than through a text extractor that would
+# throw away the layout the numbers depend on.
+DOCUMENT_SUFFIXES = {".pdf"}
 # Voice notes. Gemini reads audio natively, so there is no transcription
 # step to get wrong before the extractor sees it — which matters when the
 # recording is Gujarati and Hindi with English quality codes in the middle.
 AUDIO_SUFFIXES = {".ogg", ".oga", ".opus", ".m4a", ".mp3", ".wav", ".aac", ".webm"}
 
-SUPPORTED = (TEXT_SUFFIXES | ZIP_SUFFIXES | EXCEL_SUFFIXES | IMAGE_SUFFIXES
-             | AUDIO_SUFFIXES)
+SUPPORTED = (TEXT_SUFFIXES | ZIP_SUFFIXES | EXCEL_SUFFIXES | CSV_SUFFIXES
+             | IMAGE_SUFFIXES | DOCUMENT_SUFFIXES | AUDIO_SUFFIXES)
 
 # A 90-day group export is a few thousand messages; well past that and the
 # upload is more likely a mistake than a business.
@@ -131,6 +146,39 @@ def _messages_from_zip(
         return out
 
 
+def _rows_from_csv(path: Path) -> list[str]:
+    """One row becomes one message, same as a sheet.
+
+    Sniffed rather than assumed comma: Indian accounting exports are often
+    semicolon- or tab-separated, and guessing wrong turns every row into one
+    unsplittable string that the extractor then reads as prose.
+    """
+    import csv as csv_module
+
+    text = path.read_text(encoding="utf-8", errors="replace")
+    sample = text[:4096]
+    try:
+        dialect = csv_module.Sniffer().sniff(sample, delimiters=",;	|")
+    except csv_module.Error:
+        dialect = csv_module.excel
+
+    rows = list(csv_module.reader(text.splitlines(), dialect))
+    if not rows:
+        return []
+
+    header = [str(h or "").strip() for h in rows[0]]
+    bodies: list[str] = []
+    for row in rows[1:]:
+        pairs = [
+            f"{header[i] if i < len(header) and header[i] else f'col{i + 1}'}: {value}"
+            for i, value in enumerate(row)
+            if str(value or "").strip()
+        ]
+        if pairs:
+            bodies.append("; ".join(pairs))
+    return bodies
+
+
 def _rows_from_excel(path: Path) -> list[str]:
     """One row becomes one message.
 
@@ -211,8 +259,9 @@ def interactions_from_upload(
         media = sum(1 for _, uri in pairs if uri)
         return Intake("whatsapp_export", interactions, skipped, media)
 
-    if suffix in EXCEL_SUFFIXES:
-        bodies = _rows_from_excel(path)
+    if suffix in EXCEL_SUFFIXES or suffix in CSV_SUFFIXES:
+        bodies = (_rows_from_csv(path) if suffix in CSV_SUFFIXES
+                  else _rows_from_excel(path))
         if not bodies:
             raise IntakeError(400, "Sheet has no data rows below the header.")
         for index, body in enumerate(bodies, start=2):  # row 1 is the header
@@ -226,7 +275,8 @@ def interactions_from_upload(
                     attributes=attributes,
                 )
             )
-        return Intake("excel", interactions, skipped)
+        return Intake("csv" if suffix in CSV_SUFFIXES else "excel",
+                      interactions, skipped)
 
     if suffix in AUDIO_SUFFIXES:
         uri = store_media(tenant_id, filename or "note.ogg", path.read_bytes())
@@ -257,13 +307,35 @@ def interactions_from_upload(
                 body="",
                 media_uri=uri,
                 media_kind="image",
-                attributes=attributes,
+                dedupe_hash=dedupe_hash(tenant_id, None, None, filename, None, uri),
+                # The real mime, not the image/jpeg default: a HEIC sent as
+                # JPEG is refused by the model, and the photo silently yields
+                # nothing.
+                attributes={**attributes, "mime": IMAGE_MIMES.get(suffix, "image/jpeg")},
             )
         )
         return Intake("image", interactions, skipped)
 
+    if suffix in DOCUMENT_SUFFIXES:
+        uri = store_media(tenant_id, filename or "document.pdf", path.read_bytes())
+        interactions.append(
+            Interaction(
+                tenant_id=tenant_id,
+                channel="upload",
+                sender=filename,
+                body="",
+                media_uri=uri,
+                media_kind="document",
+                thread_key=Path(filename or "document").stem,
+                dedupe_hash=dedupe_hash(tenant_id, None, None, filename, None, uri),
+                attributes={**attributes, "mime": "application/pdf"},
+            )
+        )
+        return Intake("document", interactions, skipped, 1)
+
     raise IntakeError(
         415,
         f"Unsupported file type '{suffix or filename}'. "
-        "Send a WhatsApp export (.txt/.zip), an .xlsx sheet, or a photo.",
+        "Send a WhatsApp export (.txt/.zip), a PDF, a photo, a spreadsheet "
+        "(.xlsx/.csv) or a voice note.",
     )

@@ -482,9 +482,15 @@ check("item leaves the queue",
 check("re-accepting a closed item is a conflict",
       client.post(f"/api/review/{item['extraction_id']}/accept", headers=headers).status_code, 409)
 
+# PDF is a first-class input now — bills and purchase orders arrive that way
+# more than any other format, and Gemini reads them natively.
 resp = client.post("/api/ingest", headers=headers,
-                   files={"file": ("book.pdf", b"%PDF-", "application/pdf")})
-check("unsupported type rejected", resp.status_code, 415)
+                   files={"file": ("book.pdf", b"%PDF-1.4 trailer", "application/pdf")})
+check("a PDF is accepted", resp.status_code, 202)
+
+resp = client.post("/api/ingest", headers=headers,
+                   files={"file": ("notes.docx", b"PK", "application/msword")})
+check("a genuinely unsupported type is still rejected", resp.status_code, 415)
 
 check("unknown token rejected",
       client.get("/api/review/queue", headers={"Authorization": "Bearer tex_nonsense"}).status_code,

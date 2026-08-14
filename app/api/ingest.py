@@ -52,7 +52,8 @@ def ingest_upload(
     background: BackgroundTasks,
     file: UploadFile = File(...),
 ) -> IngestAccepted:
-    """Accept a WhatsApp export (.txt/.zip), an Excel sheet, or a photo.
+    """Accept a WhatsApp export (.txt/.zip), a PDF, a spreadsheet
+    (.xlsx/.csv), a photo or a voice note.
 
     Goes through the same parse-and-dedupe path as a batch: once messages
     carry a unique key, a route that inserts without checking it does not
@@ -160,7 +161,22 @@ def latest_job(tid: TenantId, db: TenantDB) -> JobStatus | None:
     if not row:
         return None
     status = job_status(db, tid, uuid.UUID(row))
-    return JobStatus(**status) if status["total"] else None
+    if not status["total"]:
+        return None
+
+    # Without a profile the backfill cannot run at all — the agents read it to
+    # know what a lot or a quality is — so /batch keeps the messages and waits.
+    # The in-memory run registry is empty in that case, and job_status falls
+    # back to "unknown", which the dashboard read as "in progress". The result
+    # was every screen showing "Reading what you sent… 0 of 20" forever for a
+    # business whose setup was never finished. Say what is actually true.
+    has_profile = db.execute(
+        select(BusinessProfile.id).where(BusinessProfile.tenant_id == tid)
+    ).scalars().first()
+    if not has_profile:
+        status["state"] = "setup_required"
+
+    return JobStatus(**status)
 
 
 @router.get("/jobs/{job_id}", response_model=JobStatus)
