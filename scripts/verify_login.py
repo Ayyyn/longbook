@@ -56,7 +56,8 @@ print("\n-- what the login screen calls --")
 live_headers = {"Authorization": f"Bearer {TOKEN}"}
 resp = client.get("/api/tenants/me", headers=live_headers)
 check("a good token identifies the tenant", resp.status_code, 200)
-check("  and returns the phone to check against", resp.json()["owner_phone"], f"+91{PHONE}")
+# Stored digits-only by the model validator, so that is what comes back.
+check("  and returns the phone to check against", resp.json()["owner_phone"], f"91{PHONE}")
 check("  and the business name to show", resp.json()["business_name"], "Login Mills")
 
 check("no token is a 401", client.get("/api/tenants/me").status_code, 401)

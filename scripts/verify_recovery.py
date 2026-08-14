@@ -115,7 +115,7 @@ if settings().admin_token:
     check("  which is new", fresh != TOKEN, True)
     check("  and names the business", confirmed.json()["business_name"], "Recovery Mills")
     check("  returns the phone so the browser can sign in",
-          confirmed.json()["owner_phone"], f"+91{PHONE}")
+          confirmed.json()["owner_phone"], f"91{PHONE}")
     check("  the new token works",
           client.get("/api/tenants/me",
                      headers={"Authorization": f"Bearer {fresh}"}).status_code, 200)
