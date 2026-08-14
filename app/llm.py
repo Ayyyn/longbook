@@ -9,6 +9,7 @@ shorthand ("150 mtr @ 62 nett") far better than transcribe-then-parse.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import random
 import re
@@ -21,6 +22,8 @@ from google.genai import types
 
 from app.config import settings
 
+log = logging.getLogger(__name__)
+
 _client: genai.Client | None = None
 
 # USD per 1M tokens. Update from the pricing page before relying on cost rollups.
@@ -32,6 +35,13 @@ PRICING = {
     "gemini-flash-latest": {"in": 0.30, "out": 2.50},
     "gemini-pro-latest": {"in": 1.25, "out": 10.00},
     "gemini-2.0-flash": {"in": 0.10, "out": 0.40},
+    "gemini-2.5-flash-lite": {"in": 0.10, "out": 0.40},
+    # ESTIMATE, carried over from the flash-lite tier — not confirmed against
+    # the published price list. Cost rollups using it are indicative only.
+    # Check before quoting a per-customer figure to anyone.
+    "gemini-3.5-flash-lite": {"in": 0.10, "out": 0.40},
+    "gemini-3.5-flash": {"in": 0.30, "out": 2.50},
+    "gemini-3.6-flash": {"in": 0.30, "out": 2.50},
 }
 
 # Free-tier quota is per-minute and shared across every agent in the process,
@@ -73,8 +83,16 @@ def _strip_fences(text: str) -> str:
     return re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
 
 
+_unpriced: set[str] = set()
+
+
 def _cost(model: str, usage: Any) -> float:
     p = PRICING.get(model)
+    if not p and model and model not in _unpriced:
+        # Silence here reads as "this run was free" on the Activity screen,
+        # which is worse than a gap. Say so once per model per process.
+        _unpriced.add(model)
+        log.warning("No price for model %r — cost will be reported as 0.", model)
     if not p or not usage:
         return 0.0
     return round(

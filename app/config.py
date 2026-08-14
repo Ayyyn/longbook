@@ -10,13 +10,13 @@ class Settings(BaseSettings):
     # pinned gemini-2.5-flash became 404 for new keys), and a free-tier key has
     # no pro quota at all. Overridable so a deployment can move without a
     # code change.
-    model_fast: str = "gemini-flash-latest"      # per-message extraction
+    model_fast: str = "gemini-3.5-flash-lite"    # per-message extraction
     # Onboarding runs this once per tenant, so the pro tier would be affordable
     # — but flash is the deliberate default and pro is one env var away if a
     # profile ever disappoints.
-    model_deep: str = "gemini-flash-latest"
+    model_deep: str = "gemini-3.5-flash-lite"
     # Free-tier keys 429 on the pro models; fall back rather than fail onboarding.
-    model_deep_fallback: str = "gemini-flash-latest"
+    model_deep_fallback: str = "gemini-3.5-flash-lite"
 
     # Requests per minute to stay under. Free tier is ~10-15 RPM; a backfill
     # that ignores this gets 429s halfway through a customer's history.
