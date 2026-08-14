@@ -51,7 +51,11 @@ function Parties() {
     return () => clearTimeout(timer);
   }, [load, query, filter]);
 
-  const working = job && job.state !== "done" && job.state !== "failed";
+  // setup_required means the messages are held but nothing can read them
+  // until the interview is answered — the opposite of "in progress".
+  const blocked = job?.state === "setup_required";
+  const working =
+    job && !blocked && job.state !== "done" && job.state !== "failed";
 
   return (
     <>
@@ -92,7 +96,7 @@ function Parties() {
       </div>
 
       {setup ? (
-        working ? <BackfillProgress job={job} /> : <SetupIncomplete />
+        <SetupIncomplete />
       ) : !data ? (
         <div className="empty">Loading…</div>
       ) : data.parties.length === 0 ? (
@@ -101,6 +105,8 @@ function Parties() {
             Parties are named as they appear in your chats. Try a shorter
             spelling, or part of the phone number.
           </Empty>
+        ) : blocked ? (
+          <SetupIncomplete held={job.total} />
         ) : working ? (
           <BackfillProgress job={job} />
         ) : (

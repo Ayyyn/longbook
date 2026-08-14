@@ -20,7 +20,9 @@ class IngestAccepted(BaseModel):
 
 class JobStatus(BaseModel):
     job_id: uuid.UUID
-    state: str  # queued | running | done | failed | unknown
+    # setup_required: messages are held but nothing can read them until
+    # the interview is answered and a profile exists.
+    state: str  # queued | running | done | failed | unknown | setup_required
     total: int
     processed: int
     # Conversation windows, which is what the backfill actually works

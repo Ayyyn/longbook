@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, signup, setToken, setPhone, formatNumber } from "../lib/api";
+import { api, getToken, signup, setToken, setPhone, formatNumber } from "../lib/api";
 import PublicPage from "../components/PublicPage";
 import FilePicker from "../components/FilePicker";
 import { CONTACT } from "../lib/contact";
@@ -45,6 +45,37 @@ export default function SignupPage() {
   const [work, setWork] = useState(null);
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
+
+  // Signup was a one-shot flow: step 0 creates the business, and the only way
+  // forward was to create it again — which 409s once it exists. Anyone who
+  // closed the tab after step 1 was locked out of finishing setup for good,
+  // with their uploads sitting unread and no route back in. If we are already
+  // signed in as a business that never finished, resume instead of starting.
+  const [resuming, setResuming] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!getToken()) {
+        setResuming(false);
+        return;
+      }
+      try {
+        const me = await api.me();
+        if (!cancelled && me && !me.onboarded_at) {
+          setCreated({ business_name: me.business_name, token: null });
+          setDetails((d) => ({ ...d, business_name: me.business_name }));
+          setStep(1);
+        }
+      } catch {
+        // A stale or rejected token just means the normal flow applies.
+      } finally {
+        if (!cancelled) setResuming(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function createBusiness() {
     setBusy(true);
@@ -168,10 +199,22 @@ export default function SignupPage() {
     }
   }
 
+  // Don't flash "create your business" at someone who already has one and is
+  // about to be resumed into the middle of the flow.
+  if (resuming) {
+    return (
+      <PublicPage>
+        <div className="empty-state">
+          <h3>Checking where you got to…</h3>
+        </div>
+      </PublicPage>
+    );
+  }
+
   return (
     <PublicPage>
       <header className="bar">
-        <h1>Set up your business</h1>
+        <h1>{created ? "Finish setting up" : "Set up your business"}</h1>
         <div className="sub">
           Step {step + 1} of {STEPS.length} · {STEPS[step]}
         </div>
@@ -304,11 +347,8 @@ function BusinessStep({ code, setCode, details, setDetails, busy, onNext }) {
           so we can only take a few at a time.
         </p>
         <p style={{ margin: "10px 0 0", lineHeight: 1.6 }}>
-          If you have spoken to us, your code was given to you on the phone. If
-          not, <a href={CONTACT.phoneHref}>ring {CONTACT.phone}</a> or{" "}
-          <a href={CONTACT.whatsappHref} target="_blank" rel="noreferrer">
-            message us
-          </a>{" "}
+          If you have spoken to us, your code was given to you then. If
+          not, <a href={CONTACT.emailHref}>email {CONTACT.email}</a> or{" "}{" "}
           and we will tell you honestly whether it suits how you work.
         </p>
       </div>

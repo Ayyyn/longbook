@@ -60,13 +60,19 @@ function Activity() {
   }
   if (!summary || !runs) return <div className="empty">Loading…</div>;
 
-  const working = job && job.state !== "done" && job.state !== "failed";
+  // setup_required means the messages are held but nothing can read them
+  // until the interview is answered — the opposite of "in progress".
+  const blocked = job?.state === "setup_required";
+  const working =
+    job && !blocked && job.state !== "done" && job.state !== "failed";
 
   if (summary.runs === 0) {
     return (
       <>
         <Header />
-        {working ? (
+        {blocked ? (
+          <SetupIncomplete held={job.total} />
+        ) : working ? (
           <BackfillProgress job={job} />
         ) : (
           <Empty title="No decisions yet">
@@ -82,6 +88,7 @@ function Activity() {
   return (
     <>
       <Header />
+      {blocked && <SetupIncomplete held={job.total} />}
       {working && <BackfillProgress job={job} />}
 
       {/* The four numbers that say whether this is working. Auto-commit

@@ -20,7 +20,7 @@ function labelFor(key, labels) {
 
 // "quality" is the wire key the extractor emits, not a word for the owner.
 // What it is called on screen comes from the business's own vocabulary — a
-// fabric trader reads "Quality", a machinery dealer reads "Model".
+// fabric owner reads "Quality", a machinery dealer reads "Model".
 const FIELD_LABELS = {
   party: "Party",
   quality: "Item",
@@ -117,12 +117,18 @@ function Review() {
     }
   }
 
-  const working = job && job.state !== "done" && job.state !== "failed";
+  // setup_required means the messages are held but nothing can read them
+  // until the interview is answered — the opposite of "in progress".
+  const blocked = job?.state === "setup_required";
+  const working =
+    job && !blocked && job.state !== "done" && job.state !== "failed";
 
   if (setup) {
     return (
       <Shell title="Review">
-        {working ? <BackfillProgress job={job} /> : <SetupIncomplete />}
+        {/* No profile yet means configure() never ran, and configure()
+            starts the backfill — so nothing can be reading. */}
+        <SetupIncomplete />
       </Shell>
     );
   }
@@ -139,7 +145,9 @@ function Review() {
   if (items.length === 0) {
     return (
       <Shell title="Review" subtitle={done ? `${done} cleared just now` : null}>
-        {working ? (
+        {blocked ? (
+          <SetupIncomplete held={job.total} />
+        ) : working ? (
           <BackfillProgress job={job} />
         ) : done > 0 ? (
           <div className="empty">

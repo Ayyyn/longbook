@@ -64,6 +64,24 @@ function AddData() {
   );
 }
 
+// What "From this device" will offer. Both MIME types and extensions are
+// listed on purpose: Android's picker filters on MIME and shows nothing for a
+// bare ".xlsx", while desktop browsers match extensions more reliably. Give it
+// only extensions — as this did — and Android quietly falls back to showing
+// images alone, which is why this screen looked like a photo picker.
+//
+// Keep in step with SUPPORTED in app/services/intake.py. Anything offered here
+// and not handled there is a file the owner picks and then gets a 415 for.
+const DEVICE_ACCEPT = [
+  ".txt,text/plain",
+  ".zip,application/zip,application/x-zip-compressed",
+  ".pdf,application/pdf",
+  ".csv,text/csv",
+  ".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".jpg,.jpeg,.png,.webp,.heic,.heif,image/*",
+  ".ogg,.oga,.opus,.m4a,.mp3,.wav,.aac,.webm,audio/*",
+].join(",");
+
 // One component for both device files and camera capture. The only difference
 // is the input's accept/capture attributes — the parse, estimate and dedup
 // path behind it is identical to onboarding, deliberately: two ingestion
@@ -114,12 +132,12 @@ function Picker({ camera = false, onDone }) {
         key={`${camera ? "cam" : "files"}-${nonce}`}
         id={camera ? "shot" : "files"}
         label={camera ? "Photograph a bill, challan or ledger page" : "Choose files"}
-        accept={camera ? "image/*" : ".txt,.zip,.xlsx,.xlsm,.jpg,.jpeg,.png,.webp"}
+        accept={camera ? "image/*" : DEVICE_ACCEPT}
         capture={camera ? "environment" : undefined}
         hint={
           camera
             ? "Take as many as you like. Photograph the whole page, straight on, in good light — the text is read from the picture."
-            : "WhatsApp chat exports (.txt or .zip), Tally and Excel sheets, or photos of bills. Pick as many as you like."
+            : "Chat exports, PDFs, bills, sheets, photos or voice notes. Pick as many as you like."
         }
         onEstimate={(picked, body) => {
           setFiles(picked);

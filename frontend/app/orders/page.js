@@ -47,7 +47,11 @@ function Orders() {
     load(status);
   }, [load, status]);
 
-  const working = job && job.state !== "done" && job.state !== "failed";
+  // setup_required means the messages are held but nothing can read them
+  // until the interview is answered — the opposite of "in progress".
+  const blocked = job?.state === "setup_required";
+  const working =
+    job && !blocked && job.state !== "done" && job.state !== "failed";
 
   return (
     <>
@@ -74,7 +78,7 @@ function Orders() {
       </div>
 
       {setup ? (
-        working ? <BackfillProgress job={job} /> : <SetupIncomplete />
+        <SetupIncomplete />
       ) : !data ? (
         <div className="empty">Loading…</div>
       ) : data.orders.length === 0 ? (
@@ -82,6 +86,8 @@ function Orders() {
           <Empty title={`No ${FILTERS.find((f) => f.key === status)?.label.toLowerCase()} orders`}>
             Nothing is at this stage right now. Try “All” to see every order.
           </Empty>
+        ) : blocked ? (
+          <SetupIncomplete held={job.total} />
         ) : working ? (
           <BackfillProgress job={job} />
         ) : (

@@ -30,7 +30,23 @@ export default function Empty({ title, children, action, href, onAction }) {
 // The one an owner hits before their export has ever been processed. The API
 // answers 409 until a BusinessProfile exists; that is a setup step, not an
 // error, and it must never reach the screen as one.
-export function SetupIncomplete() {
+export function SetupIncomplete({ held = 0 }) {
+  // Two different situations wear the same title. Nothing uploaded is a
+  // "go and add something" problem. Something uploaded but no profile is the
+  // worse one: the owner has already done the work, is owed an explanation of
+  // why nothing is happening, and needs the way back into the interview —
+  // which is not obvious, because signup looks like a thing you only do once.
+  if (held > 0) {
+    return (
+      <Empty title="Setup isn't finished" action="Finish setup" href="/signup">
+        {held} {held === 1 ? "item is" : "items are"} saved and waiting, but
+        nothing is being read yet. Longbook needs a few answers about your
+        business first — it reads your records against how <em>you</em> work,
+        so it cannot start until it knows that. It takes about five minutes,
+        and everything you have already added is picked up straight after.
+      </Empty>
+    );
+  }
   return (
     <Empty title="Setup isn't finished" action="Add your data" href="/add">
       Your business is created, but nothing has been read yet. Add a WhatsApp
@@ -116,12 +132,12 @@ export function BackfillProgress({ job }) {
 
   return (
     <div className="empty-state working">
-      <h3>Reading your WhatsApp history…</h3>
+      <h3>Reading what you sent…</h3>
       <div className="progress-track">
         <div className="progress-fill" style={{ width: `${pct}%` }} />
       </div>
       <div className="why">
-        {`${done} of ${total} messages read`}
+        {`${done} of ${total} ${total === 1 ? "item" : "items"} read`}
         {written > 0 ? ` · ${written} records found so far` : ""}
       </div>
       <p className="muted" style={{ marginBottom: 0 }}>

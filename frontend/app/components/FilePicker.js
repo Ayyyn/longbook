@@ -111,7 +111,15 @@ export default function FilePicker({
 
       {estimate && (
         <div className="banner" style={{ marginTop: 4 }}>
-          <strong>{formatNumber(estimate.new_messages)} new</strong>
+          {/* The count is of what is *inside* the files — messages in a chat
+              export, rows in a sheet — not of the files themselves. Shown as a
+              bare "20 new" it reads as twenty files, which is alarming when
+              you picked five. Naming both numbers removes the question. */}
+          <strong>
+            {formatNumber(estimate.new_messages)} new{" "}
+            {estimate.new_messages === 1 ? "item" : "items"}
+          </strong>{" "}
+          found in {files.length} {files.length === 1 ? "file" : "files"}
           {estimate.media > 0 && ` · ${formatNumber(estimate.media)} photos`}
           {estimate.new_messages > 0 && (
             <>

@@ -54,7 +54,11 @@ function Today() {
     return () => clearTimeout(timer);
   }, [job, load]);
 
-  const working = job && job.state !== "done" && job.state !== "failed";
+  // setup_required means the messages are held but nothing can read them
+  // until the interview is answered — the opposite of "in progress".
+  const blocked = job?.state === "setup_required";
+  const working =
+    job && !blocked && job.state !== "done" && job.state !== "failed";
 
   if (status === "setup") {
     return (
@@ -62,7 +66,9 @@ function Today() {
         <header className="bar">
           <h1>Today</h1>
         </header>
-        {working ? <BackfillProgress job={job} /> : <SetupIncomplete />}
+        {/* No profile yet means configure() never ran, and configure()
+            starts the backfill — so nothing can be reading. */}
+        <SetupIncomplete />
         <SignOut />
       </>
     );
@@ -113,6 +119,7 @@ function Today() {
 
       {/* While the backfill runs, say so before showing zeroes — otherwise a
           half-read history is indistinguishable from a dead one. */}
+      {blocked && <SetupIncomplete held={job.total} />}
       {working && <BackfillProgress job={job} />}
 
       {/* Money in is the one number an owner opens the app for. */}
