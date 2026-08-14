@@ -4,59 +4,73 @@ import Link from "next/link";
 import PublicPage from "../components/PublicPage";
 import { CONTACT } from "../lib/contact";
 
+// No form. A form is a way of not answering, and it hides who you are writing
+// to — which is the one thing someone handing over their order book wants to
+// know. One address, read by the people who built it.
 export default function Contact() {
   return (
     <PublicPage active="/contact">
       <section className="hero-public">
-        <h1>Talk to us</h1>
+        <h1>Talk to a person</h1>
         <p className="lede">
-          There is no form. Ring, or send a message, and you will get a person.
+          There is no contact form on this page and no support queue behind it.
+          Write to the address below and one of the two people who built
+          Longbook reads it.
+        </p>
+        <div className="cta-row">
+          <a href={CONTACT.emailHref} className="button-link">
+            <button className="primary big">Email {CONTACT.email}</button>
+          </a>
+        </div>
+        <p className="muted">
+          Answered the same working day. {CONTACT.hours}.
         </p>
       </section>
 
       <section className="slab">
-        <div className="contact-list">
-          <a href={CONTACT.phoneHref} className="contact-row">
-            <span className="what">Phone</span>
-            <span className="value">{CONTACT.phone}</span>
-          </a>
-          <a
-            href={CONTACT.whatsappHref}
-            className="contact-row"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <span className="what">WhatsApp</span>
-            <span className="value">{CONTACT.phone}</span>
-          </a>
-          <a href={CONTACT.emailHref} className="contact-row">
-            <span className="what">Email</span>
-            <span className="value">{CONTACT.email}</span>
-          </a>
-        </div>
-        <p className="muted">{CONTACT.hours}.</p>
+        <h2>What to write about</h2>
+        <ul className="plain">
+          <li>
+            <strong>Whether it fits your business.</strong> Tell us what you
+            sell and how you keep track of it now, and we will tell you
+            straight. If it is not a fit we will say so rather than sell you a
+            trial.
+          </li>
+          <li>
+            <strong>Getting set up.</strong> Access is by invite while we
+            onboard businesses personally, so this starts with a conversation.
+          </li>
+          <li>
+            <strong>A figure that looks wrong.</strong> Send us the record and
+            we will look at it with you and correct it.
+          </li>
+          <li>
+            <strong>Getting back in.</strong> If you have lost your access
+            token we can issue a new one. We cannot look up the old one — it is
+            not stored in a form anyone can read, including us.
+          </li>
+          <li>
+            <strong>Paying, or stopping.</strong> Both are arranged by email.
+            There is nothing to pay for inside the app and we never ask for
+            card details.
+          </li>
+          <li>
+            <strong>Deleting your data.</strong> Ask and it is gone within
+            seven days, all of it. See the{" "}
+            <Link href="/privacy">privacy page</Link>.
+          </li>
+        </ul>
       </section>
 
       <section className="slab alt">
-        <h2>What to ask about</h2>
-        <ul className="plain">
-          <li>
-            <strong>Getting access.</strong> Tell us roughly how many parties
-            you deal with and how much of your business happens on WhatsApp.
-            We will say honestly whether it suits you.
-          </li>
-          <li>
-            <strong>Renewing.</strong> Ring and we will take the payment and
-            extend your access the same day. Your records stay safe in the
-            meantime.
-          </li>
-          <li>
-            <strong>Something looks wrong.</strong> Tell us which record and we
-            will look at exactly which messages it came from.
-          </li>
-        </ul>
+        <h2>Where we are</h2>
+        <p>
+          Mumbai. The service runs in Google Cloud&apos;s Mumbai region, so
+          your records stay in India.
+        </p>
         <p className="muted">
-          Have an invite code already? <Link href="/signup">Set up your business</Link>.
+          Already a customer? <Link href="/login">Sign in</Link>. Have a code?{" "}
+          <Link href="/signup">Set up your business</Link>.
         </p>
       </section>
     </PublicPage>

@@ -1,5 +1,5 @@
 /* ===========================================================================
-   Textile Ops — design system
+   Longbook — design system
 
    Two constraints pull against each other and both are real:
 
@@ -717,15 +717,32 @@ nav.tabs a.active { color: var(--accent); border-top-color: var(--accent); }
   border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
-  background: color-mix(in srgb, var(--paper) 90%, transparent);
-  backdrop-filter: saturate(180%) blur(12px);
-  z-index: 10;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: saturate(180%) blur(14px);
+  z-index: 50;
+}
+/* Full-bleed backdrop: without this the blurred bar stops at the content
+   column and page content slides past in the gutters beside it. */
+@supports (backdrop-filter: blur(1px)) {
+  .public-nav::before {
+    content: "";
+    position: absolute;
+    inset: 0 -50vw;
+    background: inherit;
+    backdrop-filter: inherit;
+    border-bottom: 1px solid var(--line);
+    z-index: -1;
+  }
 }
 .public-nav .wordmark {
-  font-family: var(--font-head);
-  font-size: 23px;
-  font-weight: 400;
-  letter-spacing: -0.01em;
+  /* The sans, not the display serif. Instrument Serif ships weight 400 only,
+     so asking it for bold gets the browser's synthetic smear — which on a
+     high-contrast serif looks broken at wordmark size. Inter has a real 700. */
+  font-family: var(--font-sans);
+  font-size: clamp(24px, 5.5vw, 29px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.035em;
   color: var(--ink);
   text-decoration: none;
 }
@@ -743,7 +760,7 @@ nav.tabs a.active { color: var(--accent); border-top-color: var(--accent); }
 .hero-public h1 {
   font-family: var(--font-head);
   font-weight: 400;
-  font-size: clamp(38px, 8.5vw, 68px);
+  font-size: clamp(34px, 7vw, 56px);
   line-height: 1.03;
   letter-spacing: -0.025em;
   margin: 0 0 var(--s5);
@@ -923,7 +940,11 @@ table.items { min-width: 320px; }
 .empty-state .why { overflow-wrap: anywhere; }
 
 /* Belt and braces: nothing may widen the document. */
-html, body { overflow-x: hidden; }
+/* `overflow-x: hidden` here is what silently killed position:sticky on the
+   public nav — hidden makes html/body a scroll container, and a sticky child
+   sticks to that container rather than the viewport, so it just scrolls away.
+   `clip` stops the sideways scroll without creating the container. */
+html, body { overflow-x: clip; }
 
 /* Chosen-but-not-sent files. Removing one has to be as easy as adding it —
    this is the last point before six years of chats leave the phone. */
@@ -1143,3 +1164,199 @@ button.primary:disabled {
   box-shadow: none;
   cursor: not-allowed;
 }
+
+/* ------------------------------------------------------------------ steps -- */
+/* Three numbered steps on the home page. Numbers are drawn by a counter so the
+   markup stays an ordered list — it reads correctly to a screen reader and to
+   anyone who turns styles off. */
+.steps {
+  list-style: none;
+  counter-reset: step;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s3);
+}
+@media (min-width: 760px) { .steps { grid-template-columns: repeat(3, 1fr); } }
+
+.steps > li {
+  counter-increment: step;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--s5);
+  box-shadow: var(--shadow-sm);
+}
+.steps > li::before {
+  content: counter(step);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-head);
+  font-size: 21px;
+  line-height: 1;
+  margin-bottom: var(--s3);
+}
+.steps > li h3 {
+  font-family: var(--font-head);
+  font-weight: 400;
+  font-size: 21px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--ink);
+  margin: 0 0 var(--s2);
+}
+.steps > li p { margin: 0; line-height: 1.6; color: var(--muted); }
+
+
+/* ------------------------------------------------------------- hero art -- */
+/* Full-bleed on a phone, contained on a desktop. aspect-ratio holds the space
+   before the file arrives so nothing below it jumps. */
+.hero-art {
+  margin: 0 calc(var(--s4) * -1) var(--s5);
+}
+/* When the art leads the page, the hero's usual top padding stacks on top of
+   the art's bottom margin and opens a hole between the picture and the
+   sentence it is supposed to be introducing. */
+.hero-art + .hero-public { padding-top: var(--s5); }
+.hero-art img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--card-2);
+}
+/* No aspect-ratio and no object-fit here on purpose. The <img> carries width
+   and height attributes, so the browser already reserves the right box before
+   the file arrives — and cover would crop the top row of shops off, which is
+   the whole point of the picture. */
+@media (min-width: 900px) {
+  .hero-art {
+    margin: 0 0 var(--s6);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+}
+
+/* --------------------------------------------------- public page buttons -- */
+/* Black rather than the app's green. The marketing pages are read cold by
+   someone deciding whether to trust us; black reads as plain and serious,
+   and keeps the green as the colour that means "this is your data". */
+.public button.primary {
+  background: #14110f;
+  border-color: #14110f;
+  color: #fff;
+}
+.public button.primary:hover {
+  background: #000;
+  border-color: #000;
+  filter: none;
+}
+.public .cta-row .button-link { flex: 0 1 auto; }
+.public button.big { width: auto; padding: 0 var(--s6); }
+@media (max-width: 560px) {
+  .public .cta-row .button-link { flex: 1 1 100%; }
+  .public button.big { width: 100%; padding: 0 var(--s4); }
+}
+
+
+/* -------------------------------------------------------- landing extras -- */
+.hero-public .lede-sub {
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: calc(var(--s4) * -1) 0 var(--s5);
+  max-width: 34em;
+}
+.sources-line {
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  margin: var(--s3) 0 0;
+}
+.claim {
+  font-family: var(--font-head);
+  font-size: clamp(22px, 3.4vw, 28px);
+  color: var(--ink);
+  margin: var(--s5) 0 var(--s4);
+}
+
+/* The sample "today" card. Deliberately looks like the product, not like a
+   marketing panel — but carries an Example tag so it is never mistaken for a
+   real customer's figures. */
+.today-card {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  padding: var(--s5);
+  margin: 0 0 var(--s4);
+}
+.today-tag {
+  position: absolute;
+  top: var(--s3);
+  right: var(--s3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.today-row {
+  padding: var(--s3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.today-row:first-of-type { padding-top: var(--s2); }
+.today-figure {
+  font-family: var(--font-head);
+  font-size: clamp(20px, 3.2vw, 25px);
+  line-height: 1.15;
+  color: var(--ink);
+}
+.today-note { font-size: 15px; color: var(--muted); margin-top: 2px; }
+.today-more {
+  padding-top: var(--s3);
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.outcome-grid, .trade-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--s3);
+  margin: var(--s4) 0 0;
+}
+@media (min-width: 700px) {
+  .outcome-grid { grid-template-columns: repeat(2, 1fr); }
+  .trade-grid { grid-template-columns: repeat(3, 1fr); }
+}
+.outcome, .trade {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--s5);
+  box-shadow: var(--shadow-sm);
+}
+.outcome h3, .trade h3 {
+  font-family: var(--font-head);
+  font-weight: 400;
+  font-size: 21px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--ink);
+  margin: 0 0 var(--s2);
+}
+.outcome p, .trade p { margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted); }
+.trade p { font-variant-numeric: tabular-nums; }

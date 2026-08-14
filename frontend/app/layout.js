@@ -24,8 +24,25 @@ const sans = Inter({
 });
 
 export const metadata = {
-  title: "Textile Ops",
-  description: "Your WhatsApp is already your order book. We just write it down.",
+  metadataBase: new URL("https://longbook.co"),
+  title: {
+    default: "Longbook — nothing should depend on remembering it",
+    template: "%s · Longbook",
+  },
+  description:
+    "Longbook keeps track of your orders, payments, customers and " +
+    "commitments, and tells you what needs attention. Works with the records " +
+    "you already keep. No double entry, no new way of working.",
+  openGraph: {
+    title: "Longbook — nothing should depend on remembering it",
+    description:
+      "Orders, payments, customers and follow-ups, kept together. It learns " +
+      "how your business works instead of making you fit a template.",
+    url: "https://longbook.co",
+    siteName: "Longbook",
+    locale: "en_IN",
+    type: "website",
+  },
 };
 
 export const viewport = {

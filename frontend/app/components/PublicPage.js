@@ -36,10 +36,13 @@ export default function PublicPage({ children, active }) {
     <div className="public">
       <nav className="public-nav">
         <Link href="/" className="wordmark">
-          Textile Ops
+          Longbook
         </Link>
+        {/* Home is listed explicitly as well as being the wordmark. The
+            wordmark is only obvious as a home link to people who already know
+            that convention, and this audience largely does not. */}
         <div className="public-links">
-          {links.slice(1).map(([href, label]) => (
+          {links.map(([href, label]) => (
             <Link key={href} href={href} className={active === href ? "on" : ""}>
               {label}
             </Link>
@@ -54,7 +57,7 @@ export default function PublicPage({ children, active }) {
 
       <footer className="public-footer">
         <div className="rows">
-          <a href={CONTACT.phoneHref}>{CONTACT.phone}</a>
+          <a href={CONTACT.emailHref}>{CONTACT.email}</a>
           <a href={CONTACT.emailHref}>{CONTACT.email}</a>
         </div>
         <p>

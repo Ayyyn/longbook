@@ -4,128 +4,202 @@ import Link from "next/link";
 import PublicPage from "./components/PublicPage";
 import { CONTACT, PRICING } from "./lib/contact";
 
+// Order of argument, deliberately: interest, then proof, then difference, then
+// mechanism, then trust, then the ask. Nothing explains how it works until the
+// reader already wants it to. The old page led with "it reads your chats",
+// which is the machinery, and reads as surveillance to someone deciding
+// whether to hand over their order book.
 export default function Home() {
   return (
     <PublicPage active="/">
+      {/* Picture first. Nine trades in one glance says "this is for a business
+          like mine" faster than any sentence, and it earns the generality the
+          copy claims further down. */}
+      <section className="hero-art">
+        <img
+          src="/businesses-1024.webp"
+          srcSet="/businesses-512.webp 512w, /businesses-768.webp 768w, /businesses-1024.webp 1024w"
+          sizes="(max-width: 900px) 100vw, 880px"
+          width={1024}
+          height={559}
+          alt="Nine small businesses side by side — a jeweller, a fabric shop, a
+               warehouse, a chemist, a machine works, a service desk, an
+               electrical shop, a produce market and a hardware store."
+          decoding="async"
+          fetchPriority="high"
+        />
+      </section>
+
       <section className="hero-public">
-        <h1>
-          Your WhatsApp is already your order book.
-          <br />
-          We just write it down.
-        </h1>
+        <h1>Nothing in your business should depend on remembering it.</h1>
         <p className="lede">
-          Orders, payments and outstandings come out of the chats you are
-          already having. Nothing new for your customers to learn. Nothing to
-          type twice.
+          Longbook keeps track of your orders, payments, customers and
+          commitments — and tells you what needs attention.
         </p>
-        <Link href="/pricing" className="button-link">
-          <button className="primary big">See what it costs</button>
-        </Link>
-        <p className="muted">
-          Access is by invite while we set up businesses one at a time.{" "}
-          <a href={CONTACT.phoneHref}>Call {CONTACT.phone}</a>.
+        <p className="lede-sub">
+          Works with the records you already keep. No double entry, no new way
+          of working.
+        </p>
+        <div className="cta-row">
+          <a href={CONTACT.emailHref} className="button-link">
+            <button className="primary big">Get access</button>
+          </a>
+          <a href="#how" className="button-link">
+            <button className="big">See how it works</button>
+          </a>
+        </div>
+        <p className="sources-line">
+          WhatsApp · Tally · Excel · Email · PDFs · Photos · Voice notes
         </p>
       </section>
 
-      {/* Concrete before abstract. A trader decides in the first ten seconds
-          whether this is about their actual day. */}
+      {/* Proof before explanation. The figures are invented, so the card says
+          so — an unlabelled sample reads as a real customer's book. */}
       <section className="slab">
-        <h2>What it actually does</h2>
-        <ul className="plain">
-          <li>
-            A customer messages <em>&ldquo;150 mtr SR-1042 bhej dena, rate wahi
-            purana&rdquo;</em> — or <em>&ldquo;5000pc bobbin, knurling ke
-            baad&rdquo;</em>. It becomes an order — item, quantity and last
-            agreed rate — waiting for you to confirm.
-          </li>
-          <li>
-            Someone sends <em>&ldquo;50,000 RTGS kar diya&rdquo;</em>. The
-            payment goes against their account and their outstanding drops.
-          </li>
-          <li>
-            On Tuesday morning it tells you Ashok &amp; Sons has crossed 60 days,
-            and drafts the reminder. You read it, change it if you want, and
-            send it yourself from your own number.
-          </li>
-          <li>
-            A rate 20% below what that customer normally pays gets flagged
-            before the goods go out, not after the bill.
-          </li>
-          <li>
-            At 7pm you get one email: what came in, what went out, who owes
-            what.
-          </li>
-        </ul>
+        <h2>Open Longbook. Know what needs attention.</h2>
+        <div className="today-card">
+          <div className="today-tag">Example</div>
+          <div className="today-row">
+            <div className="today-figure">₹1,42,000 overdue</div>
+            <div className="today-note">3 customers to follow up</div>
+          </div>
+          <div className="today-row">
+            <div className="today-figure">2 orders, no dispatch confirmed</div>
+            <div className="today-note">Last movement 9 days ago</div>
+          </div>
+          <div className="today-row">
+            <div className="today-figure">Mahavir Textiles</div>
+            <div className="today-note">
+              Asking again today · last quoted ₹74/m
+            </div>
+          </div>
+          <div className="today-more">5 things for today →</div>
+        </div>
+        <p className="muted">
+          Not a dashboard to study. A short list to act on.
+        </p>
       </section>
 
       <section className="slab alt">
-        <h2>Who it is for</h2>
-        <p>
-          Wholesalers, distributors and traders who run the business on
-          WhatsApp and keep the real numbers in their head, a diary, or a
-          hundred chats they have to scroll back through. Fabric, machine
-          parts, chemicals, garments — it reads whatever your messages are
-          about. If you have between twenty and a few hundred regular
-          customers, this is built for you.
+        <h2>Four things, kept straight.</h2>
+        <div className="outcome-grid">
+          <div className="outcome">
+            <h3>Know what&apos;s pending</h3>
+            <p>
+              Orders waiting, payments overdue, and promises that were made but
+              not kept.
+            </p>
+          </div>
+          <div className="outcome">
+            <h3>Remember every customer</h3>
+            <p>
+              What they buy, what you quoted, what they owe, and how they
+              actually pay.
+            </p>
+          </div>
+          <div className="outcome">
+            <h3>See where the money is</h3>
+            <p>
+              Outstanding, ageing, and what was promised against what arrived.
+            </p>
+          </div>
+          <div className="outcome">
+            <h3>Know what to do today</h3>
+            <p>
+              The few things that need you — with the record behind each one.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* The differentiator. Given room because it is the only part a
+          competitor cannot copy by adding a feature. */}
+      <section className="slab">
+        <h2>Made for your business. By learning your business.</h2>
+        <p className="lede">
+          Every business keeps track of different things. Longbook learns what
+          matters in yours — your products, your units, your pricing, how an
+          order moves, and who you chase.
         </p>
+        <div className="trade-grid">
+          <div className="trade">
+            <h3>Fabric wholesaler</h3>
+            <p>Metres · Lots · Shades · Credit</p>
+          </div>
+          <div className="trade">
+            <h3>Machinery supplier</h3>
+            <p>Models · Parts · Quotations · Service</p>
+          </div>
+          <div className="trade">
+            <h3>Chemical distributor</h3>
+            <p>Grades · Drums · Batches · Credit</p>
+          </div>
+        </div>
+        <p className="claim">Same Longbook. Different business.</p>
         <p>
-          If you already have a full office running Tally properly and nothing
-          important happens on WhatsApp, you do not need this.
+          Other software asks you to fit its template. This one asks you a few
+          questions about what it found in your own records, then uses your
+          words on screen. If you say <strong>lot</strong>, it says lot.
         </p>
       </section>
 
-      <section className="slab">
-        <h2>How it works</h2>
+      <section className="slab alt" id="how">
+        <h2>Three steps, once.</h2>
         <ol className="steps">
           <li>
-            <strong>You send us your chats.</strong> Export a WhatsApp chat —
-            it takes about thirty seconds, and we show you how. Six years of
-            history is fine.
+            <h3>Bring the records you already use</h3>
+            <p>Start with as much or as little history as you like.</p>
           </li>
           <li>
-            <strong>It reads them.</strong> Ten minutes, and your parties,
-            orders, dispatches and payments are on screen. Anything it was not
-            sure about it asks you, one question at a time.
+            <h3>Longbook learns your business</h3>
+            <p>
+              It works out what matters and asks only where it needs you. About
+              five minutes.
+            </p>
           </li>
           <li>
-            <strong>You check it each morning.</strong> Confirm what is
-            waiting, look at who needs chasing, get on with your day.
+            <h3>Start each day knowing what needs attention</h3>
+            <p>Orders. Payments. Customers. Follow-ups.</p>
           </li>
         </ol>
       </section>
 
-      <section className="slab alt">
-        <h2>What it costs</h2>
-        <p className="price-line">
-          <strong>{PRICING.monthly}</strong> a month, or{" "}
-          <strong>{PRICING.yearly}</strong> for the year paid up front.{" "}
-          <strong>{PRICING.setup}</strong> once, to set you up.
+      <section className="slab">
+        <h2>See why Longbook flagged it.</h2>
+        <p className="lede">
+          Every suggestion comes with the record behind it — the message, the
+          bill, the payment. Tap through and check it yourself.
         </p>
-        <Link href="/pricing">See exactly what is included</Link>
+        <p>Where it isn&apos;t sure, it asks instead of guessing.</p>
+      </section>
+
+      <section className="slab alt">
+        <h2>Your business stays yours.</h2>
+        <p className="lede">
+          Private, stored in India, never used to train AI. Longbook never
+          messages your customers and never acts without you.
+        </p>
+        <p className="muted">
+          <Link href="/privacy">How we protect your data →</Link>
+        </p>
       </section>
 
       <section className="slab">
-        <h2>How to get access</h2>
-        <p>
-          We are not open to everyone yet. We set up each business ourselves —
-          we read your chats with you, check what it got right, and fix what it
-          got wrong before you rely on it. That takes a morning, and we can
-          only do a few at a time.
-        </p>
-        <p>
-          Ring or message and we will tell you honestly whether it suits your
-          business. If it does, you get an invite code and we book a time.
+        <h2>Ask us whether it fits.</h2>
+        <p className="lede">
+          We set up each business personally, so access is by invite. Tell us
+          what you sell and how you keep track of it now, and we will tell you
+          straight — including if it is not a fit.
         </p>
         <div className="cta-row">
-          <a href={CONTACT.phoneHref} className="button-link">
-            <button className="primary big">Call {CONTACT.phone}</button>
-          </a>
-          <a href={CONTACT.whatsappHref} className="button-link" target="_blank" rel="noreferrer">
-            <button className="big">WhatsApp us</button>
+          <a href={CONTACT.emailHref} className="button-link">
+            <button className="primary big">Email {CONTACT.email}</button>
           </a>
         </div>
         <p className="muted">
-          Already have an invite code? <Link href="/signup">Set up your business</Link>.
+          14-day trial · {PRICING.monthly} a month · nothing due up front. See{" "}
+          <Link href="/pricing">what it costs</Link>. Already have a code?{" "}
+          <Link href="/signup">Set up your business</Link>.
         </p>
       </section>
     </PublicPage>

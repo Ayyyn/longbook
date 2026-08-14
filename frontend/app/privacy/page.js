@@ -3,7 +3,7 @@
 import PublicPage from "../components/PublicPage";
 import { CONTACT } from "../lib/contact";
 
-// Written to be read, not to be survived. A trader may genuinely open this
+// Written to be read, not to be survived. An owner may genuinely open this
 // before handing over six years of their chats, and everything in it is
 // checkable against what the system does — no "may", no "including but not
 // limited to", no reserved right to change our minds about selling their data.
@@ -105,8 +105,8 @@ export default function Privacy() {
             <strong>You</strong>, through the app, using your own token.
           </li>
           <li>
-            <strong>Us</strong> — the two people who run Textile Ops — when we
-            are setting you up, or when you ring with a problem and we need to
+            <strong>Us</strong> — the two people who run Longbook — when we
+            are setting you up, or when you write in with a problem and we need to
             look at the record you are asking about. We look because you asked
             us to, not routinely.
           </li>
@@ -196,7 +196,7 @@ export default function Privacy() {
         </p>
         <p>
           <strong>To have it deleted sooner, just ask.</strong> Ring{" "}
-          <a href={CONTACT.phoneHref}>{CONTACT.phone}</a> or email{" "}
+          <a href={CONTACT.emailHref}>{CONTACT.email}</a> or email{" "}
           <a href={CONTACT.emailHref}>{CONTACT.email}</a> and say you want your
           data removed. We will do it within seven days and confirm when it is
           done. That removes everything: messages, documents, extracted
@@ -227,7 +227,7 @@ export default function Privacy() {
         </p>
         <p>
           Questions go to a person, not a form:{" "}
-          <a href={CONTACT.phoneHref}>{CONTACT.phone}</a> or{" "}
+          <a href={CONTACT.emailHref}>{CONTACT.email}</a> or{" "}
           <a href={CONTACT.emailHref}>{CONTACT.email}</a>. {CONTACT.hours}.
         </p>
         <p className="muted">Last updated 10 August 2026.</p>

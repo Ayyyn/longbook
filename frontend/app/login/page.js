@@ -110,7 +110,7 @@ function Login() {
       <div className="empty-state">
         <h3>New here?</h3>
         <div className="why">
-          Textile Ops reads your WhatsApp chats and keeps the orders, payments
+          Longbook reads your WhatsApp chats and keeps the orders, payments
           and outstandings for you — no typing, no new app for your customers.
         </div>
         <Link href="/signup" className="button-link">
@@ -118,7 +118,7 @@ function Login() {
         </Link>
         <p className="muted" style={{ marginBottom: 0 }}>
           You will need an invite code. Ring{" "}
-          <a href={CONTACT.phoneHref}>{CONTACT.phone}</a> and we will tell you
+          <a href={CONTACT.emailHref}>{CONTACT.email}</a> and we will tell you
           whether it suits your business.
         </p>
       </div>

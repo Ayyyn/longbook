@@ -24,5 +24,9 @@ ENV NODE_ENV=production \
 # so node_modules does not come along whole.
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
+# Tracing only follows imports, so anything served by URL rather than imported
+# — the hero art in public/ — is invisible to it and has to be copied by hand.
+# Miss this and the files 404 in production while working perfectly in dev.
+COPY --from=build /app/public ./public
 
 CMD ["node", "server.js"]

@@ -5,8 +5,8 @@ import PublicPage from "../components/PublicPage";
 import { CONTACT, PRICING } from "../lib/contact";
 
 // The point of this page is that nobody is surprised later. The limits are
-// stated as plainly as the promises, because a trader who discovers in month
-// three that we do not file GST is a trader we should never have signed.
+// stated as plainly as the promises, because an owner who discovers in month
+// three that we do not file GST is an owner we should never have signed.
 export default function Terms() {
   return (
     <PublicPage>
@@ -21,7 +21,7 @@ export default function Terms() {
       <section className="slab">
         <h2>What the service does</h2>
         <p>
-          Textile Ops reads WhatsApp chat exports, documents and photographs
+          Longbook reads WhatsApp chat exports, documents and photographs
           that you give it, and writes down what it finds: orders, payments,
           dispatches, quotes, complaints, party accounts and outstandings. It
           shows you what it was unsure about so you can confirm or correct it,
@@ -148,7 +148,7 @@ export default function Terms() {
         </ul>
         <p>
           We may end the service if fees go unpaid after we have asked, or if
-          the service is used for something unlawful. We would ring you first.
+          the service is used for something unlawful. We would write to you first.
         </p>
       </section>
 
@@ -205,7 +205,7 @@ export default function Terms() {
         </p>
         <p>
           Questions go to a person:{" "}
-          <a href={CONTACT.phoneHref}>{CONTACT.phone}</a> or{" "}
+          <a href={CONTACT.emailHref}>{CONTACT.email}</a> or{" "}
           <a href={CONTACT.emailHref}>{CONTACT.email}</a>.
         </p>
         <p className="muted">Last updated 10 August 2026.</p>

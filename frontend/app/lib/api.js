@@ -139,7 +139,12 @@ export const api = {
   interview: (stage) => request(`/api/tenants/interview?stage=${stage}`),
   configure: (answers) =>
     request("/api/tenants/configure", { method: "POST", body: JSON.stringify(answers) }),
-  // Every upload path takes a list. A trader's business is not in one chat.
+  // What we asked, what was answered, and what the Configurator made of it.
+  // Readable even when onboarding was never finished.
+  business: () => request("/api/tenants/business"),
+  updateBusiness: (payload) =>
+    request("/api/tenants/business", { method: "PUT", body: JSON.stringify(payload) }),
+  // Every upload path takes a list. An owner's business is not in one chat.
   uploadSample: (files) => {
     const form = new FormData();
     [...files].forEach((f) => form.append("files", f));

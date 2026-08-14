@@ -57,7 +57,7 @@ function Countdown({ days, status }) {
     <p className="muted" style={{ textAlign: "center", marginTop: 14 }}>
       {status === "trial" ? "Trial ends" : "Your subscription ends"} in {days}{" "}
       {days === 1 ? "day" : "days"}.{" "}
-      <a href={CONTACT.phoneHref}>Call {CONTACT.phone}</a> to renew.
+      <a href={CONTACT.emailHref}>Email us</a> to renew.
     </p>
   );
 }
@@ -66,7 +66,7 @@ function Expired({ me }) {
   return (
     <>
       <header className="bar">
-        <h1>{me?.business_name || "Textile Ops"}</h1>
+        <h1>{me?.business_name || "Longbook"}</h1>
         <div className="sub">Access has ended</div>
       </header>
 
@@ -87,15 +87,12 @@ function Expired({ me }) {
         <div className="row">
           <div className="muted">Phone</div>
           <div style={{ fontWeight: 600 }}>
-            <a href={CONTACT.phoneHref}>{CONTACT.phone}</a>
+            <a href={CONTACT.emailHref}>{CONTACT.email}</a>
           </div>
         </div>
         <div className="row">
           <div className="muted">WhatsApp</div>
           <div style={{ fontWeight: 600 }}>
-            <a href={CONTACT.whatsappHref} target="_blank" rel="noreferrer">
-              Message us
-            </a>
           </div>
         </div>
         <div className="row">

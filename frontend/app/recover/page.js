@@ -60,7 +60,7 @@ function Ask() {
           </div>
         </div>
         <p className="muted" style={{ textAlign: "center" }}>
-          No email? Ring <a href={CONTACT.phoneHref}>{CONTACT.phone}</a> and we
+          No email? Email <a href={CONTACT.emailHref}>{CONTACT.email}</a> and we
           will sort it out.
         </p>
       </PublicPage>
@@ -144,7 +144,7 @@ function Confirm({ signed }) {
         <div className="banner error">{error}</div>
         <p className="muted">
           Links last 30 minutes and work once. Ask for another, or ring{" "}
-          <a href={CONTACT.phoneHref}>{CONTACT.phone}</a>.
+          <a href={CONTACT.emailHref}>{CONTACT.email}</a>.
         </p>
         <div className="actions">
           <Link href="/recover" className="button-link" style={{ flex: 1 }}>
