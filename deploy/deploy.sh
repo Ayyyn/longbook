@@ -113,8 +113,21 @@ WEB_URL="$(gcloud run services describe textile-web --region="$REGION" --format=
 echo "    Dashboard at $WEB_URL"
 
 echo "==> Point the API's CORS and digest links at the deployed dashboard"
+# Firebase Hosting fronts the same Cloud Run service, so the browser's Origin
+# is longbook.co (or the .web.app URL) — not the run.app one. Every origin the
+# app is served from has to be listed or its API calls fail CORS.
+#
+# DASHBOARD_URL is switchable because it goes into emails, and must not point
+# at the custom domain until that domain actually resolves. CORS_ORIGINS is
+# NOT switchable: the real domains belong in it always. Deriving the list from
+# PUBLIC_URL once dropped the apex silently and every call from longbook.co
+# 400'd, which looks like a browser problem and is not one.
+#
+# The ^|^ prefix switches gcloud's delimiter to | so the commas inside
+# CORS_ORIGINS are not read as separate env vars.
+PUBLIC_URL="${PUBLIC_URL:-https://longbook.co}"
 gcloud run services update textile-api --region="$REGION" \
-  --update-env-vars="DASHBOARD_URL=${WEB_URL},CORS_ORIGINS=${WEB_URL}"
+  --update-env-vars="^|^DASHBOARD_URL=${PUBLIC_URL}|CORS_ORIGINS=https://longbook.co,https://www.longbook.co,https://textile-ops-prod.web.app,https://textile-ops-prod.firebaseapp.com,${WEB_URL},http://localhost:3000"
 
 echo "==> Digest schedule"
 # 19:00 IST — after the market closes, before the owner sits down with the

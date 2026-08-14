@@ -20,3 +20,8 @@ frontend/node_modules
 # only real customer data is excluded, which data/ above already covers.
 !data/synthetic/
 !data/synthetic/**
+
+# Screenshots dropped in the repo root while working. Real assets belong in
+# frontend/public/, which is committed.
+/*.png
+/*.jpg

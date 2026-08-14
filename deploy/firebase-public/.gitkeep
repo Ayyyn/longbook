@@ -1,0 +1,3 @@
+Firebase Hosting needs a public directory to exist, but every request is
+rewritten to the Cloud Run service (see firebase.json), so nothing is served
+from here. Do not put files in this directory — they would shadow the app.

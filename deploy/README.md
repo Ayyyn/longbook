@@ -99,3 +99,42 @@ Both images are known to build and run locally:
 docker build -t textile-api:smoke .
 docker build -t textile-web:smoke --build-arg NEXT_PUBLIC_API_BASE=https://api.example frontend
 ```
+
+## Mail
+
+One Gmail account, `longbook.co@gmail.com`, does all three jobs: it is the
+address on the website, the account the system sends from, and the mailbox
+customers forward invoices to. One account means one app password and one
+inbox to look in, which is the right trade for a launch cohort.
+
+Sending is `smtp.gmail.com:587` with STARTTLS; reading is `imap.gmail.com`
+(the default in `config.py`). Per-tenant forwarding addresses are built from
+the same account by plus-addressing: `longbook.co+<slug>@gmail.com`.
+
+Everything except the password is already set. Gmail requires an **app
+password** — a normal account password will not authenticate over SMTP or
+IMAP, and 2-Step Verification must be on before Google will issue one
+(myaccount.google.com → Security → App passwords).
+
+The same app password goes into both secrets. PowerShell mangles piped
+strings — `|` adds a trailing newline and often a BOM, and a secret with an
+invisible byte on the end fails authentication in a way that looks exactly
+like a wrong password. So write it to a temp file with no BOM:
+
+```powershell
+$pw = 'xxxxxxxxxxxxxxxx'    # the 16-character app password, spaces removed
+$f = New-TemporaryFile
+[IO.File]::WriteAllText($f, $pw, (New-Object Text.UTF8Encoding $false))
+gcloud secrets versions add smtp-password     --data-file=$f --project=textile-ops-prod
+gcloud secrets versions add inbound-password  --data-file=$f --project=textile-ops-prod
+Remove-Item $f
+```
+
+Secrets are mounted `:latest`, but Cloud Run resolves that at deploy time, not
+per request, so a new version changes nothing until the next revision:
+
+```powershell
+gcloud run services update textile-api --region=asia-south1 `
+  --project=textile-ops-prod `
+  --update-secrets=SMTP_PASSWORD=smtp-password:latest,INBOUND_PASSWORD=inbound-password:latest
+```
