@@ -3,7 +3,7 @@
 The token is stored only as a SHA-256 digest, so it genuinely cannot be
 recovered — not from the database, not by us. That is the right call for a
 credential, but it means the one screen that shows it is the only chance the
-owner gets, and a trader who clears their browser or buys a new phone is
+owner gets, and an owner who clears their browser or buys a new phone is
 locked out of their own records with no way back.
 
 So two things live here: emailing the token at signup, so it survives in a
@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 
 def _body(business_name: str, phone: str, token: str, dashboard_url: str) -> tuple[str, str]:
-    text = f"""Your Textile Ops sign-in details
+    text = f"""Your Longbook sign-in details
 
 Business: {business_name}
 
@@ -47,7 +47,7 @@ If you did not set up this account, please tell us and ignore this email.
 
     html = f"""<html><body style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
 color:#1a1917;line-height:1.55;max-width:560px">
-<h2 style="margin:0 0 16px;font-weight:600">Your Textile Ops sign-in details</h2>
+<h2 style="margin:0 0 16px;font-weight:600">Your Longbook sign-in details</h2>
 <p style="margin:0 0 8px"><strong>{business_name}</strong></p>
 <table style="border-collapse:collapse;margin:16px 0;width:100%">
   <tr><td style="padding:8px 0;color:#6f6c66">Phone number</td>
@@ -84,7 +84,7 @@ def email_token(
     if not to:
         return False, "No email address given at signup."
     text, html = _body(business_name, phone, token, dashboard_url.rstrip("/"))
-    sent, detail = send_email(to, f"Your Textile Ops access — {business_name}", text, html)
+    sent, detail = send_email(to, f"Your Longbook access — {business_name}", text, html)
     if not sent:
         log.warning("Could not email the access token: %s", detail)
     return sent, detail

@@ -21,7 +21,7 @@ from app.api import (
     today,
 )
 
-app = FastAPI(title="Textile Ops", version="0.1.0")
+app = FastAPI(title="Longbook", version="0.1.0")
 
 def _allowed_origins() -> list[str]:
     """Who may call this from a browser.

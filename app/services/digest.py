@@ -198,6 +198,10 @@ def render_text(business: str, as_of: date, body: dict[str, Any]) -> str:
         lines.append("")
     lines.append(f"Open the dashboard: {dashboard_link('/')}")
     lines.append(f"Review queue: {dashboard_link('/review')}")
+    # An evening email headed only by the business's own name reads like
+    # something they sent themselves. Say who it is from.
+    lines.append("")
+    lines.append("— Longbook. We never message your customers.")
     return "\n".join(lines)
 
 
@@ -225,6 +229,11 @@ def render_html(business: str, as_of: date, body: dict[str, Any]) -> str:
         f"<p><a href=\"{dashboard_link('/')}\" "
         "style=\"background:#0b6b3a;color:#fff;padding:10px 16px;border-radius:8px;"
         "text-decoration:none;display:inline-block\">Open dashboard</a></p>"
+    )
+    parts.append(
+        "<p style=\"color:#6f6c66;font-size:13px;margin:20px 0 0;"
+        "border-top:1px solid #e5e3df;padding-top:12px\">"
+        "Sent by <strong>Longbook</strong>. We never message your customers.</p>"
     )
     parts.append("</div>")
     return "".join(parts)

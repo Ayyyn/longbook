@@ -3,7 +3,7 @@
 The obvious design is wrong. "Send me a new token" keyed on a phone number
 means anyone who knows a business's number can rotate its token, and rotating
 is destructive: the owner's phone is signed out immediately. A competitor with
-a phone book could lock a trader out of their own books every morning.
+a phone book could lock an owner out of their own books every morning.
 
 So nothing rotates when recovery is *requested*. The request only sends a
 short-lived signed link to the address already on file. The rotation happens
@@ -88,7 +88,7 @@ def verify(payload: str, now: int | None = None) -> uuid.UUID:
 
 
 def recovery_email(business_name: str, link: str) -> tuple[str, str]:
-    text = f"""Getting back into Textile Ops
+    text = f"""Getting back into Longbook
 
 Someone asked for a new access token for {business_name}.
 
@@ -104,7 +104,7 @@ current token still works.
 """
     html = f"""<html><body style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
 color:#1a1917;line-height:1.55;max-width:560px">
-<h2 style="margin:0 0 16px;font-weight:600">Getting back into Textile Ops</h2>
+<h2 style="margin:0 0 16px;font-weight:600">Getting back into Longbook</h2>
 <p style="margin:0 0 16px">Someone asked for a new access token for
 <strong>{business_name}</strong>.</p>
 <p style="margin:0 0 20px">
