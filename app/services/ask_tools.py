@@ -100,7 +100,8 @@ def build_tools(db, tenant_id: uuid.UUID) -> dict[str, dict[str, Any]]:
                         "due_date": str(inv.due_date), "days_overdue": age})
         return {"rows": out}
 
-    def orders(party: str = "", status: str = "", undispatched: bool = False) -> dict:
+    def orders(party: str = "", status: str = "", undispatched: bool = False,
+               side: str = "") -> dict:
         stmt = (
             select(Order, Party.name)
             .outerjoin(Party, Party.id == Order.party_id)
@@ -111,6 +112,14 @@ def build_tools(db, tenant_id: uuid.UUID) -> dict[str, dict[str, Any]]:
             stmt = stmt.where(func.lower(Party.name).like(f"%{party.strip().lower()}%"))
         if status:
             stmt = stmt.where(Order.status == status.strip().lower())
+        # "What have I bought" and "what have I sold" are the same table read
+        # from either end: an order against a supplier is a purchase, against
+        # a customer a sale. Without this the model was asked about purchases,
+        # found no tool that mentioned them, and said it had no such records —
+        # while the orders were sitting there under a supplier party.
+        if side:
+            wanted = "supplier" if side.strip().lower().startswith(("purchas", "buy", "supplier")) else "customer"
+            stmt = stmt.where(Party.kind == wanted)
         if undispatched:
             from app.models.orders import Dispatch
             stmt = stmt.where(not_in_subquery(
@@ -168,12 +177,24 @@ def build_tools(db, tenant_id: uuid.UUID) -> dict[str, dict[str, Any]]:
                 or_(func.lower(OrderLine.raw_description).like(like),
                     func.lower(Item.name).like(like))
             )
-        rows = db.execute(stmt.limit(LIMIT)).all()
-        return {"rows": [
-            {"ref": f"L{line.id}", "party": name, "item": line.raw_description,
-             "rate": float(line.rate or 0), "unit": line.unit, "date": str(on or "")}
-            for line, name, on in rows
-        ]}
+        rows = db.execute(stmt.limit(LIMIT * 2)).all()
+        # One row per distinct (party, item, rate, date). Four identical lines
+        # of "Arihant Garments, Rs 105/meter, 2026-07-22" is four order lines
+        # of the same order, and citing all four teaches the owner nothing
+        # while making the answer look broken.
+        seen: set[tuple] = set()
+        out = []
+        for line, name, on in rows:
+            key = (name, line.raw_description, float(line.rate or 0), str(on or ""))
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append({"ref": f"L{line.id}", "party": name,
+                        "item": line.raw_description, "rate": float(line.rate or 0),
+                        "unit": line.unit, "date": str(on or "")})
+            if len(out) >= LIMIT:
+                break
+        return {"rows": out}
 
     def search_messages(query: str, party: str = "") -> dict:
         """Full-text over the tenant's own messages. There is no vector index,
@@ -230,11 +251,15 @@ def build_tools(db, tenant_id: uuid.UUID) -> dict[str, dict[str, Any]]:
             {"days": ("int", "Only invoices at least this many days overdue. 0 for all.")})},
         "orders": {"run": orders, "declaration": _decl(
             "orders",
-            "Orders with their line items. Filter by party, by status "
+            "Orders with their line items, including amounts. This is also how "
+            "purchases and sales are answered: an order against a supplier is a "
+            "purchase, against a customer it is a sale — pass side='purchases' or "
+            "side='sales'. Filter by party, by status "
             "(draft/confirmed/dispatched/cancelled), or undispatched=true for orders "
             "with no dispatch recorded.",
             {"party": ("str", "Part of a party name."),
              "status": ("str", "Order status to filter by."),
+             "side": ("str", "'purchases' for supplier orders, 'sales' for customer orders."),
              "undispatched": ("bool", "True for orders with no dispatch recorded.")})},
         "payments": {"run": payments, "declaration": _decl(
             "payments",

@@ -13,7 +13,7 @@ import time
 import uuid
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.agents.analyst import Analyst
 from app.api.deps import Profile, TenantDB, TenantId
@@ -33,6 +33,11 @@ SUGGESTIONS = [
 ]
 
 
+# How much of the conversation the model is shown. Enough for "what about
+# last year" to resolve; short enough not to crowd out the lookups.
+HISTORY_TURNS = 12
+
+
 class Turn(BaseModel):
     role: str
     text: str
@@ -40,7 +45,16 @@ class Turn(BaseModel):
 
 class Ask(BaseModel):
     question: str = Field(min_length=1, max_length=500)
-    history: list[Turn] = Field(default_factory=list, max_length=12)
+    # Truncated, never rejected. A hard cap here answered 422 to anyone who
+    # asked ten questions in a row — the conversation simply stopped working,
+    # with an error that says nothing about why. Too much history is our
+    # problem to trim, not the owner's to avoid.
+    history: list[Turn] = Field(default_factory=list, max_length=200)
+
+    @field_validator("history")
+    @classmethod
+    def _recent_only(cls, turns: list[Turn]) -> list[Turn]:
+        return turns[-HISTORY_TURNS:]
 
 
 class Source(BaseModel):

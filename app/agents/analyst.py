@@ -86,8 +86,13 @@ Writing the answer:
 9. Be brief. This is read on a phone between customers. Two or three
    sentences, or a short list. No preamble, no restating the question.
 10. Money in rupees, Indian digit grouping.
+11. When you list more than two things, use a markdown list — one "- " item
+    per line, each on its own line. Do not run a list into a paragraph.
+    Bold a figure with **1,42,000** when it is the point of the answer.
+12. You cannot draw charts or graphs. If one is asked for, give the same
+    figures as a short list and say plainly that you cannot draw it.
 
-Write the answer as plain text, not JSON."""
+Write the answer as markdown, not JSON."""
 
 
 class Analyst(Agent):
@@ -221,10 +226,12 @@ class Analyst(Agent):
                 "ref": ref,
                 "kind": row.get("tool"),
                 "label": row.get("party") or row.get("name") or row.get("sender") or "record",
-                "detail": ", ".join(
-                    f"{k}: {v}" for k, v in row.items()
-                    if k not in {"ref", "tool", "_id"} and v not in (None, "", [])
-                )[:300],
+                # Only what the label does not already say, and only what is
+                # worth reading. Dumping every field produced lines like
+                # "Arihant Garments — name: Arihant Garments, kind: customer,
+                # credit_days: 0", which repeats the heading and then reports
+                # a zero nobody asked about.
+                "detail": _detail(row),
                 "party_id": row.get("_id") if row.get("tool") in
                             {"find_parties", "outstanding"} else None,
                 "order_id": row.get("_id") if row.get("tool") == "orders" else None,
@@ -247,6 +254,29 @@ class Analyst(Agent):
             rationale=f"{looked} lookups, {rows_seen} rows seen, {len(cited)} cited.",
             meta={"usage": usage, "lookups": trace},
         )
+
+
+# Fields that only matter when they say something. A zero credit period or a
+# blank city is noise in a citation, not evidence.
+_SKIP_IF_FALSY = {"credit_days", "outstanding", "days_overdue", "quantity", "rate"}
+_LABELLED = {"name", "party", "sender"}
+
+
+def _detail(row: dict) -> str:
+    """A readable one-liner for a cited record."""
+    parts = []
+    for key, value in row.items():
+        if key in {"ref", "tool", "_id"} or key in _LABELLED:
+            continue
+        if value in (None, "", []):
+            continue
+        if key in _SKIP_IF_FALSY and not value:
+            continue
+        pretty = key.replace("_", " ")
+        if isinstance(value, float) and value.is_integer():
+            value = int(value)
+        parts.append(f"{pretty} {value}")
+    return ", ".join(parts)[:300]
 
 
 def db_has_records(db, tenant_id, Party, Interaction, func, select) -> bool:

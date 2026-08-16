@@ -1360,3 +1360,19 @@ button.primary:disabled {
 }
 .outcome p, .trade p { margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted); }
 .trade p { font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------- answer body ----- */
+/* The chat answer. Lists are the common shape — "these five parties", "these
+   three orders" — so they must look like lists rather than a paragraph with
+   hyphens in it. */
+.answer-body p { margin: 0 0 var(--s3); line-height: 1.6; }
+.answer-body p:last-child { margin-bottom: 0; }
+.answer-body ul {
+  margin: 0 0 var(--s3);
+  padding-left: var(--s5);
+  list-style: disc;
+}
+.answer-body ul:last-child { margin-bottom: 0; }
+.answer-body li { line-height: 1.6; margin-bottom: var(--s2); }
+.answer-body li:last-child { margin-bottom: 0; }
+.answer-body strong { color: var(--ink); font-weight: 600; }

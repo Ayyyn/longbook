@@ -126,7 +126,7 @@ function Chat() {
                 Heard: “{turn.heard}”
               </p>
             )}
-            <p style={{ margin: 0, lineHeight: 1.6 }}>{turn.text}</p>
+            <AnswerText text={turn.text} />
 
             {turn.sources?.length > 0 && (
               <div className="sources">
@@ -217,5 +217,68 @@ function Chat() {
         </p>
       )}
     </>
+  );
+}
+
+// The model answers in markdown — short bullet lists, the odd bold figure —
+// and the bubble was rendering it as one plain string. "Here are the parties:
+// - A [P1] - B [P2] - C [P3]" then arrives as a single run-on paragraph with
+// stray hyphens, which reads like a bug even when the answer is right.
+//
+// Deliberately a small renderer rather than a markdown library: this needs to
+// handle lists, bold and paragraphs and nothing else, and building React
+// elements avoids putting model output through dangerouslySetInnerHTML.
+function inline(text, keyPrefix) {
+  // **bold** only. Anything else passes through as text.
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith("**") && part.endsWith("**") && part.length > 4 ? (
+      <strong key={`${keyPrefix}-${i}`}>{part.slice(2, -2)}</strong>
+    ) : (
+      part
+    ),
+  );
+}
+
+function AnswerText({ text }) {
+  const raw = (text || "").trim();
+  if (!raw) return null;
+
+  // A list the model wrote on one line ("...: - A - B - C") still needs to
+  // become a list; splitting only on newlines would leave it run-on.
+  const normalised = raw.replace(/\s+-\s+(?=\S)/g, "\n- ");
+
+  const blocks = [];
+  let list = null;
+  for (const line of normalised.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const bullet = trimmed.match(/^[-*•]\s+(.*)$/);
+    if (bullet) {
+      list = list || [];
+      list.push(bullet[1]);
+    } else {
+      if (list) {
+        blocks.push({ type: "list", items: list });
+        list = null;
+      }
+      blocks.push({ type: "p", text: trimmed });
+    }
+  }
+  if (list) blocks.push({ type: "list", items: list });
+
+  return (
+    <div className="answer-body">
+      {blocks.map((block, i) =>
+        block.type === "list" ? (
+          <ul key={i}>
+            {block.items.map((item, j) => (
+              <li key={j}>{inline(item, `${i}-${j}`)}</li>
+            ))}
+          </ul>
+        ) : (
+          <p key={i}>{inline(block.text, i)}</p>
+        ),
+      )}
+    </div>
   );
 }
