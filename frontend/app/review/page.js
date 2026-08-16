@@ -163,6 +163,7 @@ function Review() {
             confirm. Nothing is waiting right now.
           </Empty>
         )}
+        <MergeSuggestions />
       </Shell>
     );
   }
@@ -380,5 +381,90 @@ function Shell({ title, subtitle, children }) {
       </header>
       {children}
     </>
+  );
+}
+
+// Duplicate parties, proposed rather than merged.
+//
+// "Arihant Garments" and "Arihant Garments - Nilesh" are usually one customer
+// entered twice, and while they are split their outstanding is split with
+// them. But "Shah Textiles" and "Shah Textiles & Sons" may be father and son
+// trading separately, and combining two real customers cannot be undone — so
+// this asks, and remembers a "different" answer so it never asks again.
+function MergeSuggestions() {
+  const [rows, setRows] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const [done, setDone] = useState([]);
+
+  const load = useCallback(async () => {
+    setRows(await api.mergeSuggestions().catch(() => []));
+  }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function decide(row, merge) {
+    setBusy(row.suggestion_id);
+    try {
+      if (merge) await api.acceptMerge(row.primary_id, row.duplicate_id);
+      else await api.rejectMerge(row.primary_id, row.duplicate_id);
+      setDone((d) => [...d, row.suggestion_id]);
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const open = (rows || []).filter((r) => !done.includes(r.suggestion_id));
+  if (!open.length) return null;
+
+  return (
+    <section className="feed">
+      <h2>
+        Same business twice?<span className="count">{open.length}</span>
+      </h2>
+      <p className="muted" style={{ margin: "0 0 12px" }}>
+        These look like one business entered under two names. While they are
+        separate, what each one owes you is counted separately too.
+      </p>
+      {open.map((row) => (
+        <div className="card" key={row.suggestion_id}>
+          <div className="row">
+            <span>Keep</span>
+            <strong>
+              {row.primary_name}
+              {row.primary_records > 0 && (
+                <span className="muted"> · {row.primary_records} records</span>
+              )}
+            </strong>
+          </div>
+          <div className="row">
+            <span>Merge in</span>
+            <strong>
+              {row.duplicate_name}
+              {row.duplicate_records > 0 && (
+                <span className="muted"> · {row.duplicate_records} records</span>
+              )}
+            </strong>
+          </div>
+          <p className="muted" style={{ margin: "8px 0 0" }}>{row.reason}</p>
+          <div className="actions">
+            <button
+              className="primary"
+              disabled={busy === row.suggestion_id}
+              onClick={() => decide(row, true)}
+            >
+              {busy === row.suggestion_id ? "Merging…" : "Same business"}
+            </button>
+            <button
+              disabled={busy === row.suggestion_id}
+              onClick={() => decide(row, false)}
+            >
+              Different
+            </button>
+          </div>
+        </div>
+      ))}
+    </section>
   );
 }

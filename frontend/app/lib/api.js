@@ -142,6 +142,18 @@ export const api = {
   // What we asked, what was answered, and what the Configurator made of it.
   // Readable even when onboarding was never finished.
   business: () => request("/api/tenants/business"),
+  // Parties that look like one business written down twice. Suggestions only.
+  mergeSuggestions: () => request("/api/review/merges"),
+  acceptMerge: (primary_id, duplicate_id) =>
+    request("/api/review/merges/accept", {
+      method: "POST",
+      body: JSON.stringify({ primary_id, duplicate_id }),
+    }),
+  rejectMerge: (primary_id, duplicate_id) =>
+    request("/api/review/merges/reject", {
+      method: "POST",
+      body: JSON.stringify({ primary_id, duplicate_id }),
+    }),
   updateBusiness: (payload) =>
     request("/api/tenants/business", { method: "PUT", body: JSON.stringify(payload) }),
   // Every upload path takes a list. An owner's business is not in one chat.

@@ -39,7 +39,17 @@ from app.models.ingestion import Interaction
 from app.models.orders import Order, OrderLine
 from app.models.party import Party
 from app.services.clock import business_today
+from app.services.query_tool import DECLARATION as QUERY_DECLARATION
+from app.services.query_tool import QueryError, run_query
 from app.services.sql import not_in_subquery
+
+def _query(db, tenant_id, spec: dict) -> dict:
+    """A rejected query is an answer the model can act on, not an exception."""
+    try:
+        return run_query(db, tenant_id, spec)
+    except QueryError as exc:
+        return {"error": str(exc), "rows": []}
+
 
 # Enough to answer with, small enough that six calls do not blow the context.
 LIMIT = 25
@@ -278,6 +288,12 @@ def build_tools(db, tenant_id: uuid.UUID) -> dict[str, dict[str, Any]]:
             "'what rate did I give' and 'what did they pay last time'.",
             {"party": ("str", "Part of a party name."),
              "item": ("str", "Part of an item name or code.")})},
+        # The general one. Everything above answers a question we predicted;
+        # this answers the ones we did not, without letting a model near SQL.
+        "query_records": {
+            "run": lambda **kwargs: _query(db, tenant_id, kwargs),
+            "declaration": QUERY_DECLARATION,
+        },
         "search_messages": {"run": search_messages, "declaration": _decl(
             "search_messages",
             "Keyword search over the owner's own messages. Matches literal words, "

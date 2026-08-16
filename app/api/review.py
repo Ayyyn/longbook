@@ -11,6 +11,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from app.api.deps import TenantDB, TenantId
@@ -247,3 +248,61 @@ def reject(
     return ReviewResult(
         extraction_id=extraction.id, status="rejected", record_type=extraction.record_type
     )
+
+
+class MergeSuggestionOut(BaseModel):
+    suggestion_id: str
+    primary_id: uuid.UUID
+    duplicate_id: uuid.UUID
+    primary_name: str
+    duplicate_name: str
+    reason: str
+    confidence: float
+    primary_records: int
+    duplicate_records: int
+
+
+class MergeDecision(BaseModel):
+    primary_id: uuid.UUID
+    duplicate_id: uuid.UUID
+
+
+@router.get("/merges", response_model=list[MergeSuggestionOut])
+def merge_suggestions(tid: TenantId, db: TenantDB) -> list[MergeSuggestionOut]:
+    """Parties that look like the same business written down twice.
+
+    Suggestions only. Nothing here changes a record; the owner decides, because
+    a wrong merge combines two customers' ledgers and cannot be undone.
+    """
+    from app.services.party_merge import suggest_merges
+
+    return [
+        MergeSuggestionOut(
+            suggestion_id=s.suggestion_id,
+            primary_id=s.primary_id, duplicate_id=s.duplicate_id,
+            primary_name=s.primary_name, duplicate_name=s.duplicate_name,
+            reason=s.reason, confidence=s.confidence,
+            primary_records=s.primary_records, duplicate_records=s.duplicate_records,
+        )
+        for s in suggest_merges(db, tid)
+    ]
+
+
+@router.post("/merges/accept")
+def accept_merge(payload: MergeDecision, tid: TenantId, db: TenantDB) -> dict:
+    """Combine the two, keeping the duplicate's name as an alias."""
+    from app.services.party_merge import merge_parties
+
+    try:
+        return merge_parties(db, tid, payload.primary_id, payload.duplicate_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/merges/reject")
+def dismiss_merge(payload: MergeDecision, tid: TenantId, db: TenantDB) -> dict:
+    """They are different businesses. Stop suggesting this pair."""
+    from app.services.party_merge import reject_merge
+
+    reject_merge(db, tid, payload.primary_id, payload.duplicate_id)
+    return {"dismissed": True}
