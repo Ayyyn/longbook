@@ -107,21 +107,111 @@ function Login() {
       {/* Without this, someone who has never been set up lands on a form
           demanding a token they have no way to get, and there the journey
           ends. */}
-      <div className="empty-state">
-        <h3>New here?</h3>
-        <div className="why">
-          Longbook reads your WhatsApp chats and keeps the orders, payments
-          and outstandings for you — no typing, no new app for your customers.
-        </div>
-        <Link href="/signup" className="button-link">
-          <button className="primary">Set up my business</button>
-        </Link>
-        <p className="muted" style={{ marginBottom: 0 }}>
-          You will need an invite code. Ring{" "}
-          <a href={CONTACT.emailHref}>{CONTACT.email}</a> and we will tell you
-          whether it suits your business.
-        </p>
-      </div>
+      <NewHere />
     </PublicPage>
+  );
+}
+
+// The invite code is the one field an owner cannot fix themselves, so it is
+// asked first and checked on its own. Being told the code is wrong *after*
+// typing a business name, a phone number and an email is a small insult that
+// loses people at the door.
+//
+// The email is taken here too because it is where the access token is sent,
+// and a token nobody received is the single most expensive thing that can go
+// wrong in this flow. Both are handed to /signup so nothing is asked twice.
+function NewHere() {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState("");
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function check() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.checkInvite(code.trim());
+      // sessionStorage, not the URL: a code in a query string ends up in
+      // history, in screenshots and in anything the browser syncs.
+      sessionStorage.setItem("lb-invite", code.trim());
+      sessionStorage.setItem("lb-email", email.trim());
+      router.push("/signup");
+    } catch (err) {
+      setError(
+        err.status === 401
+          ? "That code is not right. Check it against the message we sent you."
+          : err.message,
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="empty-state">
+      <h3>New here?</h3>
+      <div className="why">
+        Longbook keeps track of your orders, payments, customers and
+        commitments, using the records your business already produces. Nothing
+        is typed in twice and nothing changes for your customers.
+      </div>
+
+      {!open ? (
+        <>
+          <button className="primary" onClick={() => setOpen(true)}>
+            Set up my business
+          </button>
+          <p className="muted" style={{ marginBottom: 0 }}>
+            You will need an invite code. Email{" "}
+            <a href={CONTACT.emailHref}>{CONTACT.email}</a> and we will tell you
+            whether it suits your business.
+          </p>
+        </>
+      ) : (
+        <div style={{ textAlign: "left", marginTop: 8 }}>
+          {error && <div className="banner error">{error}</div>}
+
+          <label htmlFor="invite">Invite code</label>
+          <input
+            id="invite"
+            value={code}
+            autoFocus
+            placeholder="the code you were given"
+            onChange={(e) => setCode(e.target.value)}
+          />
+
+          <label htmlFor="invite-email" style={{ marginTop: 12 }}>
+            Your email
+          </label>
+          <input
+            id="invite-email"
+            type="email"
+            value={email}
+            placeholder="you@business.in"
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <p className="muted">
+            Your access token is emailed here the moment your business is
+            created. It is the only copy you get, so use an address you can
+            search later.
+          </p>
+
+          <div className="actions">
+            <button disabled={busy} onClick={() => setOpen(false)}>
+              Back
+            </button>
+            <button
+              className="primary"
+              disabled={busy || !code.trim() || !email.trim()}
+              onClick={check}
+            >
+              {busy ? "Checking…" : "Continue"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

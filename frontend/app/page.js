@@ -31,10 +31,11 @@ export default function Home() {
       </section>
 
       <section className="hero-public">
-        <h1>Nothing in your business should depend on remembering it.</h1>
+        <h1>Your business has a lot going on. Longbook keeps up.</h1>
         <p className="lede">
-          Longbook keeps track of your orders, payments, customers and
-          commitments — and tells you what needs attention.
+          Orders, payments, customers and commitments are scattered across
+          chats, bills and your own memory. Longbook helps small businesses bring them together and
+          turns them into the few things worth doing today.
         </p>
         <p className="lede-sub">
           Works with the records you already keep. No double entry, no new way
@@ -106,7 +107,7 @@ export default function Home() {
           <div className="outcome">
             <h3>Know what to do today</h3>
             <p>
-              The few things that need you — with the record behind each one.
+              The few things that need you, with the record behind each one.
             </p>
           </div>
         </div>
@@ -115,10 +116,10 @@ export default function Home() {
       {/* The differentiator. Given room because it is the only part a
           competitor cannot copy by adding a feature. */}
       <section className="slab">
-        <h2>Made for your business. By learning your business.</h2>
+        <h2>Made for your business. By understanding your business.</h2>
         <p className="lede">
           Every business keeps track of different things. Longbook learns what
-          matters in yours — your products, your units, your pricing, how an
+          matters in yours: your products, your units, your pricing, how an
           order moves, and who you chase.
         </p>
         <div className="trade-grid">
@@ -136,11 +137,6 @@ export default function Home() {
           </div>
         </div>
         <p className="claim">Same Longbook. Different business.</p>
-        <p>
-          Other software asks you to fit its template. This one asks you a few
-          questions about what it found in your own records, then uses your
-          words on screen. If you say <strong>lot</strong>, it says lot.
-        </p>
       </section>
 
       <section className="slab alt" id="how">
@@ -151,7 +147,7 @@ export default function Home() {
             <p>Start with as much or as little history as you like.</p>
           </li>
           <li>
-            <h3>Longbook learns your business</h3>
+            <h3>Longbook understands your business</h3>
             <p>
               It works out what matters and asks only where it needs you. About
               five minutes.
@@ -167,7 +163,7 @@ export default function Home() {
       <section className="slab">
         <h2>See why Longbook flagged it.</h2>
         <p className="lede">
-          Every suggestion comes with the record behind it — the message, the
+          Every suggestion comes with the record behind it. The message, the
           bill, the payment. Tap through and check it yourself.
         </p>
         <p>Where it isn&apos;t sure, it asks instead of guessing.</p>
@@ -176,7 +172,7 @@ export default function Home() {
       <section className="slab alt">
         <h2>Your business stays yours.</h2>
         <p className="lede">
-          Private, stored in India, never used to train AI. Longbook never
+          Private, and never used to train AI. Longbook never
           messages your customers and never acts without you.
         </p>
         <p className="muted">
@@ -187,9 +183,9 @@ export default function Home() {
       <section className="slab">
         <h2>Ask us whether it fits.</h2>
         <p className="lede">
-          We set up each business personally, so access is by invite. Tell us
-          what you sell and how you keep track of it now, and we will tell you
-          straight — including if it is not a fit.
+          We set up every business personally, so access is by invite. Tell us
+          what you sell and how you keep track of it today. We will give you an
+          honest answer, including when the answer is no.
         </p>
         <div className="cta-row">
           <a href={CONTACT.emailHref} className="button-link">
@@ -197,9 +193,8 @@ export default function Home() {
           </a>
         </div>
         <p className="muted">
-          14-day trial · {PRICING.monthly} a month · nothing due up front. See{" "}
-          <Link href="/pricing">what it costs</Link>. Already have a code?{" "}
-          <Link href="/signup">Set up your business</Link>.
+          {PRICING.monthly} a month. See <Link href="/pricing">what it costs</Link>.
+          Already have a code? <Link href="/signup">Set up your business</Link>.
         </p>
       </section>
     </PublicPage>

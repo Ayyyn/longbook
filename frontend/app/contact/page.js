@@ -6,7 +6,7 @@ import { CONTACT } from "../lib/contact";
 
 // No form. A form is a way of not answering, and it hides who you are writing
 // to — which is the one thing someone handing over their order book wants to
-// know. One address, read by the people who built it.
+// know. One address, read by a person rather than a queue.
 export default function Contact() {
   return (
     <PublicPage active="/contact">
@@ -14,8 +14,7 @@ export default function Contact() {
         <h1>Talk to a person</h1>
         <p className="lede">
           There is no contact form on this page and no support queue behind it.
-          Write to the address below and one of the two people who built
-          Longbook reads it.
+          Write to the address below and a person from Longbook reads it.
         </p>
         <div className="cta-row">
           <a href={CONTACT.emailHref} className="button-link">
@@ -33,8 +32,8 @@ export default function Contact() {
           <li>
             <strong>Whether it fits your business.</strong> Tell us what you
             sell and how you keep track of it now, and we will tell you
-            straight. If it is not a fit we will say so rather than sell you a
-            trial.
+            straight. If it is not a fit we will say so rather than take your
+            money.
           </li>
           <li>
             <strong>Getting set up.</strong> Access is by invite while we
@@ -63,11 +62,6 @@ export default function Contact() {
       </section>
 
       <section className="slab alt">
-        <h2>Where we are</h2>
-        <p>
-          Mumbai. The service runs in Google Cloud&apos;s Mumbai region, so
-          your records stay in India.
-        </p>
         <p className="muted">
           Already a customer? <Link href="/login">Sign in</Link>. Have a code?{" "}
           <Link href="/signup">Set up your business</Link>.

@@ -68,7 +68,7 @@ function Today() {
         </header>
         {/* No profile yet means configure() never ran, and configure()
             starts the backfill — so nothing can be reading. */}
-        <SetupIncomplete />
+        <SetupIncomplete held={job?.total || 0} />
         <SignOut />
       </>
     );
@@ -119,7 +119,7 @@ function Today() {
 
       {/* While the backfill runs, say so before showing zeroes — otherwise a
           half-read history is indistinguishable from a dead one. */}
-      {blocked && <SetupIncomplete held={job.total} />}
+      {blocked && <SetupIncomplete held={job?.total || 0} />}
       {working && <BackfillProgress job={job} />}
 
       {/* Money in is the one number an owner opens the app for. */}

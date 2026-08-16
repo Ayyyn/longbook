@@ -128,7 +128,7 @@ function Review() {
       <Shell title="Review">
         {/* No profile yet means configure() never ran, and configure()
             starts the backfill — so nothing can be reading. */}
-        <SetupIncomplete />
+        <SetupIncomplete held={job?.total || 0} />
       </Shell>
     );
   }
@@ -146,7 +146,7 @@ function Review() {
     return (
       <Shell title="Review" subtitle={done ? `${done} cleared just now` : null}>
         {blocked ? (
-          <SetupIncomplete held={job.total} />
+          <SetupIncomplete held={job?.total || 0} />
         ) : working ? (
           <BackfillProgress job={job} />
         ) : done > 0 ? (

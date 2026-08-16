@@ -26,22 +26,44 @@ const sans = Inter({
 export const metadata = {
   metadataBase: new URL("https://longbook.co"),
   title: {
-    default: "Longbook — nothing should depend on remembering it",
+    default: "Longbook — your business has a lot going on",
     template: "%s · Longbook",
   },
+  // Kept in step with the hero on the home page. These are what someone reads
+  // in a WhatsApp forward, which for this audience is where most first
+  // impressions actually happen — so a stale line here is a stale pitch.
   description:
-    "Longbook keeps track of your orders, payments, customers and " +
-    "commitments, and tells you what needs attention. Works with the records " +
-    "you already keep. No double entry, no new way of working.",
+    "Orders, payments, customers and commitments are scattered across chats, " +
+    "bills and your own memory. Longbook brings them together and turns them " +
+    "into the few things worth doing today.",
   openGraph: {
-    title: "Longbook — nothing should depend on remembering it",
+    title: "Your business has a lot going on. Longbook keeps up.",
     description:
-      "Orders, payments, customers and follow-ups, kept together. It learns " +
-      "how your business works instead of making you fit a template.",
+      "Orders, payments, customers and commitments, brought together from the " +
+      "records you already keep. No double entry, no new way of working.",
     url: "https://longbook.co",
     siteName: "Longbook",
     locale: "en_IN",
     type: "website",
+    // JPEG at 1200x630. WebP is not reliably rendered by WhatsApp or LinkedIn
+    // previews, and a card that silently shows no image is worse than a
+    // slightly larger file.
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Nine small businesses side by side: a jeweller, a fabric shop, a warehouse, a chemist, a machine works, a service desk, an electrical shop, a produce market and a hardware store.",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Your business has a lot going on. Longbook keeps up.",
+    description:
+      "Orders, payments, customers and commitments, brought together from the " +
+      "records you already keep. No double entry, no new way of working.",
+    images: ["/og-image.jpg"],
   },
 };
 

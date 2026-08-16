@@ -78,7 +78,7 @@ function Orders() {
       </div>
 
       {setup ? (
-        <SetupIncomplete />
+        <SetupIncomplete held={job?.total || 0} />
       ) : !data ? (
         <div className="empty">Loading…</div>
       ) : data.orders.length === 0 ? (
@@ -87,7 +87,7 @@ function Orders() {
             Nothing is at this stage right now. Try “All” to see every order.
           </Empty>
         ) : blocked ? (
-          <SetupIncomplete held={job.total} />
+          <SetupIncomplete held={job?.total || 0} />
         ) : working ? (
           <BackfillProgress job={job} />
         ) : (

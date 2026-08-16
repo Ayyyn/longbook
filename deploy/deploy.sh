@@ -126,8 +126,13 @@ echo "==> Point the API's CORS and digest links at the deployed dashboard"
 # The ^|^ prefix switches gcloud's delimiter to | so the commas inside
 # CORS_ORIGINS are not read as separate env vars.
 PUBLIC_URL="${PUBLIC_URL:-https://longbook.co}"
+# The tagged preview revision is a different origin from the service itself
+# (preview---service-hash vs service-hash), so leaving it out means every API
+# call from a preview fails CORS and the page reports "failed to fetch".
+# A preview you cannot sign in to is not a preview.
+PREVIEW_URL="$(echo "$WEB_URL" | sed 's|https://|https://preview---|')"
 gcloud run services update textile-api --region="$REGION" \
-  --update-env-vars="^|^DASHBOARD_URL=${PUBLIC_URL}|CORS_ORIGINS=https://longbook.co,https://www.longbook.co,https://textile-ops-prod.web.app,https://textile-ops-prod.firebaseapp.com,${WEB_URL},http://localhost:3000"
+  --update-env-vars="^|^DASHBOARD_URL=${PUBLIC_URL}|CORS_ORIGINS=https://longbook.co,https://www.longbook.co,https://textile-ops-prod.web.app,https://textile-ops-prod.firebaseapp.com,${WEB_URL},${PREVIEW_URL},http://localhost:3000"
 
 echo "==> Digest schedule"
 # 19:00 IST — after the market closes, before the owner sits down with the

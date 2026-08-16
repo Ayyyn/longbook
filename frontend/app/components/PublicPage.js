@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getToken } from "../lib/api";
-import { CONTACT } from "../lib/contact";
 
 // Chrome for the pages a stranger sees. Read on a phone, in daylight, by
 // someone in their fifties who has been doing this trade for thirty years —
@@ -55,14 +54,9 @@ export default function PublicPage({ children, active }) {
 
       {children}
 
+      {/* Links only. The address lives on the contact page and in the calls to
+          action, where someone is actually deciding to get in touch. */}
       <footer className="public-footer">
-        <div className="rows">
-          <a href={CONTACT.emailHref}>{CONTACT.email}</a>
-          <a href={CONTACT.emailHref}>{CONTACT.email}</a>
-        </div>
-        <p>
-          Made in Mumbai. We do not send anything to your customers, ever.
-        </p>
         <div className="rows small">
           {[...links, ["/privacy", "Privacy"], ["/terms", "Terms"]].map(
             ([href, label]) => (

@@ -96,7 +96,7 @@ function Parties() {
       </div>
 
       {setup ? (
-        <SetupIncomplete />
+        <SetupIncomplete held={job?.total || 0} />
       ) : !data ? (
         <div className="empty">Loading…</div>
       ) : data.parties.length === 0 ? (
@@ -106,7 +106,7 @@ function Parties() {
             spelling, or part of the phone number.
           </Empty>
         ) : blocked ? (
-          <SetupIncomplete held={job.total} />
+          <SetupIncomplete held={job?.total || 0} />
         ) : working ? (
           <BackfillProgress job={job} />
         ) : (

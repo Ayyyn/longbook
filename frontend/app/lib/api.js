@@ -155,6 +155,26 @@ export const api = {
     form.append("file", file);
     return request("/api/ingest", { method: "POST", body: form });
   },
+  // The party list during signup. NOT /api/ingest: that one requires a
+  // BusinessProfile, which does not exist until the interview is answered at
+  // the end of setup — so uploading a customer list mid-signup answered 409
+  // "Tenant has no BusinessProfile yet" and looked like the flow was broken.
+  // This endpoint exists precisely to run before /configure.
+  uploadParties: (file) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/api/tenants/parties", { method: "POST", body: form });
+  },
+  // Checks an invite code without creating anything, so it can be asked for
+  // and answered before the owner types anything else.
+  checkInvite: (code) =>
+    request("/api/tenants/invite/check", {
+      method: "POST",
+      // An empty body, not no body: Cloud Run answers a bodyless POST with
+      // 411 Length Required before the app ever sees it.
+      headers: { "Content-Type": "application/json", "X-Signup-Code": code },
+      body: "{}",
+    }),
   estimateUpload: (files) => {
     const form = new FormData();
     [...files].forEach((f) => form.append("files", f));

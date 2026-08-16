@@ -71,7 +71,7 @@ function Activity() {
       <>
         <Header />
         {blocked ? (
-          <SetupIncomplete held={job.total} />
+          <SetupIncomplete held={job?.total || 0} />
         ) : working ? (
           <BackfillProgress job={job} />
         ) : (
@@ -88,7 +88,7 @@ function Activity() {
   return (
     <>
       <Header />
-      {blocked && <SetupIncomplete held={job.total} />}
+      {blocked && <SetupIncomplete held={job?.total || 0} />}
       {working && <BackfillProgress job={job} />}
 
       {/* The four numbers that say whether this is working. Auto-commit

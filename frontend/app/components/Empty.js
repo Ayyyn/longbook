@@ -31,28 +31,27 @@ export default function Empty({ title, children, action, href, onAction }) {
 // answers 409 until a BusinessProfile exists; that is a setup step, not an
 // error, and it must never reach the screen as one.
 export function SetupIncomplete({ held = 0 }) {
-  // Two different situations wear the same title. Nothing uploaded is a
-  // "go and add something" problem. Something uploaded but no profile is the
-  // worse one: the owner has already done the work, is owed an explanation of
-  // why nothing is happening, and needs the way back into the interview —
-  // which is not obvious, because signup looks like a thing you only do once.
-  if (held > 0) {
-    return (
-      <Empty title="Setup isn't finished" action="Finish setup" href="/signup">
-        {held} {held === 1 ? "item is" : "items are"} saved and waiting, but
-        nothing is being read yet. Longbook needs a few answers about your
-        business first — it reads your records against how <em>you</em> work,
-        so it cannot start until it knows that. It takes about five minutes,
-        and everything you have already added is picked up straight after.
-      </Empty>
-    );
-  }
+  // One message, everywhere, whatever the screen. A business that has not
+  // finished setup has exactly one thing to do, and it is never "add data":
+  // the questions come first now, and the reading cannot start without them.
+  //
+  // The old version decided between "add your data" and "finish setup" from a
+  // prop most callers forgot to pass, so screens disagreed with each other and
+  // one of them told an owner who had already uploaded twenty messages to go
+  // and add some data before setup could finish. Nothing here is optional or
+  // caller-dependent any more.
   return (
-    <Empty title="Setup isn't finished" action="Add your data" href="/add">
-      Your business is created, but nothing has been read yet. Add a WhatsApp
-      chat export, a Tally or Excel party list, or a photo of a bill — orders,
-      payments and parties all come from those. This screen fills in on its
-      own once something has been read.
+    <Empty title="Setup isn't finished" action="Finish setup" href="/signup">
+      Longbook needs a few answers about how your business works before it can
+      read anything. It takes about five minutes, and you can stop and come
+      back to it.
+      {held > 0 && (
+        <>
+          {" "}
+          The {held} {held === 1 ? "item" : "items"} you have already added are
+          saved, and will be read as soon as setup is done.
+        </>
+      )}
     </Empty>
   );
 }

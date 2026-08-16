@@ -27,28 +27,10 @@ export default function Pricing() {
             <div className="per">per year, paid up front</div>
             <p>About ₹667 a month — two months free.</p>
           </div>
-          <div className="price-card">
-            <div className="amount">{PRICING.setup}</div>
-            <div className="per">one time, to set you up</div>
-            <p>
-              We read your history with you, check what it got right, and
-              correct it before you rely on it.
-            </p>
-          </div>
         </div>
         <p className="muted">
-          Prices are in rupees and exclude any taxes that apply. Payment is by
-          cash, cheque or bank transfer, arranged by email. There is
-          nothing to pay for inside the app and we never ask for card details.
-        </p>
-      </section>
-
-      <section className="slab alt">
-        <h2>14 days free, everything working</h2>
-        <p>
-          New businesses get a full 14-day trial — your real history read in,
-          the daily summary arriving, every screen open. Nothing is due until
-          you have seen it work on your own data.
+          There is nothing to pay for inside the app and we never ask for card
+          details.
         </p>
       </section>
 
@@ -151,10 +133,6 @@ export default function Pricing() {
           <li>
             Annual prepaid is refunded pro rata for whole unused months if you
             leave in the first six.
-          </li>
-          <li>
-            Setup fees are not refundable once the setup is done, because the
-            work is done.
           </li>
           <li>
             <strong>Your records are not deleted if you stop paying.</strong>{" "}

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import PublicPage from "../components/PublicPage";
-import { CONTACT } from "../lib/contact";
 
 // Short and honest. Nobody buys because of an about page, but a few people
 // refuse to buy without one — they want to know who is holding their books.
@@ -90,18 +89,6 @@ export default function About() {
         </ul>
       </section>
 
-      <section className="slab alt">
-        <h2>Built in Mumbai</h2>
-        <p>
-          The whole thing runs in Google Cloud&apos;s Mumbai region, which is
-          also where we are. Your records do not leave the country.
-        </p>
-        <div className="cta-row">
-          <a href={CONTACT.emailHref} className="button-link">
-            <button className="primary big">Email {CONTACT.email}</button>
-          </a>
-        </div>
-      </section>
     </PublicPage>
   );
 }

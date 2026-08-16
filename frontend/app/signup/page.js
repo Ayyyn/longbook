@@ -14,9 +14,9 @@ import { CONTACT } from "../lib/contact";
 // BL-4471 in your chats — do those matter?" is not.
 const STEPS = [
   "Your business",
-  "Your data",
   "About your work",
-  "A few more",
+  "Your data",
+  "What we found",
   "Done",
 ];
 
@@ -52,6 +52,22 @@ export default function SignupPage() {
   // with their uploads sitting unread and no route back in. If we are already
   // signed in as a business that never finished, resume instead of starting.
   const [resuming, setResuming] = useState(true);
+
+  // The invite gate on /login checks the code and takes the email before
+  // anyone is asked for anything else, and hands both over here. Asking for
+  // either a second time would be the flow forgetting what it was just told.
+  const [gated, setGated] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const invite = sessionStorage.getItem("lb-invite");
+    const email = sessionStorage.getItem("lb-email");
+    if (invite) {
+      setCode(invite);
+      setGated(true);
+    }
+    if (email) setDetails((d) => ({ ...d, owner_email: d.owner_email || email }));
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -64,7 +80,41 @@ export default function SignupPage() {
         if (!cancelled && me && !me.onboarded_at) {
           setCreated({ business_name: me.business_name, token: null });
           setDetails((d) => ({ ...d, business_name: me.business_name }));
-          setStep(1);
+
+          // Land on the first thing still outstanding, not always the start.
+          // Whatever was answered before comes back into the form, so coming
+          // back is picking up rather than starting again.
+          const [saved, job] = await Promise.all([
+            api.business().catch(() => null),
+            api.latestJob().catch(() => null),
+          ]);
+          const prior = {};
+          for (const row of saved?.answers || []) {
+            if (row.answer) prior[row.question] = row.answer;
+          }
+
+          const set = await api.interview("universal").catch(() => ({ questions: [] }));
+          const universalQs = set.questions || [];
+          setUniversal(universalQs);
+          // Re-key the saved answers onto the question keys the form uses.
+          const restored = {};
+          for (const q of universalQs) {
+            if (prior[q.question] != null) restored[q.key] = prior[q.question];
+          }
+          if (Object.keys(restored).length) setAnswers((a) => ({ ...a, ...restored }));
+
+          const answeredUniversal = universalQs.some((q) => prior[q.question] != null);
+          const hasData = (job?.total || 0) > 0;
+
+          if (!cancelled) {
+            if (!answeredUniversal) setStep(1);
+            else if (!hasData) setStep(2);
+            else {
+              // Data is in and the first questions are answered: the only thing
+              // left is the set written from those records.
+              await loadGenerated();
+            }
+          }
         }
       } catch {
         // A stale or rejected token just means the normal flow applies.
@@ -88,9 +138,37 @@ export default function SignupPage() {
       setToken(body.token);
       setPhone(details.owner_phone);
       setCreated(body);
+      const set = await api.interview("universal").catch(() => ({ questions: [] }));
+      setUniversal(set.questions || []);
       setStep(1);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Saved the moment they are given, not held until configure. Somebody who
+  // answers three questions and closes the tab should find those three answers
+  // waiting, not an empty form.
+  async function saveAnswers(questions) {
+    const prose = {};
+    for (const q of questions) {
+      const value = answers[q.key];
+      if (value === null || value === undefined || value === "") continue;
+      prose[q.question] = String(value);
+    }
+    if (Object.keys(prose).length) {
+      await api.updateBusiness({ answers: prose }).catch(() => {});
+    }
+  }
+
+  async function saveUniversalAndContinue() {
+    setBusy(true);
+    setError(null);
+    try {
+      await saveAnswers(universal);
+      setStep(2);
     } finally {
       setBusy(false);
     }
@@ -108,12 +186,10 @@ export default function SignupPage() {
       }
       if (partyFile) {
         setNote("Reading your customer list…");
-        await api.uploadIngest(partyFile);
+        await api.uploadParties(partyFile);
       }
       setNote(null);
-      const set = await api.interview("universal").catch(() => ({ questions: [] }));
-      setUniversal(set.questions || []);
-      setStep(2);
+      await loadGenerated();
     } catch (err) {
       setNote(null);
       setError(err.message);
@@ -145,6 +221,14 @@ export default function SignupPage() {
       setBusy(false);
       setStep(3);
     }
+  }
+
+  // Answers are saved on the way out of every question step, so backing up and
+  // changing one does not mean re-typing the rest.
+  async function backTo(target) {
+    await saveAnswers([...universal, ...generated]);
+    setError(null);
+    setStep(target);
   }
 
   async function finish() {
@@ -238,27 +322,38 @@ export default function SignupPage() {
           details={details}
           setDetails={setDetails}
           busy={busy}
-          onNext={createBusiness}
+          gated={gated}
+          locked={Boolean(created)}
+          onNext={created ? () => setStep(1) : createBusiness}
         />
       )}
 
-      {step === 1 && <DataStep busy={busy} onSubmit={sendData} />}
-
-      {step === 2 && (
+      {/* Questions first, then data. The three universal ones need nothing to
+          have been read, so asking them up front means setup starts with the
+          owner telling us about their business rather than handing over files
+          to a system that has not said what it is for. The second set cannot
+          move: those questions are written *from* the messages, which is the
+          whole point of them. */}
+      {step === 1 && (
         <QuestionStep
           title="Tell us about your work"
-          intro="Three quick ones, then we will ask about what we found in your messages."
+          intro="Three quick ones. Nothing is read until you have answered them."
           questions={universal}
           answers={answers}
           setAnswers={setAnswers}
           busy={busy}
-          onNext={loadGenerated}
+          onNext={saveUniversalAndContinue}
+          onBack={() => setStep(0)}
         />
+      )}
+
+      {step === 2 && (
+        <DataStep busy={busy} onSubmit={sendData} onBack={() => backTo(1)} />
       )}
 
       {step === 3 && (
         <QuestionStep
-          title={generated.length ? "A few more, from your own messages" : "Nearly done"}
+          title={generated.length ? "A few more, from your own records" : "Nearly done"}
           intro={
             generated.length
               ? "These come from what we just read, so you can correct anything we got wrong."
@@ -270,6 +365,7 @@ export default function SignupPage() {
           busy={busy}
           nextLabel="Finish setup"
           onNext={finish}
+          onBack={() => backTo(2)}
         />
       )}
 
@@ -328,41 +424,78 @@ function Working({ title, steps, expect }) {
   );
 }
 
-function BusinessStep({ code, setCode, details, setDetails, busy, onNext }) {
+function BusinessStep({ code, setCode, details, setDetails, busy, onNext, gated, locked }) {
   const fields = [
     ["business_name", "Business name", "", true],
     ["owner_name", "Your name", "", false],
     ["owner_phone", "Your phone number", "98765 43210", true],
-    ["owner_email", "Your email", "you@business.in", false],
+    ["owner_email", "Your email", "you@business.in", true],
     ["city", "City", "", false],
   ];
-  const ready = code.trim() && details.business_name.trim() && details.owner_phone.trim();
+  const ready =
+    code.trim() &&
+    details.business_name.trim() &&
+    details.owner_phone.trim() &&
+    details.owner_email.trim();
+
+  if (locked) {
+    return (
+      <>
+        <div className="card">
+          <h3>Your business</h3>
+          {fields.map(([key, label]) => (
+            <div className="row" key={key}>
+              <span>{label}</span>
+              <strong>{details[key] || "not given"}</strong>
+            </div>
+          ))}
+        </div>
+        <p className="muted">
+          Your business is already created, so these cannot be changed here.
+          Email <a href={CONTACT.emailHref}>{CONTACT.email}</a> if something is
+          wrong and we will correct it.
+        </p>
+        <div className="actions">
+          <button className="primary" style={{ width: "100%" }} onClick={onNext}>
+            Continue
+          </button>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
-      <div className="know">
-        <h3>You need an invite code</h3>
-        <p style={{ margin: "8px 0 0", lineHeight: 1.6 }}>
-          We are not open to everyone yet. We set up each business ourselves,
-          so we can only take a few at a time.
-        </p>
-        <p style={{ margin: "10px 0 0", lineHeight: 1.6 }}>
-          If you have spoken to us, your code was given to you then. If
-          not, <a href={CONTACT.emailHref}>email {CONTACT.email}</a> or{" "}{" "}
-          and we will tell you honestly whether it suits how you work.
-        </p>
-      </div>
+      {!gated && (
+        <div className="know">
+          <h3>You need an invite code</h3>
+          <p style={{ margin: "8px 0 0", lineHeight: 1.6 }}>
+            We help set up each business ourselves initially. If you have
+            spoken to us, your code was given to you then. If not,{" "}
+            <a href={CONTACT.emailHref}>email {CONTACT.email}</a> and we will
+            reach out very soon.
+          </p>
+        </div>
+      )}
 
       <div className="card">
-        <label htmlFor="code">Invite code</label>
-        <input
-          id="code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="the code you were given"
-          autoComplete="off"
-          spellCheck={false}
-        />
+        {gated ? (
+          <p className="muted" style={{ margin: "0 0 4px" }}>
+            Invite code accepted. Now tell us about the business.
+          </p>
+        ) : (
+          <>
+            <label htmlFor="code">Invite code</label>
+            <input
+              id="code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="the code you were given"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </>
+        )}
 
         {fields.map(([key, label, placeholder, required]) => (
           <div key={key}>
@@ -404,7 +537,7 @@ function BusinessStep({ code, setCode, details, setDetails, busy, onNext }) {
 }
 
 // Data first. Everything after this is written from what lands here.
-function DataStep({ busy, onSubmit }) {
+function DataStep({ busy, onSubmit, onBack }) {
   const [chats, setChats] = useState([]);
   const [partyFile, setPartyFile] = useState(null);
   const partyRef = useRef(null);
@@ -479,9 +612,14 @@ function DataStep({ busy, onSubmit }) {
       </div>
 
       <div className="actions">
+        {onBack && (
+          <button disabled={busy} onClick={onBack}>
+            Back
+          </button>
+        )}
         <button
           className="primary"
-          style={{ width: "100%" }}
+          style={{ width: onBack ? undefined : "100%" }}
           disabled={busy || (!chats.length && !partyFile)}
           onClick={() => onSubmit(chats, partyFile)}
         >
@@ -505,6 +643,7 @@ function QuestionStep({
   setAnswers,
   busy,
   onNext,
+  onBack,
   nextLabel = "Continue",
 }) {
   const set = (key, value) => setAnswers({ ...answers, [key]: value });
@@ -585,9 +724,14 @@ function QuestionStep({
       ))}
 
       <div className="actions">
+        {onBack && (
+          <button disabled={busy} onClick={onBack}>
+            Back
+          </button>
+        )}
         <button
           className="primary"
-          style={{ width: "100%" }}
+          style={{ width: onBack ? undefined : "100%" }}
           disabled={busy}
           onClick={onNext}
         >
@@ -595,7 +739,8 @@ function QuestionStep({
         </button>
       </div>
       <p className="muted" style={{ textAlign: "center" }}>
-        You can skip anything you are not sure about.
+        You can skip anything you are not sure about. Answers are saved as you
+        go, so you can stop and come back.
       </p>
     </>
   );
