@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import TokenGate from "../components/TokenGate";
 import VoiceNote from "../components/VoiceNote";
@@ -22,11 +22,48 @@ function Chat() {
   const [suggestions, setSuggestions] = useState([]);
   const [mic, setMic] = useState(false);
   const [error, setError] = useState(null);
+  const [conversationId, setConversationId] = useState(null);
+  const [past, setPast] = useState([]);
+  const [showPast, setShowPast] = useState(false);
   const bottom = useRef(null);
 
   useEffect(() => {
     api.chatSuggestions().then((s) => setSuggestions(s.questions)).catch(() => {});
   }, []);
+
+  const loadPast = useCallback(async () => {
+    setPast(await api.conversations().catch(() => []));
+  }, []);
+  useEffect(() => {
+    loadPast();
+  }, [loadPast]);
+
+  // Opening an old thread replaces what is on screen, citations and all —
+  // the answers were stored with their sources, so the proof survives too.
+  async function open(id) {
+    setShowPast(false);
+    setError(null);
+    try {
+      const stored = await api.conversation(id);
+      setTurns(stored.map((t) => ({
+        role: t.role,
+        text: t.text,
+        answered: t.answered,
+        sources: t.sources || [],
+        latency_ms: t.latency_ms,
+        cost_usd: t.cost_usd,
+      })));
+      setConversationId(id);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function startNew() {
+    setTurns([]);
+    setConversationId(null);
+    setShowPast(false);
+  }
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth" });
@@ -39,11 +76,15 @@ function Chat() {
     setError(null);
     // The history sent is what is on screen, so follow-ups like "what about
     // last year" resolve against what was actually said.
-    const history = turns.map((t) => ({ role: t.role, text: t.text }));
+    // Sent only for a brand new thread; once it has an id the server owns the
+    // history, which is what lets the same thread continue on another device.
+    const history = conversationId
+      ? []
+      : turns.map((t) => ({ role: t.role, text: t.text }));
     setTurns((t) => [...t, { role: "you", text: asked }]);
     setBusy(true);
     try {
-      const body = await api.ask(asked, history);
+      const body = await api.ask(asked, conversationId, history);
       setTurns((t) => [
         ...t,
         {
@@ -55,6 +96,10 @@ function Chat() {
           cost_usd: body.cost_usd,
         },
       ]);
+      if (body.conversation_id) {
+        setConversationId(body.conversation_id);
+        loadPast();
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -94,6 +139,46 @@ function Chat() {
         <h1>Ask</h1>
         <div className="sub">Questions about your own records, with the proof</div>
       </header>
+
+      {past.length > 0 && (
+        <div className="chat-history">
+          <button className="link-button" onClick={() => setShowPast((v) => !v)}>
+            {showPast ? "Hide" : "Earlier questions"} ({past.length})
+          </button>
+          {turns.length > 0 && (
+            <button className="link-button" onClick={startNew}>
+              New question
+            </button>
+          )}
+        </div>
+      )}
+
+      {showPast && (
+        <div className="card">
+          {past.map((c) => (
+            <div className="row" key={c.id}>
+              <button
+                className="link-button"
+                style={{ textAlign: "left" }}
+                onClick={() => open(c.id)}
+              >
+                {c.title || "Untitled"}
+              </button>
+              <button
+                className="link-button"
+                aria-label="Delete this conversation"
+                onClick={async () => {
+                  await api.deleteConversation(c.id).catch(() => {});
+                  if (c.id === conversationId) startNew();
+                  loadPast();
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {error && <div className="banner error">{error}</div>}
 
@@ -181,7 +266,7 @@ function Chat() {
 
       {turns.length > 0 && (
         <p className="muted" style={{ textAlign: "center" }}>
-          <button className="link-button" onClick={() => setTurns([])}>
+          <button className="link-button" onClick={startNew}>
             Start again
           </button>
           {" · "}

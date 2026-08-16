@@ -1479,3 +1479,12 @@ button.primary:disabled {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Past conversations, above the thread. Kept to one line: this is a phone,
+   and a sidebar would cost more room than the answers it indexes. */
+.chat-history {
+  display: flex;
+  gap: var(--s4);
+  align-items: center;
+  margin-bottom: var(--s3);
+}

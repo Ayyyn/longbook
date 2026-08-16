@@ -239,8 +239,22 @@ export const api = {
   agentTrace: (traceId) => request(`/api/agents/trace/${traceId}`),
 
   chatSuggestions: () => request("/api/chat/suggestions"),
-  ask: (question, history = []) =>
-    request("/api/chat", { method: "POST", body: JSON.stringify({ question, history }) }),
+  // conversation_id makes the thread the server's business rather than the
+  // tab's: history is loaded from it, so the same thread reads correctly from
+  // another phone tomorrow.
+  ask: (question, conversationId = null, history = []) =>
+    request("/api/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        question,
+        history,
+        ...(conversationId ? { conversation_id: conversationId } : {}),
+      }),
+    }),
+  conversations: () => request("/api/chat/conversations"),
+  conversation: (id) => request(`/api/chat/conversations/${id}`),
+  deleteConversation: (id) =>
+    request(`/api/chat/conversations/${id}`, { method: "DELETE" }),
   askVoice: (file) => {
     const form = new FormData();
     form.append("file", file);
