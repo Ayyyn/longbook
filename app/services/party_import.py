@@ -54,6 +54,14 @@ COLUMN_ALIASES = {
     "kind": ("kind", "type", "partytype", "category"),
 }
 
+# How far down to look for the header before giving up.
+HEADER_SEARCH_ROWS = 15
+
+# How much of each sheet the mapper is shown when the deterministic
+# pass finds nothing. Kept small: this is a sample, not the data.
+SAMPLE_ROWS = 12
+SAMPLE_COLS = 20
+
 OPENING_INVOICE_NO = "OPENING"
 
 
@@ -190,57 +198,164 @@ def _column_map(header: tuple) -> dict[str, int]:
     return found
 
 
-def parse_party_excel(path: Path) -> list[PartySeed]:
-    """Read a customer list. Column order and casing are the shop's business."""
+def _sheet_sample(sheet, rows: int, cols: int) -> list[list]:
+    """The first few rows of a sheet, for the model to look at."""
+    out: list[list] = []
+    for index, row in enumerate(sheet.iter_rows(values_only=True)):
+        if index >= rows:
+            break
+        out.append([("" if c is None else str(c))[:60] for c in row[:cols]])
+    return out
+
+
+def _seeds_from_grid(grid: list[tuple], columns: dict[str, int], start_row: int) -> list[PartySeed]:
+    """Read parties out of already-loaded rows using a column mapping."""
+    def cell(row, key):
+        index = columns.get(key)
+        return row[index] if index is not None and index < len(row) else None
+
+    seeds: list[PartySeed] = []
+    for row in grid[start_row:]:
+        name = _clean(cell(row, "name"))
+        if not name:
+            continue
+        kind = (_clean(cell(row, "kind")) or "customer").lower()
+        seeds.append(
+            PartySeed(
+                name=name,
+                phone=_clean(cell(row, "phone")),
+                city=_clean(cell(row, "city")),
+                gstin=_clean(cell(row, "gstin")),
+                kind="supplier" if kind.startswith("suppl") else "customer",
+                credit_days=_credit_days(cell(row, "credit_days")),
+                outstanding=_number(cell(row, "outstanding")),
+            )
+        )
+    return seeds
+
+
+def parse_party_excel(path: Path, db=None, tenant_id: uuid.UUID | None = None) -> list[PartySeed]:
+    """Read a customer list. Column order, casing and sheet order are the shop's business.
+
+    Two passes, cheapest first. The deterministic one tries every sheet against
+    the known heading spellings and costs nothing. Only when every sheet fails
+    is the model asked where the party list is — because a book whose customer
+    list is the third sheet under a title block is a normal book, not a broken
+    one, and refusing it taught the owner that the product is fussy.
+    """
     from openpyxl import load_workbook
 
     workbook = load_workbook(path, read_only=True, data_only=True)
     try:
-        sheet = workbook.active
-        rows = sheet.iter_rows(values_only=True)
-        header = next(rows, None)
-        if header is None:
-            return []
+        sheets = list(workbook.worksheets)
 
-        columns = _column_map(header)
-        if "name" not in columns:
-            raise ValueError(
-                "No name column found. Expected one of: "
-                + ", ".join(COLUMN_ALIASES["name"][:5])
-            )
+        # --- pass one: score every sheet that could be a party list --------
+        # First-match-wins is wrong here. An invoice sheet has a "Party"
+        # column too, and picking it yields one row per *invoice* — the same
+        # customer five times, and four sheets of real customers ignored.
+        # So gather every candidate and rank them.
+        samples: list[dict] = []
+        candidates: list[tuple[float, list[PartySeed]]] = []
 
-        def cell(row, key):
-            index = columns.get(key)
-            return row[index] if index is not None and index < len(row) else None
+        for sheet in sheets:
+            grid = list(sheet.iter_rows(values_only=True))
+            samples.append({"name": sheet.title, "rows": [
+                [("" if c is None else str(c))[:60] for c in row[:SAMPLE_COLS]]
+                for row in grid[:SAMPLE_ROWS]
+            ]})
 
-        seeds: list[PartySeed] = []
-        for row in rows:
-            name = _clean(cell(row, "name"))
-            if not name:
-                continue
-            kind = (_clean(cell(row, "kind")) or "customer").lower()
-            seeds.append(
-                PartySeed(
-                    name=name,
-                    phone=_clean(cell(row, "phone")),
-                    city=_clean(cell(row, "city")),
-                    gstin=_clean(cell(row, "gstin")),
-                    kind="supplier" if kind.startswith("suppl") else "customer",
-                    credit_days=_credit_days(cell(row, "credit_days")),
-                    outstanding=_number(cell(row, "outstanding")),
+            for index, row in enumerate(grid[:HEADER_SEARCH_ROWS]):
+                columns = _column_map(row)
+                if "name" not in columns:
+                    continue
+                seeds = _seeds_from_grid(grid, columns, index + 1)
+                if not seeds:
+                    continue
+
+                score = 0.0
+                # A sheet that says what it is, is usually telling the truth.
+                title = re.sub(r"[^a-z]", "", sheet.title.lower())
+                if any(w in title for w in
+                       ("customer", "party", "ledger", "supplier", "vendor",
+                        "master", "account", "client")):
+                    score += 2.0
+                if any(w in title for w in ("invoice", "bill", "sale", "purchase",
+                                            "stock", "item", "payment", "voucher")):
+                    score -= 2.0
+                # One row per party: a party list has distinct names, a
+                # transaction list repeats them.
+                names = [seed.name.lower() for seed in seeds]
+                score += 2.0 * (len(set(names)) / len(names))
+                # Columns only a party list tends to carry.
+                score += sum(0.5 for f in ("phone", "gstin", "credit_days", "city")
+                             if f in columns)
+                candidates.append((score, seeds))
+                break
+
+        candidates.sort(key=lambda c: c[0], reverse=True)
+        # Confident only when there is a clear winner. A near-tie means two
+        # sheets look equally like the party list, which is exactly when a
+        # human eye — or the model — is worth the call.
+        if candidates and (
+            len(candidates) == 1 or candidates[0][0] - candidates[1][0] >= 1.0
+        ) and candidates[0][0] >= 2.0:
+            return candidates[0][1]
+
+        # --- pass two: ask where it is -------------------------------------
+        if db is not None and tenant_id is not None:
+            from app.agents.sheet_mapper import SheetMapper
+
+            decision = SheetMapper(db, tenant_id).execute({"sheets": samples})
+            mapped = decision.output or {}
+            if mapped.get("found"):
+                target = next(
+                    (sh for sh in sheets if sh.title == mapped.get("sheet")),
+                    sheets[0] if sheets else None,
                 )
-            )
-        return seeds
+                if target is not None:
+                    grid = list(target.iter_rows(values_only=True))
+                    header_row = mapped.get("header_row", -1)
+                    seeds = _seeds_from_grid(
+                        grid, mapped["columns"], max(0, header_row + 1)
+                    )
+                    if seeds:
+                        return seeds
+
+        # The model declined, failed, or was never available. Fall back to the
+        # deterministic guess ONLY if it looked like a party list on its own
+        # merits. A negative score means the only thing we could read was an
+        # invoice sheet, and returning one row per invoice as the customer
+        # list is worse than saying we could not read the file.
+        if candidates and candidates[0][0] >= 1.0:
+            return candidates[0][1]
+
+        seen = sorted({
+            str(c).strip()
+            for sample in samples for row in sample["rows"] for c in row
+            if c not in (None, "")
+        })[:12]
+        raise ValueError(
+            "No list of customers or suppliers found in this workbook. One "
+            "column needs to hold party names — headings like: "
+            + ", ".join(COLUMN_ALIASES["name"])
+            + (f". What was found instead: {', '.join(seen)}" if seen
+               else ". The workbook looks empty.")
+        )
     finally:
         workbook.close()
 
 
-def parse_upload(filename: str | None, path: Path) -> tuple[str, list[PartySeed]]:
+def parse_upload(
+    filename: str | None, path: Path, db=None, tenant_id: uuid.UUID | None = None
+) -> tuple[str, list[PartySeed]]:
+    """db and tenant_id are optional so the parsers stay unit-testable without
+    a session. Passing them enables the model fallback for oddly-shaped books;
+    without them the deterministic pass is all there is."""
     suffix = Path(filename or "").suffix.lower()
     if suffix == ".xml":
         return "tally", parse_tally_xml(path.read_bytes())
     if suffix in {".xlsx", ".xlsm"}:
-        return "excel", parse_party_excel(path)
+        return "excel", parse_party_excel(path, db=db, tenant_id=tenant_id)
     raise ValueError(
         f"Unsupported party list '{suffix or filename}'. "
         "Send a Tally XML master export or an .xlsx customer list."

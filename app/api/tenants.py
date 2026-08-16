@@ -122,6 +122,23 @@ def require_signup_code(x_signup_code: Annotated[str | None, Header()] = None) -
         raise HTTPException(401, "That signup code is not valid.")
 
 
+@router.post("/invite/check", status_code=200,
+             dependencies=[Depends(require_signup_code)])
+def check_invite() -> dict[str, bool]:
+    """Is this invite code good? Nothing is created, nothing is stored.
+
+    Exists so the code can be checked before an owner is asked for anything
+    else. Being told the code is wrong after typing a business name, a phone
+    number and an email is the kind of small insult that loses people at the
+    door — and the code is the one field they cannot fix themselves.
+
+    Rate limiting is the same as signup's: the code is a shared secret, so a
+    checking endpoint is a guessing oracle. The 401 from require_signup_code
+    is deliberately identical whether the code is wrong or absent.
+    """
+    return {"valid": True}
+
+
 @router.post("/signup", response_model=TenantCreated, status_code=201,
              dependencies=[Depends(require_signup_code)])
 def signup(payload: TenantCreate) -> TenantCreated:
@@ -261,7 +278,7 @@ def import_party_list(
     """
     tmp_path = save_upload(file)
     try:
-        source, seeds = parse_upload(file.filename, tmp_path)
+        source, seeds = parse_upload(file.filename, tmp_path, db=db, tenant_id=tid)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     finally:
