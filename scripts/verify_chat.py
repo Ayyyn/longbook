@@ -154,16 +154,18 @@ print("\n-- the answer is checked, not trusted --")
 
 import app.agents.analyst as analyst_module  # noqa: E402
 
-# Claims a fact citing a reference that does not exist.
-def lying(*, model, system, user, **kwargs):
+# Claims a fact citing a reference that does not exist. The analyst now drives
+# tools rather than a single JSON call, so the stub stands in for the tool loop
+# and returns (answer, trace, usage).
+def lying(*, model, system, user, tools=None, history=None, max_steps=6):
     return (
-        {"answer": "Bharat Fabrics owes Rs 91,000 [P9].", "citations": ["P9"],
-         "answered": True},
+        "Bharat Fabrics owes Rs 91,000 [P9].",
+        [],
         {"input_tokens": 10, "output_tokens": 5, "cost_usd": 0.0001},
     )
 
 
-analyst_module.generate_json = lying
+analyst_module.generate_with_tools = lying
 from app.agents.analyst import Analyst  # noqa: E402
 
 with tenant_session(A) as db:
@@ -174,15 +176,25 @@ check("  and the claim is withdrawn rather than shown uncited",
 check("  the invention is recorded", decision.output["invented_citations"], ["P9"])
 
 
-def honest(*, model, system, user, **kwargs):
+# Actually calls a lookup, so the reference it cites is one the wrapper really
+# issued. That exercises the whole path: tool -> row -> short token -> citation
+# -> source with a record id the UI can link to.
+def honest(*, model, system, user, tools=None, history=None, max_steps=6):
+    rows = tools["outstanding"]["run"]()["rows"]
+    trace = [{"tool": "outstanding", "args": {}, "rows": len(rows)}]
+    if not rows:
+        # A tenant with nothing in it: the lookup ran and came back empty, so
+        # the honest answer names no figure and cites nothing.
+        return ("There is nothing on record for this business yet.", trace,
+                {"input_tokens": 10, "output_tokens": 5, "cost_usd": 0.0001})
     return (
-        {"answer": "Ashok Textiles owes Rs 25,000 [P1].", "citations": ["P1"],
-         "answered": True},
+        f"Ashok Textiles owes Rs 25,000 [{rows[0]['ref']}].",
+        trace,
         {"input_tokens": 10, "output_tokens": 5, "cost_usd": 0.0001},
     )
 
 
-analyst_module.generate_json = honest
+analyst_module.generate_with_tools = honest
 with tenant_session(A) as db:
     good = Analyst(db, A).run({"question": "who owes me the most"})
 check("a real citation is kept", good.output["answered"], True)

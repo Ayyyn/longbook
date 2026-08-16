@@ -1,12 +1,18 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
-pydantic==2.10.4
+# google-genai 2.x requires >=2.12.5. This is the version the verify
+# suite actually runs against; 2.10.4 was pinned and locally superseded,
+# so the pin was describing an environment nobody was testing on.
+pydantic==2.13.4
 pydantic-settings==2.7.0
 sqlalchemy==2.0.36
 psycopg[binary]==3.2.3
 alembic==1.14.0
 langgraph==0.2.60
-google-genai==0.8.0
+# 2.x is required for tool calling on Gemini 3.x: the 0.8 client does
+# not carry thought signatures back on a function-call turn, and the
+# API rejects the follow-up with INVALID_ARGUMENT.
+google-genai==2.18.1
 google-cloud-storage==2.19.0
 google-cloud-bigquery==3.27.0
 openpyxl==3.1.5
@@ -17,4 +23,6 @@ python-multipart==0.0.20
 pyyaml==6.0.2
 # TestClient in scripts/verify_*.py. Transitive via the Google SDKs today,
 # declared so the verification scripts do not depend on that staying true.
-httpx==0.27.2
+# Bumped with google-genai 2.x, which requires >=0.28. Nothing in app/
+# imports httpx directly; it is here for TestClient in the verify scripts.
+httpx==0.28.1

@@ -167,3 +167,101 @@ def generate_json(
 
 def _mime(kind: str) -> str:
     return {"audio": "audio/ogg", "image": "image/jpeg", "document": "application/pdf"}[kind]
+
+
+def generate_with_tools(
+    *,
+    model: str,
+    system: str,
+    user: str,
+    tools: dict[str, dict[str, Any]],
+    history: list[dict[str, str]] | None = None,
+    max_steps: int = 6,
+) -> tuple[str, list[dict[str, Any]], dict]:
+    """Let the model decide what to look up, instead of guessing in advance.
+
+    `tools` maps a name to {"declaration": FunctionDeclaration, "run": callable}.
+    The callable receives only the arguments the model supplied; the database
+    session and tenant id are closed over by the caller and are never
+    reachable from a prompt. That boundary is the whole security story here:
+    the model chooses *which question to ask*, never *whose data to ask it of*.
+
+    Returns (answer_text, trace, usage) where trace is the ordered list of
+    {tool, args, result_summary} — so an answer can be audited to the lookups
+    behind it, the same way an extraction can be audited to its window.
+
+    Bounded by max_steps because a loop that can call tools can also loop.
+    """
+    declarations = [spec["declaration"] for spec in tools.values()]
+    config = types.GenerateContentConfig(
+        system_instruction=system,
+        temperature=0.1,
+        tools=[types.Tool(function_declarations=declarations)],
+        # Off: the loop is explicit so every call is logged and counted.
+        automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+    )
+
+    contents: list[Any] = []
+    for turn in history or []:
+        role = "model" if turn.get("role") == "assistant" else "user"
+        contents.append(types.Content(
+            role=role, parts=[types.Part.from_text(text=turn.get("content", ""))]
+        ))
+    contents.append(types.Content(role="user", parts=[types.Part.from_text(text=user)]))
+
+    trace: list[dict[str, Any]] = []
+    totals = {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0, "steps": 0}
+
+    for _ in range(max_steps):
+        _pace()
+        resp = client().models.generate_content(
+            model=model, contents=contents, config=config
+        )
+        usage = getattr(resp, "usage_metadata", None)
+        totals["input_tokens"] += getattr(usage, "prompt_token_count", 0) or 0
+        totals["output_tokens"] += getattr(usage, "candidates_token_count", 0) or 0
+        totals["cost_usd"] = round(totals["cost_usd"] + _cost(model, usage), 6)
+        totals["steps"] += 1
+
+        candidate = (resp.candidates or [None])[0]
+        parts = getattr(getattr(candidate, "content", None), "parts", None) or []
+        calls = [p.function_call for p in parts if getattr(p, "function_call", None)]
+
+        if not calls:
+            text = (getattr(resp, "text", None) or "").strip()
+            return text, trace, totals
+
+        contents.append(candidate.content)
+        for call in calls:
+            spec = tools.get(call.name)
+            args = dict(call.args or {})
+            if spec is None:
+                payload = {"error": f"No such tool: {call.name}"}
+            else:
+                try:
+                    payload = spec["run"](**args)
+                except Exception as exc:  # noqa: BLE001 - a bad lookup is an answer
+                    # Handed back rather than raised: the model can recover by
+                    # asking differently, and a stack trace helps nobody here.
+                    payload = {"error": f"{type(exc).__name__}: {exc}"}
+            trace.append({"tool": call.name, "args": args,
+                          "rows": len(payload.get("rows", [])) if isinstance(payload, dict) else 0})
+            contents.append(types.Content(
+                role="user",
+                parts=[types.Part.from_function_response(
+                    name=call.name, response=payload if isinstance(payload, dict) else {"result": payload}
+                )],
+            ))
+
+    # Out of steps. Ask once for the best answer from what it already has,
+    # rather than returning nothing after paying for six lookups.
+    _pace()
+    resp = client().models.generate_content(
+        model=model,
+        contents=[*contents, types.Content(role="user", parts=[types.Part.from_text(
+            text="Answer now from what you have found. Do not call any more tools."
+        )])],
+        config=types.GenerateContentConfig(system_instruction=system, temperature=0.1),
+    )
+    totals["steps"] += 1
+    return (getattr(resp, "text", None) or "").strip(), trace, totals
