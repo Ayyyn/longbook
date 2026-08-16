@@ -1376,3 +1376,77 @@ button.primary:disabled {
 .answer-body li { line-height: 1.6; margin-bottom: var(--s2); }
 .answer-body li:last-child { margin-bottom: 0; }
 .answer-body strong { color: var(--ink); font-weight: 600; }
+
+/* ------------------------------------------------- answer: full markdown -- */
+.answer-body > *:first-child { margin-top: 0; }
+.answer-body > *:last-child { margin-bottom: 0; }
+.answer-body h1, .answer-body h2, .answer-body h3 {
+  font-family: var(--font-head);
+  font-weight: 400;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  margin: var(--s4) 0 var(--s2);
+  color: var(--ink);
+}
+.answer-body ol { margin: 0 0 var(--s3); padding-left: var(--s5); }
+.answer-body blockquote {
+  margin: 0 0 var(--s3);
+  padding-left: var(--s4);
+  border-left: 3px solid var(--accent-line);
+  color: var(--muted);
+}
+.answer-body hr { border: 0; border-top: 1px solid var(--line); margin: var(--s4) 0; }
+.answer-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+  background: var(--card-2);
+  border-radius: 6px;
+  padding: 1px 5px;
+}
+.answer-pre {
+  background: var(--card-2);
+  border-radius: var(--radius-sm);
+  padding: var(--s3);
+  overflow-x: auto;
+  font-size: 13px;
+  margin: 0 0 var(--s3);
+}
+/* Tables scroll inside their own box; the page itself must never scroll
+   sideways on a phone. */
+.answer-table-wrap { overflow-x: auto; margin: 0 0 var(--s3); }
+.answer-table-wrap table { border-collapse: collapse; width: 100%; font-size: 15px; }
+.answer-table-wrap th, .answer-table-wrap td {
+  text-align: left;
+  padding: var(--s2) var(--s3);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.answer-table-wrap th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.answer-table-wrap td:not(:first-child) { font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------- charts ----- */
+.chart {
+  margin: var(--s3) 0 var(--s4);
+  padding: var(--s4);
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.chart-title { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: var(--s3); }
+.chart-row { display: grid; grid-template-columns: 1fr; gap: 2px; margin-bottom: var(--s3); }
+@media (min-width: 520px) {
+  .chart-row { grid-template-columns: 8.5rem 1fr auto; align-items: center; gap: var(--s3); }
+}
+.chart-row:last-child { margin-bottom: 0; }
+.chart-label { font-size: 14px; color: var(--ink-2); overflow-wrap: anywhere; }
+.chart-track { background: var(--card); border-radius: 999px; height: 14px; overflow: hidden; }
+.chart-bar { height: 100%; border-radius: 999px; transition: width 400ms ease; }
+.chart-value { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chart-stack { display: flex; height: 20px; border-radius: 999px; overflow: hidden; }
+.chart-slice { min-width: 2px; }
+.chart-key { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); margin-top: var(--s3); font-size: 14px; }
+.chart-key-item { display: flex; align-items: center; gap: 6px; color: var(--ink-2); }
+.chart-key-item strong { font-variant-numeric: tabular-nums; }
+.chart-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.chart-svg { width: 100%; height: 120px; display: block; }

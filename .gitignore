@@ -25,3 +25,7 @@ frontend/node_modules
 # frontend/public/, which is committed.
 /*.png
 /*.jpg
+
+# Sample chat exports used for testing. Synthetic, but the repo is shared
+# with judges and data folders do not belong in it either way.
+kmb_example_data/

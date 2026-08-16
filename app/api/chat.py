@@ -33,9 +33,14 @@ SUGGESTIONS = [
 ]
 
 
-# How much of the conversation the model is shown. Enough for "what about
-# last year" to resolve; short enough not to crowd out the lookups.
-HISTORY_TURNS = 12
+# How much of the conversation the model is shown.
+#
+# This was 12, which was a guess dressed as a limit: it made the tenth question
+# behave differently from the first for no reason the owner could see. Gemini's
+# context is large and the turns are short — a hundred turns of this chat is a
+# few thousand tokens, well under a rupee's worth across a whole conversation.
+# The cap exists now only so an unbounded client cannot post a novel.
+HISTORY_TURNS = 100
 
 
 class Turn(BaseModel):
@@ -49,7 +54,7 @@ class Ask(BaseModel):
     # asked ten questions in a row — the conversation simply stopped working,
     # with an error that says nothing about why. Too much history is our
     # problem to trim, not the owner's to avoid.
-    history: list[Turn] = Field(default_factory=list, max_length=200)
+    history: list[Turn] = Field(default_factory=list, max_length=400)
 
     @field_validator("history")
     @classmethod

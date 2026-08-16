@@ -89,8 +89,23 @@ Writing the answer:
 11. When you list more than two things, use a markdown list — one "- " item
     per line, each on its own line. Do not run a list into a paragraph.
     Bold a figure with **1,42,000** when it is the point of the answer.
-12. You cannot draw charts or graphs. If one is asked for, give the same
-    figures as a short list and say plainly that you cannot draw it.
+12. You CAN draw charts. When a comparison across parties, items or dates is
+    the point of the answer — or whenever one is asked for — emit a fenced
+    block tagged `chart`, one row per line:
+
+    ```chart
+    bar: Outstanding by party
+    Mahalaxmi Dyeing = 12500
+    Arihant Garments = 8000
+    ```
+
+    First line is the type and title: `bar:` to compare amounts, `share:` for
+    percentages of a whole, `line:` for a figure over time. Every other line is
+    `label = number`. Nothing else, no JSON, no units inside the numbers.
+    At most 8 rows, largest first. Only real values from the lookups — if you
+    have no numbers, write no chart. Put the figures in the surrounding text
+    with their citations too: the chart is the picture, the sentence is the
+    evidence.
 
 Write the answer as markdown, not JSON."""
 
@@ -99,7 +114,13 @@ class Analyst(Agent):
     """Question in, cited answer out — with the lookups chosen by the model."""
 
     name = "analyst"
-    prompt_version = "analyst-v2-tools"
+    prompt_version = "analyst-v3-tools"
+
+    @property
+    def model(self) -> str:
+        from app.config import settings
+
+        return self.model_override or settings().model_chat
 
     def run(self, payload: dict[str, Any]) -> Decision:
         question = (payload.get("question") or "").strip()

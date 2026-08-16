@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     model_deep: str = "gemini-3.5-flash-lite"
     # Free-tier keys 429 on the pro models; fall back rather than fail onboarding.
     model_deep_fallback: str = "gemini-3.5-flash-lite"
+    # The chat is the one place a customer watches the model think, and the
+    # only place a weak answer is visible rather than merely queued for review.
+    # Extraction runs thousands of times and stays on the cheap tier; this runs
+    # a handful of times a day per business, so the better model costs pennies
+    # and buys the difference between "useful" and "why is it like this".
+    model_chat: str = "gemini-3.5-flash"
 
     # Requests per minute to stay under. Free tier is ~10-15 RPM; a backfill
     # that ignores this gets 429s halfway through a customer's history.
