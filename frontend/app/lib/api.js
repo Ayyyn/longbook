@@ -252,6 +252,35 @@ export const api = {
       }),
     }),
   conversations: () => request("/api/chat/conversations"),
+
+  // --- notes -------------------------------------------------------------
+  notes: () => request("/api/notes"),
+  createNote: ({ body = "", caption = "", file = null, source = "typed" }) => {
+    const form = new FormData();
+    form.append("body", body);
+    form.append("caption", caption);
+    form.append("source", source);
+    if (file) form.append("file", file);
+    return request("/api/notes", { method: "POST", body: form });
+  },
+  deleteNote: (id) => request(`/api/notes/${id}`, { method: "DELETE" }),
+  transcribeNote: (file) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/api/notes/transcribe", { method: "POST", body: form });
+  },
+  // Attachments are behind the token like every other record, so a plain
+  // <img src> would 401: the browser does not send an Authorization header for
+  // an image. Fetched as a blob instead, which also means the URL is never a
+  // link that works for anyone who ends up with it.
+  fetchMedia: async (path) => {
+    const token = getToken();
+    const res = await fetch(`${BASE}${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new ApiError(res.status, "Could not load that picture.");
+    return URL.createObjectURL(await res.blob());
+  },
   conversation: (id) => request(`/api/chat/conversations/${id}`),
   deleteConversation: (id) =>
     request(`/api/chat/conversations/${id}`, { method: "DELETE" }),

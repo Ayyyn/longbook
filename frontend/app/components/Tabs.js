@@ -3,13 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+// Five, in the order they get used. Review sits last because it is a chore
+// rather than a destination — an owner opens the app to see today, not to be
+// asked questions. Business and Activity moved into the account menu: they
+// are read once a month, and a bottom bar on a phone has room for what is
+// read daily and nothing more.
 const TABS = [
   { href: "/today", label: "Today" },
-  { href: "/review", label: "Review" },
   { href: "/parties", label: "Parties" },
   { href: "/orders", label: "Orders" },
-  { href: "/business", label: "Business" },
-  { href: "/activity", label: "Activity" },
+  { href: "/notes", label: "Notes" },
+  { href: "/review", label: "Review" },
 ];
 
 // Screens you reach without being signed in. The tab bar would be five dead

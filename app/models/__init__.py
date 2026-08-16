@@ -1,3 +1,4 @@
+from app.models.note import Note  # noqa: F401
 from app.models.conversation import ChatMessage, Conversation  # noqa: F401
 from app.models.base import Base
 from app.models.tenant import Tenant, BusinessProfile

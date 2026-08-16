@@ -95,6 +95,15 @@ export default function AccountMenu() {
               <Link href="/chat" role="menuitem" onClick={() => setOpen(false)}>
                 Ask a question
               </Link>
+              {/* Below "Ask a question" rather than in the bottom bar: both are
+                  read occasionally, and the bar is for the five screens used
+                  every day. */}
+              <Link href="/business" role="menuitem" onClick={() => setOpen(false)}>
+                About the business
+              </Link>
+              <Link href="/activity" role="menuitem" onClick={() => setOpen(false)}>
+                Activity
+              </Link>
               <div className="account-sep" />
               <Link href="/privacy" role="menuitem" onClick={() => setOpen(false)}>
                 Privacy

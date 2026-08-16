@@ -61,3 +61,29 @@ def store_media(tenant_id: uuid.UUID | str, filename: str, blob: bytes) -> str:
     gcs_blob = _bucket().blob(key)
     gcs_blob.upload_from_string(blob, content_type=_content_type(filename))
     return f"gs://{bucket_name}/{key}"
+
+
+def read_media(uri: str) -> bytes:
+    """Read back what store_media wrote, from either backend.
+
+    Used by the screens that show an attachment. It reads through the service
+    account rather than minting a signed or public URL: a photograph of
+    somebody's ledger should not be fetchable by anyone who ends up with the
+    link, and a URL that works without a token is a link that will eventually
+    be forwarded.
+    """
+    if uri.startswith("gs://"):
+        _, _, rest = uri.partition("gs://")
+        bucket_name, _, key = rest.partition("/")
+        from google.cloud import storage as gcs
+
+        client = gcs.Client()
+        return client.bucket(bucket_name).blob(key).download_as_bytes()
+
+    if uri.startswith("file://"):
+        from urllib.parse import urlparse
+        from urllib.request import url2pathname
+
+        return Path(url2pathname(urlparse(uri).path)).read_bytes()
+
+    raise ValueError(f"Unsupported media URI: {uri[:32]}")

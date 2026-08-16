@@ -8,6 +8,7 @@ from fastapi import Depends
 from app.config import settings
 from app.api.deps import require_access
 from app.api import (
+    notes,
     agents,
     chat,
     connect,
@@ -66,6 +67,8 @@ app.include_router(parties.router, prefix="/api/parties", tags=["parties"],
 app.include_router(orders.router, prefix="/api/orders", tags=["orders"],
                    dependencies=[Depends(require_access)])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"],
+                   dependencies=[Depends(require_access)])
+app.include_router(notes.router, prefix="/api/notes", tags=["notes"],
                    dependencies=[Depends(require_access)])
 
 

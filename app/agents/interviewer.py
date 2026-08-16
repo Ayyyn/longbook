@@ -70,6 +70,23 @@ Return JSON:
 # of what the generator sees.
 UNIVERSAL = [
     {
+        # Asked first because it changes what every later answer means. A B2C
+        # shop has no credit terms worth tracking, no party ledger for most of
+        # its sales, and a "customer" who will never be a row; a B2B trader is
+        # almost entirely those things. Configuring both the same way is how a
+        # retailer ends up with an overdue report about walk-ins.
+        "key": "sells_to",
+        "purpose": "party_terms",
+        "type": "choice",
+        "question": "Who do you mostly sell to?",
+        "hint": "Most businesses are mainly one of these, even if they do a bit of both.",
+        "options": [
+            "Other businesses (B2B)",
+            "Directly to the public (B2C)",
+            "Both",
+        ],
+    },
+    {
         "key": "what_kind",
         "purpose": "other",
         "type": "text",

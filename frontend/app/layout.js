@@ -1,6 +1,7 @@
 import { Instrument_Serif, Inter } from "next/font/google";
 import "./globals.css";
 import Tabs from "./components/Tabs";
+import NoteShortcut from "./components/NoteShortcut";
 import AccountMenu from "./components/AccountMenu";
 
 // Two faces, one job each. The serif carries headlines and the money figures —
@@ -79,6 +80,7 @@ export default function RootLayout({ children }) {
       <body>
         <AccountMenu />
         <div className="shell">{children}</div>
+        <NoteShortcut />
         <Tabs />
       </body>
     </html>

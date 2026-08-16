@@ -1488,3 +1488,81 @@ button.primary:disabled {
   align-items: center;
   margin-bottom: var(--s3);
 }
+
+/* ------------------------------------------------------------- notes ----- */
+.note-compose {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--s4);
+  margin-bottom: var(--s5);
+  box-shadow: var(--shadow-sm);
+}
+.note-compose textarea { min-height: 84px; }
+.note-actions { display: flex; gap: var(--s2); margin-top: var(--s3); flex-wrap: wrap; }
+.note-actions .primary { margin-left: auto; }
+.note-picked {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s3);
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: var(--s2);
+  overflow-wrap: anywhere;
+}
+
+.note-card { padding: var(--s4) var(--s5); }
+.note-when {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: var(--s2);
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.note-tag {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.note-body { font-size: 16px; line-height: 1.6; margin: 0 0 var(--s3); white-space: pre-wrap; }
+.note-caption { font-size: 15px; color: var(--ink-2); margin: var(--s2) 0; }
+.note-image {
+  width: 100%;
+  max-height: 380px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  display: block;
+}
+.note-image.placeholder { height: 180px; background: var(--card-2); }
+
+/* Above the tab bar, out of the thumb's way but never off screen. */
+.note-shortcut {
+  position: fixed;
+  right: var(--s4);
+  bottom: 88px;
+  z-index: 40;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  text-decoration: none;
+  box-shadow: var(--shadow-lg);
+  transition: transform 140ms ease;
+}
+.note-shortcut:hover { transform: translateY(-2px); }
+@media (min-width: 900px) {
+  /* The tab bar becomes a left rail on desktop, so the button comes down. */
+  .note-shortcut { bottom: var(--s5); }
+}

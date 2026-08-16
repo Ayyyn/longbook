@@ -41,6 +41,20 @@ Base every inference on evidence in the sample. If the sample never shows dye
 lots, set lots=false. If there are no credit terms or outstanding chases,
 set credit_ledger=false. Do not apply defaults you cannot see evidence for.
 
+Who the business sells to changes what most of this should be, and the owner
+is asked directly — take their answer seriously rather than re-deriving it:
+
+- **B2B** (sells to other businesses): the counterparty is a named account
+  that comes back. credit_ledger is almost certainly true, party_terms
+  matter, and overdue_days is a real number they will act on.
+- **B2C** (sells to the public): most buyers are walk-ins who will never be a
+  row worth keeping. credit_ledger should be false unless the sample actually
+  shows the owner chasing individuals for money, and an outstanding report
+  about walk-ins is noise that will make them distrust the whole product. Set
+  segments to ["retail"].
+- **Both**: configure for the B2B side, which is where the money is tracked,
+  but do not infer credit terms from counter sales.
+
 For every threshold in "rules", say in "rules_evidence" how many SEPARATE
 messages support it. Count honestly: one negotiation is one observation, not
 evidence of a general rule. A threshold supported by fewer than 3 observations
