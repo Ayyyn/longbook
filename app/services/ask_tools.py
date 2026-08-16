@@ -132,15 +132,22 @@ def build_tools(db, tenant_id: uuid.UUID) -> dict[str, dict[str, Any]]:
             lines = db.execute(
                 select(OrderLine).where(OrderLine.order_id == order.id).limit(6)
             ).scalars().all()
+            items = [
+                {"item": ln.raw_description, "quantity": float(ln.quantity or 0),
+                 "unit": ln.unit, "rate": float(ln.rate or 0)}
+                for ln in lines
+            ]
+            # A one-line summary alongside the detail. The citation shows the
+            # summary; the model still sees every line to answer from.
+            total_qty = sum(i["quantity"] for i in items)
+            unit = next((i["unit"] for i in items if i["unit"]), "")
             out.append({
                 "ref": f"O{order.id}", "party": party_name,
                 "order_no": order.order_no, "status": order.status,
                 "date": str(order.order_date or ""),
-                "lines": [
-                    {"item": ln.raw_description, "quantity": float(ln.quantity or 0),
-                     "unit": ln.unit, "rate": float(ln.rate or 0)}
-                    for ln in lines
-                ],
+                "summary": (f"{len(items)} item{'s' if len(items) != 1 else ''}"
+                            + (f", {total_qty:g} {unit}".rstrip() if total_qty else "")),
+                "lines": items,
             })
         return {"rows": out}
 
@@ -213,7 +220,7 @@ def build_tools(db, tenant_id: uuid.UUID) -> dict[str, dict[str, Any]]:
         ).scalars().all()
         return {"rows": [
             {"ref": f"M{m.id}", "sender": m.sender, "when": str(m.occurred_at or ""),
-             "text": (m.body or "")[:400]}
+             "text": (m.body or "")[:140]}
             for m in rows
         ]}
 

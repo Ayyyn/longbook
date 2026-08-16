@@ -129,36 +129,7 @@ function Chat() {
             )}
             <AnswerBody text={turn.text} />
 
-            {turn.sources?.length > 0 && (
-              <div className="sources">
-                <div className="sources-head">Where this came from</div>
-                {turn.sources.map((s) => {
-                  const href = s.order_id
-                    ? `/orders/${s.order_id}`
-                    : s.party_id
-                      ? `/parties/${s.party_id}`
-                      : null;
-                  const inner = (
-                    <>
-                      <span className="ref">[{s.ref}]</span>
-                      <span>
-                        <strong>{s.label}</strong>
-                        {s.detail ? ` — ${s.detail}` : ""}
-                      </span>
-                    </>
-                  );
-                  return href ? (
-                    <Link href={href} className="source-row" key={s.ref}>
-                      {inner}
-                    </Link>
-                  ) : (
-                    <div className="source-row" key={s.ref}>
-                      {inner}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            {turn.sources?.length > 0 && <Sources rows={turn.sources} />}
 
             {!turn.answered && turn.sources?.length === 0 && (
               <p className="muted" style={{ marginBottom: 0 }}>
@@ -218,5 +189,57 @@ function Chat() {
         </p>
       )}
     </>
+  );
+}
+
+// Citations, folded away.
+//
+// They were printed in full under every answer: nine rows of "name: X, kind:
+// customer, credit_days: 0" and 400-character chat excerpts, which buried a
+// two-line answer under a page of evidence nobody had asked to read yet.
+//
+// The proof still has to be one tap away — that is the product's whole claim —
+// so the summary line stays visible and says how many records the answer rests
+// on. Opening it shows them.
+function Sources({ rows }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="sources">
+      <button
+        className="sources-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {open ? "Hide" : "Show"} the {rows.length} record
+        {rows.length === 1 ? "" : "s"} behind this
+      </button>
+
+      {open &&
+        rows.map((s) => {
+          const href = s.order_id
+            ? `/orders/${s.order_id}`
+            : s.party_id
+              ? `/parties/${s.party_id}`
+              : null;
+          const inner = (
+            <>
+              <span className="ref">[{s.ref}]</span>
+              <span>
+                <strong>{s.label}</strong>
+                {s.detail ? <span className="source-detail">{s.detail}</span> : null}
+              </span>
+            </>
+          );
+          return href ? (
+            <Link href={href} className="source-row" key={s.ref}>
+              {inner}
+            </Link>
+          ) : (
+            <div className="source-row" key={s.ref}>
+              {inner}
+            </div>
+          );
+        })}
+    </div>
   );
 }

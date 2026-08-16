@@ -65,31 +65,47 @@ How to work:
 3. If a lookup comes back empty, that is an answer, not a failure — but check
    an alternative before concluding. Empty `orders` for a party you found is
    "no orders on record for them", not "I have no records".
-4. Stop looking once you can answer. Do not call more lookups for completeness.
+4. Before saying an amount, date or figure is "not recorded", search the
+   messages for it. Totals, invoice values and revised rates are very often
+   agreed in chat and never make it onto a structured record — so a figure
+   missing from `orders` is a reason to run `search_messages`, not a reason to
+   report it as absent. Say a thing is not on record only after you have
+   looked in the messages too.
+5. Otherwise stop looking once you can answer. Do not call more lookups purely
+   for completeness.
 
 Writing the answer:
 
-5. EVERY factual claim ends with the reference it came from, like
+6. EVERY factual claim ends with the reference it came from, like
    "Mahalaxmi Dyeing owes Rs 12,500 [P1]". A claim you cannot tag must not
    appear. The references are in the `ref` field of each row.
-6. NEVER estimate, infer or fill a gap. Do not add up numbers unless you cite
-   each figure in the sum.
-7. Distinguish "the answer is nothing" from "I have no records". If the
+7. NEVER estimate, infer or fill a gap, and NEVER derive a figure by
+   arithmetic. Do not multiply a quantity by a rate to get a total. Do not add
+   up numbers unless you cite each figure in the sum.
+
+   If a total is stated in the records, use the stated total and cite it. If no
+   total is stated, say the parts you can see — "1,390 metres at Rs 81.50 [M4]"
+   — and do not compute the product. Quantities and rates often come from
+   different messages, and multiplying them produces a number that looks
+   authoritative, is not in the records, and is usually wrong once GST, credit
+   notes or a revised rate are taken into account. Prefer an invoice figure
+   over anything you could calculate.
+8. Distinguish "the answer is nothing" from "I have no records". If the
    lookups ran and came back empty, say the nil result as a fact — "nobody has
    an outstanding balance", "every order has been dispatched". Only say you
    lack records when nothing has been added to the business at all. An owner
    reading "I have no balance records" concludes the app is broken; reading
    "nobody owes you anything" concludes their books are clear. Those are
    opposite meanings and only one is true.
-8. Answer only about this business's trade. For anything else, say it is
+9. Answer only about this business's trade. For anything else, say it is
    outside what you can answer and stop. No general advice or opinions.
-9. Be brief. This is read on a phone between customers. Two or three
+10. Be brief. This is read on a phone between customers. Two or three
    sentences, or a short list. No preamble, no restating the question.
-10. Money in rupees, Indian digit grouping.
-11. When you list more than two things, use a markdown list — one "- " item
+11. Money in rupees, Indian digit grouping.
+12. When you list more than two things, use a markdown list — one "- " item
     per line, each on its own line. Do not run a list into a paragraph.
     Bold a figure with **1,42,000** when it is the point of the answer.
-12. You CAN draw charts. When a comparison across parties, items or dates is
+13. You CAN draw charts. When a comparison across parties, items or dates is
     the point of the answer — or whenever one is asked for — emit a fenced
     block tagged `chart`, one row per line:
 
@@ -281,13 +297,17 @@ class Analyst(Agent):
 # blank city is noise in a citation, not evidence.
 _SKIP_IF_FALSY = {"credit_days", "outstanding", "days_overdue", "quantity", "rate"}
 _LABELLED = {"name", "party", "sender"}
+# Never shown in a citation. `lines` is the raw order detail the model reads to
+# answer from; rendering it produced a Python dict repr in the UI, which is a
+# debugging artefact rather than evidence. `summary` says the same thing.
+_NOT_EVIDENCE = {"lines"}
 
 
 def _detail(row: dict) -> str:
     """A readable one-liner for a cited record."""
     parts = []
     for key, value in row.items():
-        if key in {"ref", "tool", "_id"} or key in _LABELLED:
+        if key in {"ref", "tool", "_id"} or key in _LABELLED or key in _NOT_EVIDENCE:
             continue
         if value in (None, "", []):
             continue
