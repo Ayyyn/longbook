@@ -40,7 +40,7 @@ export const metadata = {
     title: "Your business has a lot going on. Longbook keeps up.",
     description:
       "Orders, payments, customers and commitments, brought together from the " +
-      "records you already keep. No double entry, no new way of working.",
+      "records you already keep.",
     url: "https://longbook.co",
     siteName: "Longbook",
     locale: "en_IN",
@@ -62,7 +62,7 @@ export const metadata = {
     title: "Your business has a lot going on. Longbook keeps up.",
     description:
       "Orders, payments, customers and commitments, brought together from the " +
-      "records you already keep. No double entry, no new way of working.",
+      "records you already keep.",
     images: ["/og-image.jpg"],
   },
 };

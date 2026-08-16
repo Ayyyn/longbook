@@ -29,8 +29,7 @@ export default function Pricing() {
           </div>
         </div>
         <p className="muted">
-          There is nothing to pay for inside the app and we never ask for card
-          details.
+          There is nothing to pay for inside the app.
         </p>
       </section>
 
@@ -39,7 +38,7 @@ export default function Pricing() {
         <ul className="plain">
           <li>
             <strong>Everything you want read</strong> — no limit on messages,
-            documents or history. Six years in one go is fine.
+            documents or history.
           </li>
           <li>
             <strong>Every way of getting data in</strong>: WhatsApp chat
@@ -85,71 +84,13 @@ export default function Pricing() {
         </ul>
       </section>
 
-      {/* Said plainly and early. An owner who finds this out in month three is
-          an owner we have wasted. */}
-      <section className="slab alt">
-        <h2>What is not included</h2>
-        <ul className="plain">
-          <li>
-            <strong>It never messages your customers.</strong> It writes the
-            reminder; you read it and send it. Nothing goes out of this system
-            to anyone you trade with, ever.
-          </li>
-          <li>
-            <strong>It does not replace your accounting software.</strong> Your
-            accountant keeps doing what they do. This is the layer before that
-            — what was agreed, before it becomes a voucher.
-          </li>
-          <li>
-            <strong>No GST filing, no e-invoicing, no e-way bills.</strong> We
-            do not touch statutory filing.
-          </li>
-          <li>
-            <strong>No billing or POS.</strong> It does not print or issue your
-            invoices.
-          </li>
-          <li>
-            <strong>No stock valuation or inventory.</strong> It knows what was
-            ordered, not what is on your shelf.
-          </li>
-          <li>
-            <strong>No payroll, and no multi-currency.</strong>
-          </li>
-          <li>
-            <strong>It is not the final word on your figures.</strong> It reads
-            with AI and AI gets things wrong. Check anything before you act on
-            it — that is why every record shows its sources.
-          </li>
-        </ul>
-      </section>
-
-      <section className="slab">
-        <h2>Stopping</h2>
-        <ul className="plain">
-          <li>
-            Tell us and we stop billing. Monthly runs to the end of the month
-            you are in.
-          </li>
-          <li>
-            Annual prepaid is refunded pro rata for whole unused months if you
-            leave in the first six.
-          </li>
-          <li>
-            <strong>Your records are not deleted if you stop paying.</strong>{" "}
-            The screens lock; everything comes back the moment you renew. You
-            can take a copy with you as a spreadsheet at any time.
-          </li>
-        </ul>
-        <p className="muted">
-          Full terms are on the <Link href="/terms">terms page</Link>.
-        </p>
-      </section>
 
       <section className="slab alt">
         <h2>Getting access</h2>
         <p>
-          Access is by invite while we onboard businesses personally. Email us
-          and we will tell you straight whether it fits how you work.
+          Initially we are helping set up every business personally, so access
+          is by invite. Tell us about your business and how you keep track of
+          it today. We will reach out to you very soon!
         </p>
         <div className="cta-row">
           <a href={CONTACT.emailHref} className="button-link">
@@ -157,7 +98,7 @@ export default function Pricing() {
           </a>
         </div>
         <p className="muted">
-          Have a code already? <Link href="/signup">Set up your business</Link>.
+          Have a code already? <Link href="/login">Set up your business</Link>.
         </p>
       </section>
     </PublicPage>

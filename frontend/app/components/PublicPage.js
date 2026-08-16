@@ -27,7 +27,6 @@ export default function PublicPage({ children, active }) {
   const links = [
     ["/", "Home"],
     ["/pricing", "Pricing"],
-    ["/about", "About"],
     ["/contact", "Contact"],
   ];
 

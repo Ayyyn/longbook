@@ -18,22 +18,18 @@ export default function Contact() {
         </p>
         <div className="cta-row">
           <a href={CONTACT.emailHref} className="button-link">
-            <button className="primary big">Email {CONTACT.email}</button>
+            <button className="primary big">Email us</button>
           </a>
         </div>
-        <p className="muted">
-          Answered the same working day. {CONTACT.hours}.
-        </p>
       </section>
 
       <section className="slab">
         <h2>What to write about</h2>
         <ul className="plain">
           <li>
-            <strong>Whether it fits your business.</strong> Tell us what you
-            sell and how you keep track of it now, and we will tell you
-            straight. If it is not a fit we will say so rather than take your
-            money.
+            <strong>Tell us about your business.</strong> Describe your
+            business and how you keep track of it today. We will reach out to
+            you very soon!
           </li>
           <li>
             <strong>Getting set up.</strong> Access is by invite while we
@@ -64,7 +60,7 @@ export default function Contact() {
       <section className="slab alt">
         <p className="muted">
           Already a customer? <Link href="/login">Sign in</Link>. Have a code?{" "}
-          <Link href="/signup">Set up your business</Link>.
+          <Link href="/login">Set up your business</Link>.
         </p>
       </section>
     </PublicPage>

@@ -38,8 +38,7 @@ export default function Home() {
           turns them into the few things worth doing today.
         </p>
         <p className="lede-sub">
-          Works with the records you already keep. No double entry, no new way
-          of working.
+          Works with the records you already keep.
         </p>
         <div className="cta-row">
           <a href={CONTACT.emailHref} className="button-link">
@@ -82,7 +81,7 @@ export default function Home() {
       </section>
 
       <section className="slab alt">
-        <h2>Four things, kept straight.</h2>
+        <h2>Things it does</h2>
         <div className="outcome-grid">
           <div className="outcome">
             <h3>Know what&apos;s pending</h3>
@@ -166,7 +165,7 @@ export default function Home() {
           Every suggestion comes with the record behind it. The message, the
           bill, the payment. Tap through and check it yourself.
         </p>
-        <p>Where it isn&apos;t sure, it asks instead of guessing.</p>
+        <p>Where it isn&apos;t sure, it asks instead of hallucinating.</p>
       </section>
 
       <section className="slab alt">
@@ -181,20 +180,20 @@ export default function Home() {
       </section>
 
       <section className="slab">
-        <h2>Ask us whether it fits.</h2>
+        <h2>Ask us whether it fits</h2>
         <p className="lede">
-          We set up every business personally, so access is by invite. Tell us
-          what you sell and how you keep track of it today. We will give you an
-          honest answer, including when the answer is no.
+          Initially we are helping set up every business personally, so access
+          is by invite. Tell us about your business and how you keep track of
+          it today. We will reach out to you very soon!
         </p>
         <div className="cta-row">
           <a href={CONTACT.emailHref} className="button-link">
-            <button className="primary big">Email {CONTACT.email}</button>
+            <button className="primary big">Email us</button>
           </a>
         </div>
         <p className="muted">
           {PRICING.monthly} a month. See <Link href="/pricing">what it costs</Link>.
-          Already have a code? <Link href="/signup">Set up your business</Link>.
+          Already have a code? <Link href="/login">Set up your business</Link>.
         </p>
       </section>
     </PublicPage>
