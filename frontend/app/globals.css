@@ -231,9 +231,14 @@ section.feed h2 .count {
 
 /* The hero number an owner opens the app for. The serif is what makes it feel
    like a figure rather than a readout. */
+/* Sized like the blocks under it, not like a billboard.
+   At clamp(40px,12vw,60px) in a --s5 box this was the tallest thing on the
+   screen, and on a quiet morning the tallest thing on the screen was the
+   number zero. It is still the first thing and still the largest type — it is
+   just no longer three times the weight of the orders underneath it. */
 .hero {
-  padding: var(--s5);
-  margin-bottom: var(--s5);
+  padding: var(--s4);
+  margin-bottom: var(--s4);
 }
 .hero .label {
   font-size: 12px;
@@ -244,10 +249,10 @@ section.feed h2 .count {
 }
 .hero .value {
   font-family: var(--font-head);
-  font-size: clamp(40px, 12vw, 60px);
-  line-height: 1;
+  font-size: clamp(30px, 8vw, 40px);
+  line-height: 1.05;
   letter-spacing: -0.02em;
-  margin: var(--s3) 0 var(--s2);
+  margin: var(--s2) 0 4px;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
@@ -989,7 +994,11 @@ html, body { overflow-x: clip; }
 
 /* Account control. Fixed top-right on every screen, which is where people
    already look for it. */
-.account { position: fixed; top: var(--s3); right: var(--s3); z-index: 40; }
+/* Absolute, not fixed. Fixed kept it pinned to the viewport, so scrolling
+   slid the cards underneath it and the initial sat on top of a party name —
+   a control floating over content it has nothing to do with. It belongs
+   beside the heading, and scrolls away with it. */
+.account { position: absolute; top: var(--s3); right: var(--s3); z-index: 40; }
 .account-btn {
   width: 42px;
   height: 42px;

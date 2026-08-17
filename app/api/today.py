@@ -69,10 +69,18 @@ def _summarise(order) -> str:
     if not lines:
         return "no items recorded"
     first = lines[0]
-    what = first.raw_description or "item"
-    parts = [what]
+    parts = []
+    # No placeholder. This used to fall back to the literal word "item", so an
+    # order whose description never got extracted read "item · 187.2 meters" —
+    # which sits next to "40s rayon - navy · 400 meters" and looks like the
+    # product is broken rather than like a description is missing. The quantity
+    # alone is honest and still useful.
+    if first.raw_description:
+        parts.append(first.raw_description)
     if first.quantity is not None:
         parts.append(f"{float(first.quantity):g} {first.unit or ''}".strip())
+    if not parts:
+        return "no items recorded"
     text = " · ".join(parts)
     return text + (f" +{len(lines) - 1} more" if len(lines) > 1 else "")
 

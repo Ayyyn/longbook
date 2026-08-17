@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import TokenGate from "../components/TokenGate";
-import { api, money, formatNumber, getPhone, clearToken } from "../lib/api";
+import { api, money, formatNumber } from "../lib/api";
 import Empty, { SetupIncomplete, BackfillProgress } from "../components/Empty";
 
 export default function TodayPage() {
@@ -69,7 +69,6 @@ function Today() {
         {/* No profile yet means configure() never ran, and configure()
             starts the backfill — so nothing can be reading. */}
         <SetupIncomplete held={job?.total || 0} />
-        <SignOut />
       </>
     );
   }
@@ -84,10 +83,6 @@ function Today() {
         <div className="actions">
           <button onClick={load}>Try again</button>
         </div>
-        {/* Sign-out belongs on the error path too. A token for a tenant that
-            cannot load Today would otherwise strand the owner here with no
-            way to sign in as anyone else. */}
-        <SignOut />
       </>
     );
   }
@@ -211,39 +206,10 @@ function Today() {
       )}
 
 
-      {/* Running low needs the stock maths. Named rather than left out: an
-          absent section would read as "nothing is running low". */}
-      <Section title="Running low">
-        <p className="section-empty">Not computed yet — stock tracking is not built.</p>
-      </Section>
-
       <div className="actions">
         <button onClick={load}>Refresh</button>
       </div>
-
-      <SignOut />
     </>
-  );
-}
-
-// Sign-out lives on Today rather than on every screen: it is rare, and a
-// destructive-looking button under the review queue is a mis-tap waiting to
-// happen.
-function SignOut() {
-  const phone = getPhone();
-  return (
-    <p className="muted" style={{ textAlign: "center", marginTop: 18 }}>
-      {phone ? `Signed in as ${phone}. ` : ""}
-      <button
-        className="link-button"
-        onClick={() => {
-          clearToken();
-          window.location.replace("/login");
-        }}
-      >
-        Sign out
-      </button>
-    </p>
   );
 }
 
