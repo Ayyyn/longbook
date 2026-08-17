@@ -7,6 +7,7 @@ import { api, getToken, signup, setToken, setPhone, formatNumber } from "../lib/
 import PublicPage from "../components/PublicPage";
 import FilePicker from "../components/FilePicker";
 import { CONTACT } from "../lib/contact";
+import { CHAT_ACCEPT, PARTY_ACCEPT } from "../lib/accept";
 
 // The order matters and it changed. Data comes before questions, because the
 // questions are written from the data: asking "do you track batch numbers?"
@@ -576,7 +577,7 @@ function DataStep({ busy, onSubmit, onBack }) {
       <FilePicker
         id="chat"
         label="Your chat exports"
-        accept=".txt,.zip"
+        accept={CHAT_ACCEPT}
         hint="Pick as many as you like — your suppliers, your regular buyers, your transporter."
         onEstimate={(picked) => setChats(picked)}
       />
@@ -589,12 +590,13 @@ function DataStep({ busy, onSubmit, onBack }) {
           ref={partyRef}
           id="parties"
           type="file"
-          accept=".xlsx,.xlsm"
+          accept={PARTY_ACCEPT}
           onChange={(e) => setPartyFile(e.target.files?.[0] || null)}
         />
         <p className="muted">
           If you have one, names and balances are right from day one instead of
-          being learned from messages.
+          being learned from messages. A Tally master export (.xml) or an Excel
+          sheet (.xlsx) — whichever you have.
         </p>
         {partyFile && (
           <div className="picked">

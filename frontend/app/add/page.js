@@ -7,6 +7,7 @@ import { api, formatNumber } from "../lib/api";
 import Empty from "../components/Empty";
 import FilePicker from "../components/FilePicker";
 import VoiceNote from "../components/VoiceNote";
+import { CHAT_ACCEPT, DEVICE_ACCEPT, IMAGE_ACCEPT } from "../lib/accept";
 
 export default function AddDataPage() {
   return (
@@ -79,23 +80,6 @@ function AddData() {
   );
 }
 
-// What "From this device" will offer. Both MIME types and extensions are
-// listed on purpose: Android's picker filters on MIME and shows nothing for a
-// bare ".xlsx", while desktop browsers match extensions more reliably. Give it
-// only extensions — as this did — and Android quietly falls back to showing
-// images alone, which is why this screen looked like a photo picker.
-//
-// Keep in step with SUPPORTED in app/services/intake.py. Anything offered here
-// and not handled there is a file the owner picks and then gets a 415 for.
-const DEVICE_ACCEPT = [
-  ".txt,text/plain",
-  ".zip,application/zip,application/x-zip-compressed",
-  ".pdf,application/pdf",
-  ".csv,text/csv",
-  ".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  ".jpg,.jpeg,.png,.webp,.heic,.heif,image/*",
-  ".ogg,.oga,.opus,.m4a,.mp3,.wav,.aac,.webm,audio/*",
-].join(",");
 
 // What each upload mode offers. Only the input's attributes and the words
 // around it change — the parse, estimate and dedup path behind all three is
@@ -113,7 +97,7 @@ const MODES = {
   camera: {
     id: "shot",
     label: "Photograph a bill, challan or ledger page",
-    accept: "image/*",
+    accept: IMAGE_ACCEPT,
     capture: "environment",
     hint:
       "Take as many as you like. Photograph the whole page, straight on, in " +
@@ -122,7 +106,7 @@ const MODES = {
   whatsapp: {
     id: "chat",
     // Exports arrive as .txt, or .zip when media came along.
-    accept: ".txt,text/plain,.zip,application/zip,application/x-zip-compressed",
+    accept: CHAT_ACCEPT,
     label: "Choose exported chats",
     hint: "One file per chat. Export as many chats as you like and add them together.",
   },
