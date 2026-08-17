@@ -242,7 +242,8 @@ export const api = {
   mailbox: () => request("/api/connect/mail"),
   // Bodyless POSTs need an explicit body or the proxy in front of Cloud Run
   // answers 411 Length Required before the request ever reaches us.
-  mailboxConnect: () => request("/api/connect/mail/connect", { method: "POST", body: "{}" }),
+  mailboxConnect: (dest = "add") =>
+    request(`/api/connect/mail/connect?dest=${dest}`, { method: "POST", body: "{}" }),
   mailboxSync: () => request("/api/connect/mail/sync", { method: "POST", body: "{}" }),
   mailboxDisconnect: (id) => request(`/api/connect/mail/${id}`, { method: "DELETE" }),
   me: () => request("/api/tenants/me"),

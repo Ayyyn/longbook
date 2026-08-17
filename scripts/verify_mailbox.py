@@ -39,7 +39,8 @@ print("\n-- state binds the callback to one tenant --")
 tid = str(uuid.uuid4())
 state = nylas.sign_state(tid, SECRET, int(time.time()))
 
-check("a state we signed reads back", nylas.read_state(state, SECRET), tid)
+check("a state we signed reads back",
+      nylas.read_state(state, SECRET), (tid, "add"))
 
 # The whole point. Without this, anyone who can reach the callback picks the
 # tenant their mailbox lands on — or lands somebody else's mailbox on theirs.
@@ -49,12 +50,30 @@ check("a state signed with another secret is rejected",
 import base64  # noqa: E402
 
 raw = base64.urlsafe_b64decode(state + "=" * (-len(state) % 4)).decode()
-body, mac = raw.rsplit(":", 1)
+tid_part, issued_part, dest_part, mac = raw.rsplit(":", 3)
 other = str(uuid.uuid4())
 forged = base64.urlsafe_b64encode(
-    f"{other}:{body.rsplit(':', 1)[1]}:{mac}".encode()).decode().rstrip("=")
+    f"{other}:{issued_part}:{dest_part}:{mac}".encode()).decode().rstrip("=")
 check("swapping the tenant id invalidates the signature",
       nylas.read_state(forged, SECRET), None)
+
+# The destination decides where the browser is sent afterwards, so a state
+# whose destination was edited is an open redirect with a signature on it.
+tampered = base64.urlsafe_b64encode(
+    f"{tid_part}:{issued_part}:https://evil.example:{mac}".encode()).decode().rstrip("=")
+check("editing the destination invalidates the signature",
+      nylas.read_state(tampered, SECRET), None)
+
+# And an unknown destination is refused even if we did sign it — a signature
+# proves we wrote it, not that we would write it again.
+signed_bad = nylas.sign_state(tid, SECRET, int(time.time()), "somewhere-else")
+check("an off-list destination falls back to add rather than being honoured",
+      nylas.read_state(signed_bad, SECRET), (tid, "add"))
+
+check("setup is an allowed destination",
+      nylas.read_state(nylas.sign_state(tid, SECRET, int(time.time()), "signup"),
+                       SECRET),
+      (tid, "signup"))
 
 check("a truncated state is rejected", nylas.read_state(state[:12], SECRET), None)
 check("an empty state is rejected", nylas.read_state("", SECRET), None)

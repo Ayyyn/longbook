@@ -8,6 +8,7 @@ import PublicPage from "../components/PublicPage";
 import FilePicker from "../components/FilePicker";
 import { CONTACT } from "../lib/contact";
 import { ANY_FILE } from "../lib/accept";
+import MailboxConnect from "../components/MailboxConnect";
 
 // The order matters and it changed. Data comes before questions, because the
 // questions are written from the data: asking "do you track batch numbers?"
@@ -554,8 +555,18 @@ function DataStep({ busy, onSubmit, onBack }) {
         business rather than a form.
       </p>
 
+      {/* Email leads here for the same reason it leads on Add data: it is the
+          only source that keeps working after today. It was missing from setup
+          entirely, so the first and most important moment offered the two
+          things that need doing again by hand and not the one that does not.
+
+          Connecting redirects out to the provider and back — dest="signup"
+          makes it come back here rather than dropping the owner onto Add data
+          half way through setting up. */}
+      <MailboxConnect dest="signup" />
+
       <div className="know">
-        <h3>How to export a WhatsApp chat</h3>
+        <h3>Or bring your history across by hand</h3>
         <ol style={{ paddingLeft: 18, lineHeight: 1.7, margin: "8px 0 0" }}>
           <li>Open the chat with a regular customer or supplier.</li>
           <li>

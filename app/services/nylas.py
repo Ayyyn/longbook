@@ -327,33 +327,48 @@ def default_since() -> datetime | None:
 # survive a round trip through the provider's redirect and come back provably
 # ours. Signed rather than stored — a row per in-flight connection would need
 # expiring, and this needs no cleanup.
-def sign_state(tenant_id: str, secret: str, issued: int) -> str:
+# Where the callback may send somebody afterwards. An allowlist rather than a
+# path, because `state` is the only thing the callback trusts and a URL carried
+# inside it would be an open redirect wearing a signature.
+RETURNS = {"add", "signup"}
+
+
+def sign_state(tenant_id: str, secret: str, issued: int, dest: str = "add") -> str:
     import hashlib
     import hmac
 
-    raw = f"{tenant_id}:{issued}"
+    if dest not in RETURNS:
+        dest = "add"
+    raw = f"{tenant_id}:{issued}:{dest}"
     mac = hmac.new(secret.encode(), raw.encode(), hashlib.sha256).hexdigest()[:32]
     return base64.urlsafe_b64encode(f"{raw}:{mac}".encode()).decode().rstrip("=")
 
 
-def read_state(state: str, secret: str, max_age: int = 900) -> str | None:
-    """The tenant id inside a state we signed, or None. Never raises —
-    every failure is the same answer, so a forged state and a mangled one
-    are indistinguishable from the outside."""
+def read_state(state: str, secret: str, max_age: int = 900) -> tuple[str, str] | None:
+    """The (tenant id, destination) inside a state we signed, or None.
+
+    Never raises — every failure is the same answer, so a forged state and a
+    mangled one are indistinguishable from the outside. The destination is
+    checked against the allowlist on the way out as well as on the way in: a
+    signature proves we wrote it, not that we would write it again.
+    """
     import hashlib
     import hmac
     import time
 
     try:
         padded = state + "=" * (-len(state) % 4)
-        tenant_id, issued, mac = base64.urlsafe_b64decode(padded).decode().rsplit(":", 2)
+        tenant_id, issued, dest, mac = base64.urlsafe_b64decode(
+            padded).decode().rsplit(":", 3)
         expected = hmac.new(
-            secret.encode(), f"{tenant_id}:{issued}".encode(), hashlib.sha256
+            secret.encode(), f"{tenant_id}:{issued}:{dest}".encode(), hashlib.sha256
         ).hexdigest()[:32]
         if not hmac.compare_digest(mac, expected):
             return None
         if time.time() - int(issued) > max_age:
             return None
-        return tenant_id
+        if dest not in RETURNS:
+            return None
+        return tenant_id, dest
     except Exception:  # noqa: BLE001 - any malformed state is simply invalid
         return None

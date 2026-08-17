@@ -199,7 +199,7 @@ def mailbox_status(tid: TenantId, db: TenantDB) -> MailboxInfo:
 
 
 @router.post("/mail/connect", response_model=ConnectStart)
-def mailbox_connect(tid: TenantId) -> ConnectStart:
+def mailbox_connect(tid: TenantId, dest: str = "add") -> ConnectStart:
     """Where to send the owner to grant access.
 
     Returns the URL rather than redirecting: the call is made by the dashboard
@@ -209,7 +209,10 @@ def mailbox_connect(tid: TenantId) -> ConnectStart:
     if not nylas.configured():
         raise HTTPException(503, "Connecting a mailbox is not switched on yet.")
 
-    state = nylas.sign_state(str(tid), _state_secret(), int(time.time()))
+    # Where to come back to. Setup is the important case: connecting a mailbox
+    # from step 3 used to land the owner on Add data, which is to say outside
+    # the setup they were half way through.
+    state = nylas.sign_state(str(tid), _state_secret(), int(time.time()), dest)
     return ConnectStart(url=nylas.auth_url(_redirect_uri(), state))
 
 
@@ -229,11 +232,12 @@ def mailbox_callback(code: str | None = None, state: str | None = None,
     if error or not code or not state:
         return RedirectResponse(f"{dash}/add?mail=failed", status_code=303)
 
-    tenant_id = nylas.read_state(state, _state_secret())
-    if not tenant_id:
+    read = nylas.read_state(state, _state_secret())
+    if not read:
         # Forged, tampered with, or simply older than fifteen minutes. All
         # three get the same answer.
         return RedirectResponse(f"{dash}/add?mail=expired", status_code=303)
+    tenant_id, dest = read
 
     try:
         payload = nylas.exchange_code(code, _redirect_uri())
@@ -278,7 +282,7 @@ def mailbox_callback(code: str | None = None, state: str | None = None,
                 status="active",
             ))
 
-    return RedirectResponse(f"{dash}/add?mail=connected", status_code=303)
+    return RedirectResponse(f"{dash}/{dest}?mail=connected", status_code=303)
 
 
 @router.post("/mail/sync")
