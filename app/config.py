@@ -95,6 +95,14 @@ class Settings(BaseSettings):
     # the link. It is rotatable, carries no privileges beyond creating one
     # business, and is worthless without also completing onboarding. Empty
     # means self-serve signup is closed.
+    # One invite code per plan, so the code an owner is given decides what they
+    # get. Handing out the right code is the whole of the billing flow: there is
+    # no plan picker in the app and no card to enter, because payment happens
+    # between two people before the code is sent.
+    signup_code_monthly: str = ""
+    signup_code_annual: str = ""
+    # The original single code. Still honoured so codes already handed out keep
+    # working; treated as monthly.
     signup_code: str = ""
 
     # A crude ceiling on how many businesses one code can create per hour.

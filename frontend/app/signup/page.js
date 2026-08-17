@@ -57,6 +57,7 @@ export default function SignupPage() {
   // anyone is asked for anything else, and hands both over here. Asking for
   // either a second time would be the flow forgetting what it was just told.
   const [gated, setGated] = useState(false);
+  const [plan, setPlan] = useState("");
   useEffect(() => {
     if (typeof window === "undefined") return;
     const invite = sessionStorage.getItem("lb-invite");
@@ -64,6 +65,7 @@ export default function SignupPage() {
     if (invite) {
       setCode(invite);
       setGated(true);
+      setPlan(sessionStorage.getItem("lb-plan") || "");
     }
     if (email) setDetails((d) => ({ ...d, owner_email: d.owner_email || email }));
   }, []);
@@ -323,6 +325,7 @@ export default function SignupPage() {
           setDetails={setDetails}
           busy={busy}
           gated={gated}
+          plan={plan}
           locked={Boolean(created)}
           onNext={created ? () => setStep(1) : createBusiness}
         />
@@ -424,7 +427,7 @@ function Working({ title, steps, expect }) {
   );
 }
 
-function BusinessStep({ code, setCode, details, setDetails, busy, onNext, gated, locked }) {
+function BusinessStep({ code, setCode, details, setDetails, busy, onNext, gated, locked, plan }) {
   const fields = [
     ["business_name", "Business name", "", true],
     ["owner_name", "Your name", "", false],
@@ -481,7 +484,8 @@ function BusinessStep({ code, setCode, details, setDetails, busy, onNext, gated,
       <div className="card">
         {gated ? (
           <p className="muted" style={{ margin: "0 0 4px" }}>
-            Invite code accepted. Now tell us about the business.
+            Invite code accepted{plan ? ` — ${plan} plan` : ""}. Now tell us
+            about the business.
           </p>
         ) : (
           <>

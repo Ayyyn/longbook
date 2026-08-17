@@ -90,7 +90,7 @@ gcloud run deploy textile-api \
   --cpu=1 --memory=1Gi --timeout=900 --no-cpu-throttling \
   --set-cloudsql-instances="$CONN" \
   --set-env-vars="ENV=prod,GCS_BUCKET=${BUCKET},BQ_DATASET=${BQ_DATASET},DATABASE_URL=${DB_URL},SMTP_PORT=587,SMTP_STARTTLS=true,BACKFILL_MODE=cloudrun,GCP_PROJECT=${PROJECT},GCP_REGION=${REGION}" \
-  --set-secrets="GEMINI_API_KEY=gemini-api-key:latest,ADMIN_TOKEN=admin-token:latest,SCHEDULER_TOKEN=scheduler-token:latest,SMTP_HOST=smtp-host:latest,SMTP_USER=smtp-user:latest,SMTP_PASSWORD=smtp-password:latest,DIGEST_FROM=digest-from:latest,SIGNUP_CODE=signup-code:latest,INBOUND_ADDRESS=inbound-address:latest,INBOUND_PASSWORD=inbound-password:latest"
+  --set-secrets="GEMINI_API_KEY=gemini-api-key:latest,ADMIN_TOKEN=admin-token:latest,SCHEDULER_TOKEN=scheduler-token:latest,SMTP_HOST=smtp-host:latest,SMTP_USER=smtp-user:latest,SMTP_PASSWORD=smtp-password:latest,DIGEST_FROM=digest-from:latest,SIGNUP_CODE=signup-code:latest,SIGNUP_CODE_MONTHLY=signup-code-monthly:latest,SIGNUP_CODE_ANNUAL=signup-code-annual:latest,INBOUND_ADDRESS=inbound-address:latest,INBOUND_PASSWORD=inbound-password:latest"
 
 API_URL="$(gcloud run services describe textile-api --region="$REGION" --format='value(status.url)')"
 echo "    API at $API_URL"

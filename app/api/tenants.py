@@ -17,7 +17,7 @@ from __future__ import annotations
 import secrets
 import uuid
 from datetime import datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import (
     APIRouter,
@@ -101,30 +101,69 @@ def require_admin(x_admin_token: Annotated[str | None, Header()] = None) -> None
 @router.post("/", response_model=TenantCreated, status_code=201, include_in_schema=False,
              dependencies=[Depends(require_admin)])
 def create_tenant(payload: TenantCreate) -> TenantCreated:
-    """Create the business and mint its token. The token is shown once."""
+    """Create the business and mint its token. The token is shown once.
+
+    The admin path grants no access on its own — there is no invite code to
+    read a plan from — so record a payment afterwards, or hand the owner the
+    invite code for what they bought and let them sign up with it.
+    """
     return _create(payload)
 
 
-def require_signup_code(x_signup_code: Annotated[str | None, Header()] = None) -> None:
-    """Gate self-serve signup on a shared invite code.
+# What each invite code buys. The code is the plan: an owner pays, gets the
+# code for what they paid for, and access follows from it. Nothing in the app
+# asks them to choose, because the choice was already made and paid for.
+PLANS = {
+    "monthly": {"days": 31, "plan": "monthly", "label": "monthly"},
+    "annual": {"days": 365, "plan": "annual_prepaid", "label": "yearly"},
+}
+
+
+def resolve_signup_code(code: str | None) -> str | None:
+    """Which plan this code is for, or None if it is not one of ours.
+
+    compare_digest on every candidate rather than a dict lookup: comparing a
+    secret with == leaks its length and prefix to anyone timing the endpoint.
+    """
+    if not code:
+        return None
+    settings_now = settings()
+    candidates = (
+        ("monthly", settings_now.signup_code_monthly),
+        ("annual", settings_now.signup_code_annual),
+        # Legacy single code. Codes already handed out keep working.
+        ("monthly", settings_now.signup_code),
+    )
+    for plan, expected in candidates:
+        if expected and secrets.compare_digest(code, expected):
+            return plan
+    return None
+
+
+def require_signup_code(x_signup_code: Annotated[str | None, Header()] = None) -> str:
+    """Gate self-serve signup on an invite code, and say which plan it is for.
 
     Deliberately not the admin token: that one mints tenants for every
-    business, so a customer must never hold it. This code creates exactly one
-    business and nothing else, and is rotated by changing one secret.
+    business, so a customer must never hold it. A signup code creates exactly
+    one business and nothing else, and is rotated by changing one secret.
 
-    Unset means self-serve signup is closed, which is the safe default — an
-    open endpoint that returns a working token is an open door.
+    No codes configured means self-serve signup is closed, which is the safe
+    default — an open endpoint that returns a working token is an open door.
     """
-    expected = settings().signup_code
-    if not expected:
+    settings_now = settings()
+    if not any((settings_now.signup_code_monthly, settings_now.signup_code_annual,
+                settings_now.signup_code)):
         raise HTTPException(503, "Self-serve signup is not open on this deployment.")
-    if not x_signup_code or not secrets.compare_digest(x_signup_code, expected):
+
+    plan = resolve_signup_code(x_signup_code)
+    if plan is None:
         raise HTTPException(401, "That signup code is not valid.")
+    return plan
 
 
 @router.post("/invite/check", status_code=200,
              dependencies=[Depends(require_signup_code)])
-def check_invite() -> dict[str, bool]:
+def check_invite(plan: Annotated[str, Depends(require_signup_code)]) -> dict[str, Any]:
     """Is this invite code good? Nothing is created, nothing is stored.
 
     Exists so the code can be checked before an owner is asked for anything
@@ -136,13 +175,16 @@ def check_invite() -> dict[str, bool]:
     checking endpoint is a guessing oracle. The 401 from require_signup_code
     is deliberately identical whether the code is wrong or absent.
     """
-    return {"valid": True}
+    return {"valid": True, "plan": plan, "label": PLANS[plan]["label"]}
 
 
 @router.post("/signup", response_model=TenantCreated, status_code=201,
              dependencies=[Depends(require_signup_code)])
-def signup(payload: TenantCreate) -> TenantCreated:
-    """Owner-facing tenant creation. Same result as /api/tenants, different gate."""
+def signup(
+    payload: TenantCreate,
+    plan: Annotated[str, Depends(require_signup_code)],
+) -> TenantCreated:
+    """Owner-facing tenant creation, with access granted by the invite code."""
     with admin_session() as db:
         since = datetime.utcnow() - timedelta(hours=1)
         recent = db.execute(
@@ -151,10 +193,10 @@ def signup(payload: TenantCreate) -> TenantCreated:
     if recent >= settings().signup_max_per_hour:
         # A leaked code should cost a cleanup, not a bill.
         raise HTTPException(429, "Too many businesses created just now. Try again shortly.")
-    return _create(payload)
+    return _create(payload, plan=plan)
 
 
-def _create(payload: TenantCreate) -> TenantCreated:
+def _create(payload: TenantCreate, plan: str | None = None) -> TenantCreated:
     with admin_session() as db:
         # Matched on the last ten digits, not on the string. Otherwise the
         # same owner signing up as "+91 98250 66554" and "9825066554" gets two
@@ -179,6 +221,14 @@ def _create(payload: TenantCreate) -> TenantCreated:
             city=payload.city,
             locale=payload.locale,
         )
+        # Access comes from the invite code that was used. A business that has
+        # paid for a month gets a month; there is no trial and no window during
+        # which nobody has decided anything.
+        if plan and plan in PLANS:
+            terms = PLANS[plan]
+            tenant.plan = terms["plan"]
+            tenant.paid_until = datetime.utcnow() + timedelta(days=terms["days"])
+
         token = issue_token(tenant)
         db.add(tenant)
         db.flush()

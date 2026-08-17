@@ -93,7 +93,7 @@ echo "==> Secrets"
 # SMTP credentials are secrets like any other: the digest is the only thing
 # that leaves the system, and it authenticates as the owner's own mail user.
 for name in gemini-api-key admin-token scheduler-token \
-            smtp-host smtp-user smtp-password digest-from signup-code \n            inbound-address inbound-password \n            gmail-client-id gmail-client-secret; do
+            smtp-host smtp-user smtp-password digest-from signup-code \n            signup-code-monthly signup-code-annual \n            inbound-address inbound-password \n            gmail-client-id gmail-client-secret; do
   gcloud secrets describe "$name" >/dev/null 2>&1 || \
     gcloud secrets create "$name" --replication-policy=automatic
 done

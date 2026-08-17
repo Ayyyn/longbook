@@ -132,7 +132,11 @@ function NewHere() {
     setBusy(true);
     setError(null);
     try {
-      await api.checkInvite(code.trim());
+      const { label } = await api.checkInvite(code.trim());
+      // The code carries the plan, so say which one it was. An owner who paid
+      // for a year and sees "monthly" has been given the wrong code, and this
+      // is the last moment anyone can notice.
+      if (label) sessionStorage.setItem("lb-plan", label);
       // sessionStorage, not the URL: a code in a query string ends up in
       // history, in screenshots and in anything the browser syncs.
       sessionStorage.setItem("lb-invite", code.trim());
