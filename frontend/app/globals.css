@@ -1190,6 +1190,18 @@ header.bar { padding-right: 56px; }
 
 .ask-bar .send:disabled { background: transparent; color: var(--muted); opacity: 1; }
 
+/* The icon's size in CSS, not only in its width/height attributes.
+   As a flex item inside the button those attributes were not honoured — the
+   svg computed to width 0 and the button rendered as an empty box, which is
+   what "the mic is missing" looked like. flex:0 0 auto stops it being
+   shrunk by the button it sits in. */
+.dictate svg,
+.ask-bar .send svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
 /* Three dots while the recording is being transcribed. */
 .dictate-dots {
   width: 18px; height: 4px;
