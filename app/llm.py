@@ -66,6 +66,26 @@ def _is_rate_limit(exc: Exception) -> bool:
     return "429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc)
 
 
+def _is_retryable(exc: Exception) -> bool:
+    """Worth trying again, as opposed to worth reporting.
+
+    Rate limits, and the model's own bad days. A 500 or 503 from Gemini is
+    transient by definition and says nothing about the request, but until now
+    only 429 was retried — so one blip permanently failed a window, and the
+    only thing that would revisit it was somebody noticing. A photographed
+    bill was lost to a five-second outage.
+
+    Deliberately not 400. An argument the API rejects will be rejected again,
+    and retrying it three times just costs three times as much to learn the
+    same thing.
+    """
+    text = str(exc)
+    if _is_rate_limit(exc):
+        return True
+    return any(marker in text for marker in
+               ("500", "503", "INTERNAL", "UNAVAILABLE", "DEADLINE_EXCEEDED"))
+
+
 def client() -> genai.Client:
     """The key comes from app.config, which reads .env — reading os.environ
     directly meant a key configured the documented way never arrived."""
@@ -182,7 +202,7 @@ def generate_json(
                 ),
             )
         except Exception as exc:  # noqa: BLE001 - rate limits are retried, rest re-raised
-            if not _is_rate_limit(exc) or attempt == max_retries:
+            if not _is_retryable(exc) or attempt == max_retries:
                 raise
             # Exponential backoff with jitter: a synchronised retry storm across
             # a batch just burns the next minute's quota too.
