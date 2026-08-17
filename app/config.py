@@ -85,6 +85,33 @@ class Settings(BaseSettings):
     gmail_client_id: str = ""
     gmail_client_secret: str = ""
 
+    # Nylas. The reason we can offer a connected mailbox at all: Google's
+    # restricted-scope review sits behind a CASA assessment, and Nylas has
+    # already passed it, so the owner grants access to Nylas and we read
+    # through them rather than holding a Google refresh token that expires
+    # every seven days in Testing mode.
+    #
+    # The API key is the server credential — it authenticates every call and
+    # doubles as the client secret in the code exchange. Treat it like the
+    # admin token: Secret Manager only, never a default here.
+    nylas_client_id: str = ""
+    nylas_api_key: str = ""
+    # Region-pinned. Data stays in whichever region the Nylas app was created
+    # in, and calling the wrong host returns a 404 for a grant that exists,
+    # which reads like a bug in our code and is not one.
+    nylas_api_uri: str = "https://api.us.nylas.com"
+    # How far back a newly connected mailbox is read. A month gives the
+    # business something to look at on day one without pulling in years of
+    # mail nobody wants extracted.
+    nylas_initial_days: int = 30
+
+    # This service's own public URL. Needed because an OAuth redirect_uri has
+    # to be absolute and has to match what is registered with the provider
+    # exactly — deriving it from the incoming request would mean trusting
+    # forwarded host headers to build a URL a provider redirects to, which is
+    # a redirect somebody else gets to choose. Set at deploy time.
+    api_url: str = "http://localhost:8000"
+
     # Gates self-serve signup. An owner signing themselves up cannot be asked
     # for the admin token — that token mints tenants for every business, so
     # handing it to a customer would be handing over the whole system. But

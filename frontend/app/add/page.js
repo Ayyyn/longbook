@@ -204,17 +204,18 @@ function Voice({ onDone }) {
 
 function Accounts() {
   const [inbound, setInbound] = useState(null);
-  const [gmail, setGmail] = useState(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     api.inbound().then(setInbound).catch(() => setInbound({ configured: false }));
-    api.gmailStatus().then(setGmail).catch(() => setGmail(null));
   }, []);
 
   return (
     <>
-      {/* Forwarding leads. It is the one that keeps working. */}
+      <Mailbox />
+
+      {/* Forwarding stays. It is the one that works without a grant, and the
+          fallback for anyone who does not want to connect a mailbox. */}
       <div className="card">
         <h3>Forward your invoices here</h3>
         {inbound?.configured ? (
@@ -269,18 +270,6 @@ function Accounts() {
       <div className="card">
         <div className="row">
           <div>
-            <div style={{ fontWeight: 600 }}>Connect Gmail directly</div>
-            <div className="muted">
-              {gmail?.detail ||
-                "Reads new invoices and purchase orders without forwarding."}
-            </div>
-          </div>
-          <span className="chip plain">
-            {gmail?.available ? "Available" : "Not yet"}
-          </span>
-        </div>
-        <div className="row">
-          <div>
             <div style={{ fontWeight: 600 }}>WhatsApp Business</div>
             <div className="muted">
               Continuous sync, so you stop exporting chats by hand.
@@ -290,6 +279,149 @@ function Accounts() {
         </div>
       </div>
     </>
+  );
+}
+
+// The connected mailbox.
+//
+// Leads the screen because it is the version that keeps working after the
+// owner stops thinking about it — forwarding only ever carries the mail
+// somebody remembered to forward.
+//
+// The one thing this has to be unambiguous about is what we do with the
+// access: read, never send. An owner handing over their mailbox is entitled
+// to know that in the same breath as the button.
+function Mailbox() {
+  const [state, setState] = useState(null);
+  const [busy, setBusy] = useState("");
+  const [note, setNote] = useState("");
+
+  const load = useCallback(async () => {
+    setState(await api.mailbox().catch(() => ({ available: false, accounts: [] })));
+  }, []);
+
+  useEffect(() => {
+    load();
+    // The callback sends the owner back here with the outcome in the URL.
+    // Read once, then strip it, so a refresh does not re-announce it.
+    const params = new URLSearchParams(window.location.search);
+    const outcome = params.get("mail");
+    if (outcome) {
+      setNote(
+        {
+          connected: "Mailbox connected. Reading the last month of mail now.",
+          failed: "That did not go through. Try connecting again.",
+          expired: "That link had expired. Try connecting again.",
+        }[outcome] || "",
+      );
+      window.history.replaceState({}, "", window.location.pathname);
+      // Connecting is the moment the owner wants to see something happen, so
+      // pull straight away rather than waiting for the sweep.
+      if (outcome === "connected") api.mailboxSync().then(load).catch(() => {});
+    }
+  }, [load]);
+
+  const connect = async () => {
+    setBusy("connect");
+    try {
+      const { url } = await api.mailboxConnect();
+      window.location.href = url;
+    } catch {
+      setNote("Could not start. Try again.");
+      setBusy("");
+    }
+  };
+
+  const sync = async () => {
+    setBusy("sync");
+    try {
+      const out = await api.mailboxSync();
+      setNote(
+        out.records
+          ? `Read ${formatNumber(out.records)} new message${out.records === 1 ? "" : "s"}.`
+          : "Nothing new since the last check.",
+      );
+      await load();
+    } catch {
+      setNote("Could not check just now.");
+    }
+    setBusy("");
+  };
+
+  const disconnect = async (id) => {
+    setBusy(id);
+    await api.mailboxDisconnect(id).catch(() => {});
+    setNote("Mailbox disconnected. What was already read stays in your books.");
+    await load();
+    setBusy("");
+  };
+
+  if (!state) return null;
+
+  return (
+    <div className="card">
+      <h3>Connect your mailbox</h3>
+
+      {!state.available ? (
+        <p className="muted" style={{ marginBottom: 0 }}>
+          {state.detail}
+        </p>
+      ) : (
+        <>
+          <p className="muted">{state.detail}</p>
+
+          {state.accounts.map((a) => (
+            <div className="row" key={a.id}>
+              <div>
+                <div style={{ fontWeight: 600, wordBreak: "break-all" }}>{a.email}</div>
+                <div className="muted">
+                  {a.status === "revoked"
+                    ? "Stopped syncing — connect again"
+                    : a.last_checked_at
+                      ? `Last checked ${new Date(a.last_checked_at).toLocaleString("en-IN", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}`
+                      : "Waiting for the first check"}
+                </div>
+              </div>
+              <button
+                onClick={() => disconnect(a.id)}
+                disabled={busy === a.id}
+              >
+                {busy === a.id ? "…" : "Disconnect"}
+              </button>
+            </div>
+          ))}
+
+          <div className="actions" style={{ marginTop: 12 }}>
+            <button className="primary" onClick={connect} disabled={busy === "connect"}>
+              {busy === "connect"
+                ? "Opening…"
+                : state.accounts.length
+                  ? "Connect another"
+                  : "Connect a mailbox"}
+            </button>
+            {state.accounts.length > 0 && (
+              <button onClick={sync} disabled={busy === "sync"}>
+                {busy === "sync" ? "Checking…" : "Check now"}
+              </button>
+            )}
+          </div>
+
+          {note && (
+            <p className="muted" style={{ marginBottom: 0 }}>
+              {note}
+            </p>
+          )}
+
+          <p className="muted" style={{ marginBottom: 0, marginTop: 12 }}>
+            Longbook only reads your mail. It never sends anything from your
+            account, and you can disconnect at any time.
+          </p>
+        </>
+      )}
+    </div>
   );
 }
 

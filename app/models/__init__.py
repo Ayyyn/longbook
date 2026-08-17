@@ -1,5 +1,6 @@
 from app.models.note import Note  # noqa: F401
 from app.models.conversation import ChatMessage, Conversation  # noqa: F401
+from app.models.mail_account import MailAccount  # noqa: F401
 from app.models.base import Base
 from app.models.tenant import Tenant, BusinessProfile
 from app.models.party import Party

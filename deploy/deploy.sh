@@ -90,10 +90,17 @@ gcloud run deploy textile-api \
   --cpu=1 --memory=1Gi --timeout=900 --no-cpu-throttling \
   --set-cloudsql-instances="$CONN" \
   --set-env-vars="ENV=prod,GCS_BUCKET=${BUCKET},BQ_DATASET=${BQ_DATASET},DATABASE_URL=${DB_URL},SMTP_PORT=587,SMTP_STARTTLS=true,BACKFILL_MODE=cloudrun,GCP_PROJECT=${PROJECT},GCP_REGION=${REGION}" \
-  --set-secrets="GEMINI_API_KEY=gemini-api-key:latest,ADMIN_TOKEN=admin-token:latest,SCHEDULER_TOKEN=scheduler-token:latest,SMTP_HOST=smtp-host:latest,SMTP_USER=smtp-user:latest,SMTP_PASSWORD=smtp-password:latest,DIGEST_FROM=digest-from:latest,SIGNUP_CODE=signup-code:latest,SIGNUP_CODE_MONTHLY=signup-code-monthly:latest,SIGNUP_CODE_ANNUAL=signup-code-annual:latest,INBOUND_ADDRESS=inbound-address:latest,INBOUND_PASSWORD=inbound-password:latest"
+  --set-secrets="GEMINI_API_KEY=gemini-api-key:latest,ADMIN_TOKEN=admin-token:latest,SCHEDULER_TOKEN=scheduler-token:latest,SMTP_HOST=smtp-host:latest,SMTP_USER=smtp-user:latest,SMTP_PASSWORD=smtp-password:latest,DIGEST_FROM=digest-from:latest,SIGNUP_CODE=signup-code:latest,SIGNUP_CODE_MONTHLY=signup-code-monthly:latest,SIGNUP_CODE_ANNUAL=signup-code-annual:latest,INBOUND_ADDRESS=inbound-address:latest,INBOUND_PASSWORD=inbound-password:latest,NYLAS_CLIENT_ID=nylas-client-id:latest,NYLAS_API_KEY=nylas-api-key:latest"
 
 API_URL="$(gcloud run services describe textile-api --region="$REGION" --format='value(status.url)')"
 echo "    API at $API_URL"
+
+# The service's own URL, for the one place it cannot be derived: an OAuth
+# redirect_uri has to be absolute and has to match what is registered with
+# Nylas exactly. Set after the first deploy because that is when the URL
+# exists; on later deploys it is simply re-set to the same value.
+gcloud run services update textile-api --region="$REGION" \
+  --update-env-vars="API_URL=${API_URL}"
 
 echo "==> Build and deploy frontend"
 # --tag and --config are mutually exclusive, so the image name goes through as
@@ -168,6 +175,27 @@ else
   IHEADER=--headers
 fi
 gcloud scheduler jobs $IVERB http textile-inbound   --location="$REGION"   --schedule="*/10 * * * *"   --time-zone="Asia/Kolkata"   --uri="${API_URL}/api/connect/inbound/poll"   --http-method=POST   "$IHEADER=X-Scheduler-Token=${SCHED_TOKEN}"   --attempt-deadline=300s
+
+echo "==> Connected mailbox sweep"
+# Every ten minutes as well, but offset by five so the two mail jobs do not
+# both start a backfill in the same minute. Longer deadline than the inbound
+# poll: this one talks to Nylas once per connected mailbox and downloads
+# attachments, where the poll reads a single IMAP box.
+if gcloud scheduler jobs describe textile-mailbox --location="$REGION" >/dev/null 2>&1; then
+  MVERB=update
+  MHEADER=--update-headers
+else
+  MVERB=create
+  MHEADER=--headers
+fi
+gcloud scheduler jobs $MVERB http textile-mailbox \
+  --location="$REGION" \
+  --schedule="5-59/10 * * * *" \
+  --time-zone="Asia/Kolkata" \
+  --uri="${API_URL}/api/connect/mail/sweep" \
+  --http-method=POST \
+  "$MHEADER=X-Scheduler-Token=${SCHED_TOKEN}" \
+  --attempt-deadline=900s
 
 echo
 echo "Deployed $TAG."

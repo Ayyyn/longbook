@@ -200,6 +200,12 @@ export const api = {
   sources: () => request("/api/ingest/sources"),
   inbound: () => request("/api/connect/inbound"),
   gmailStatus: () => request("/api/connect/gmail/status"),
+  mailbox: () => request("/api/connect/mail"),
+  // Bodyless POSTs need an explicit body or the proxy in front of Cloud Run
+  // answers 411 Length Required before the request ever reaches us.
+  mailboxConnect: () => request("/api/connect/mail/connect", { method: "POST", body: "{}" }),
+  mailboxSync: () => request("/api/connect/mail/sync", { method: "POST", body: "{}" }),
+  mailboxDisconnect: (id) => request(`/api/connect/mail/${id}`, { method: "DELETE" }),
   me: () => request("/api/tenants/me"),
   queue: (limit = 25) => request(`/api/review/queue?limit=${limit}`),
   accept: (id) => request(`/api/review/${id}/accept`, { method: "POST" }),
