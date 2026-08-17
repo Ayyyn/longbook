@@ -8,6 +8,7 @@ shorthand ("150 mtr @ 62 nett") far better than transcribe-then-parse.
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 import os
@@ -102,6 +103,46 @@ def _cost(model: str, usage: Any) -> float:
     )
 
 
+# Inline media is capped by the request size. Anything near it goes through
+# the File API instead, which is a two-step upload and worth avoiding for the
+# ordinary case — a photographed bill is well under a megabyte.
+MAX_INLINE_MEDIA = 15 * 1024 * 1024
+
+
+def _media_part(media_uri: str, media_kind: str, media_mime: str | None):
+    """The attachment, as bytes.
+
+    Not as a URI, which is what this used to do and which silently broke every
+    photograph, PDF and voice note the product ever took in production. The
+    Gemini Developer API — the one an API key authenticates — refuses a
+    gs:// URI outright:
+
+        Referencing Google Cloud Storage files directly is not supported.
+
+    Only Vertex AI reads gs:// paths. That distinction cost us every media
+    extraction: the window failed, the failure was recorded on the run and
+    nowhere the owner could see, and the upload looked like it had been read.
+
+    So the bytes are fetched through the service account and sent inline. It
+    costs one GCS read per extraction, which is the correct price for the
+    thing working.
+    """
+    from app.services.storage import read_media
+
+    mime = media_mime or _mime(media_kind)
+    if media_uri.startswith("http://") or media_uri.startswith("https://"):
+        # A genuine public URL is the one case the API will fetch itself.
+        return types.Part.from_uri(file_uri=media_uri, mime_type=mime)
+
+    blob = read_media(media_uri)
+    if len(blob) > MAX_INLINE_MEDIA:
+        uploaded = client().files.upload(
+            file=io.BytesIO(blob), config={"mime_type": mime}
+        )
+        return types.Part.from_uri(file_uri=uploaded.uri, mime_type=mime)
+    return types.Part.from_bytes(data=blob, mime_type=mime)
+
+
 def generate_json(
     *,
     model: str,
@@ -125,9 +166,7 @@ def generate_json(
     parts.append(types.Part.from_text(text=user))
 
     if media_uri and media_kind in {"audio", "image", "document"}:
-        parts.append(types.Part.from_uri(
-            file_uri=media_uri, mime_type=media_mime or _mime(media_kind)
-        ))
+        parts.append(_media_part(media_uri, media_kind, media_mime))
 
     last_err: Exception | None = None
     for attempt in range(max_retries + 1):

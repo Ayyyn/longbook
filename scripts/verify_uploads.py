@@ -218,5 +218,45 @@ check("estimate works with no profile too",
 check("  and the import history is visible",
       client.get("/api/ingest/sources", headers=bh).status_code, 200)
 
+print("\n-- media reaches the model as bytes, not as a gs:// path --")
+
+# The bug this guards against was silent and total: every photographed bill,
+# every PDF and every voice note failed extraction in production, because the
+# attachment was handed to Gemini as a gs:// URI. The Developer API — the one
+# an API key authenticates — refuses those outright:
+#
+#     Referencing Google Cloud Storage files directly is not supported.
+#
+# Only Vertex AI reads gs:// paths. Nothing surfaced: the window recorded a
+# failure the owner never saw, and the upload looked read. A unit check is the
+# right place for this, because the failure needs a real bucket to reproduce
+# and would otherwise only ever be found by a customer.
+import app.llm as llm_module  # noqa: E402
+
+def fake_read(uri):
+    return b"\x89PNG\r\n\x1a\n" + b"0" * 64
+
+
+import app.services.storage as storage_module  # noqa: E402
+
+storage_module.read_media = fake_read
+
+part = llm_module._media_part("gs://bucket/tenant/bill.jpg", "image", "image/jpeg")
+check("a gs:// attachment is sent inline", part.inline_data is not None, True)
+check("  and carries the actual bytes", part.inline_data.data[:4], b"\x89PNG")
+check("  never as a file_uri the API will reject",
+      getattr(part, "file_data", None) is None, True)
+check("  with the mime type it was stored under",
+      part.inline_data.mime_type, "image/jpeg")
+
+audio = llm_module._media_part("gs://bucket/tenant/note.webm", "audio", "audio/webm")
+check("a voice note goes the same way", audio.inline_data is not None, True)
+check("  keeping its own mime type", audio.inline_data.mime_type, "audio/webm")
+
+# A real public URL is the one thing the API will fetch for itself.
+https = llm_module._media_part("https://example.com/a.pdf", "document", "application/pdf")
+check("an https url is still passed through as a uri",
+      https.file_data is not None, True)
+
 print(f"\n{ok} passed, {fail} failed")
 raise SystemExit(1 if fail else 0)

@@ -33,6 +33,10 @@ class JobStatus(BaseModel):
     needs_review: int
     discarded: int
     logged: int = 0  # enquiries — context, not a business record
+    # Windows the pipeline tried and could not read. Distinct from `errors`,
+    # which comes from an in-process registry that is empty whenever the
+    # backfill runs as its own Cloud Run job — which in production is always.
+    failed: int = 0
     errors: list[str] = []
 
 

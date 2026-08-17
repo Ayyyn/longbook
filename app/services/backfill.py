@@ -389,9 +389,38 @@ def job_status(db, tenant_id: uuid.UUID, job_id: uuid.UUID) -> dict[str, Any]:
     if run.get("tenant_id") != tenant_id:
         run = {}
 
+    # Windows this job's messages landed in, split by whether the pipeline has
+    # finished with them. `outcome` is the durable record — "failed" means it
+    # was tried and will not come right on its own.
+    outcomes = dict(
+        db.execute(
+            select(ExtractionWindow.outcome, func.count())
+            .where(ExtractionWindow.tenant_id == tenant_id,
+                   ExtractionWindow.id.in_(window_ids))
+            .group_by(ExtractionWindow.outcome)
+        ).all()
+    )
+    still_pending = outcomes.get("pending", 0) + outcomes.get(None, 0)
+    failed_windows = outcomes.get("failed", 0)
+
     state = run.get("state")
     if state is None:
-        state = "done" if total and processed >= total else "unknown"
+        # In production the backfill runs as a separate Cloud Run job, so this
+        # process's run registry is always empty and `processed >= total` was
+        # the only signal. A window that failed never moves `processed`, so a
+        # single unreadable file left the job reporting "unknown" — which the
+        # dashboard renders as "Reading…" — for ever. One voice note that
+        # could not be read meant "reading 1 file" until the end of time.
+        #
+        # Finished is therefore a question about windows, not about messages:
+        # nothing left pending means the pipeline is done with this job,
+        # whether or not every window produced something.
+        if not total:
+            state = "unknown"
+        elif still_pending == 0:
+            state = "done"
+        else:
+            state = "running"
 
     return {
         "job_id": job_id,
@@ -400,6 +429,11 @@ def job_status(db, tenant_id: uuid.UUID, job_id: uuid.UUID) -> dict[str, Any]:
         "processed": processed,
         "windows_total": run.get("total", 0),
         "windows_done": run.get("done", 0),
+        # Surfaced rather than buried in an in-memory error list the API
+        # process cannot see: a file that could not be read is something the
+        # owner is entitled to know about, and silence here is what made a
+        # broken extraction look like a slow one.
+        "failed": failed_windows,
         "committed": by_status.get("auto_committed", 0),
         "needs_review": by_status.get("needs_review", 0),
         "discarded": by_status.get("rejected", 0),
