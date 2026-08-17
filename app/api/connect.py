@@ -295,6 +295,10 @@ def mailbox_sync(tid: TenantId) -> dict:
     return {
         "accounts": len(results),
         "records": sum(r["records"] for r in results),
+        # The first pull of a mailbox with years in it does not fit in one
+        # request. `more` tells the screen to come back for the rest rather
+        # than telling the owner their history is in when half of it is not.
+        "more": any(r.get("more") for r in results),
         "results": results,
     }
 
@@ -323,7 +327,9 @@ def mailbox_disconnect(account_id: uuid.UUID, tid: TenantId, db: TenantDB) -> di
 @router.post("/mail/sweep", dependencies=[Depends(require_scheduler)])
 def mailbox_sweep() -> dict:
     """Every connected mailbox for every business. Called by Cloud Scheduler."""
-    summary = mail_sync.sync_all()
+    # Longer budget than the interactive path: nobody is waiting on this one,
+    # and it is what carries a large first pull the rest of the way.
+    summary = mail_sync.sync_all(budget=700.0)
     for row in summary["results"]:
         if row.get("job_id"):
             with admin_session() as db:

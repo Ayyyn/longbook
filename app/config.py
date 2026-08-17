@@ -100,10 +100,18 @@ class Settings(BaseSettings):
     # in, and calling the wrong host returns a 404 for a grant that exists,
     # which reads like a bug in our code and is not one.
     nylas_api_uri: str = "https://api.us.nylas.com"
-    # How far back a newly connected mailbox is read. A month gives the
-    # business something to look at on day one without pulling in years of
-    # mail nobody wants extracted.
-    nylas_initial_days: int = 30
+    # How far back a newly connected mailbox is read on first connect. A year
+    # is the useful default: it covers a full cycle of seasonal ordering, so
+    # the party history and rate history have something real in them on day
+    # one. 0 means everything the mailbox holds.
+    nylas_initial_days: int = 365
+
+    # The stop on the first pull, counted in messages. Without one, connecting
+    # a mailbox that has been open since 2014 means tens of thousands of
+    # newsletters and OTPs going through extraction — a large model bill and a
+    # review queue nobody can face. The watermark makes this a pause, not a
+    # loss: raise it and the next sync carries on where this one stopped.
+    nylas_max_messages: int = 5000
 
     # This service's own public URL. Needed because an OAuth redirect_uri has
     # to be absolute and has to match what is registered with the provider

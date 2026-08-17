@@ -170,11 +170,22 @@ def revoke(grant_id: str) -> None:
 # --------------------------------------------------------------------------
 
 
-def list_messages(grant_id: str, since: datetime | None, limit: int = PAGE_SIZE) -> list[dict]:
-    """Messages received at or after `since`, oldest first.
+def list_messages(
+    grant_id: str,
+    since: datetime | None,
+    limit: int = PAGE_SIZE,
+    cursor: str | None = None,
+) -> tuple[list[dict], str | None]:
+    """One page of messages at or after `since`, oldest first, plus the cursor
+    for the next page (None when there are no more).
 
-    Oldest first matters: the sync stops after one page, and the watermark
-    advances to the newest message it actually took. Newest-first paging would
+    Deliberately unfiltered by folder, which is what makes sent mail come back
+    alongside received. Half of what a business commits to is in what the
+    owner sent — "yes, 1400m by Friday" — and a sync that only read the inbox
+    would have every order with the customer's half of it and none of ours.
+
+    Oldest first matters: a sync may stop between pages, and the watermark
+    advances to the newest message actually stored. Newest-first paging would
     move the watermark past mail that was never read.
     """
     params: dict = {"limit": limit}
@@ -182,8 +193,11 @@ def list_messages(grant_id: str, since: datetime | None, limit: int = PAGE_SIZE)
         # Nylas takes whole seconds since the epoch. `since` is naive UTC,
         # like every other datetime in this system.
         params["received_after"] = int(since.replace(tzinfo=timezone.utc).timestamp())
-    data = _call("GET", f"/v3/grants/{grant_id}/messages", params=params).get("data", [])
-    return sorted(data, key=lambda m: m.get("date") or 0)
+    if cursor:
+        params["page_token"] = cursor
+    body = _call("GET", f"/v3/grants/{grant_id}/messages", params=params)
+    data = body.get("data") or []
+    return sorted(data, key=lambda m: m.get("date") or 0), body.get("next_cursor")
 
 
 def download_attachment(grant_id: str, attachment_id: str, message_id: str) -> bytes:
@@ -302,8 +316,11 @@ def received_at(message: dict) -> datetime | None:
         return None
 
 
-def default_since() -> datetime:
-    return datetime.utcnow() - timedelta(days=settings().nylas_initial_days)
+def default_since() -> datetime | None:
+    """How far back a mailbox nobody has synced yet is read. None means the
+    whole mailbox."""
+    days = settings().nylas_initial_days
+    return datetime.utcnow() - timedelta(days=days) if days else None
 
 
 # Kept next to the client because it is the same concern: `state` has to

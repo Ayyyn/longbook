@@ -300,6 +300,41 @@ function Mailbox() {
     setState(await api.mailbox().catch(() => ({ available: false, accounts: [] })));
   }, []);
 
+  // The first pull of a mailbox with years in it does not fit in one request,
+  // so the server hands back `more` and we come back for the rest. Looping
+  // here rather than leaving it to the ten-minute sweep is the difference
+  // between the history being there when the owner looks and being there an
+  // hour later.
+  //
+  // Capped so a mailbox that keeps saying "more" cannot spin forever; the
+  // sweep picks up anything past the cap.
+  const pull = useCallback(async () => {
+    setBusy("sync");
+    let total = 0;
+    try {
+      for (let round = 0; round < 20; round += 1) {
+        const out = await api.mailboxSync();
+        total += out.records || 0;
+        setNote(
+          out.more
+            ? `Reading your mail — ${formatNumber(total)} so far…`
+            : total
+              ? `Read ${formatNumber(total)} message${total === 1 ? "" : "s"}.`
+              : "Nothing new since the last check.",
+        );
+        await load();
+        if (!out.more) break;
+      }
+    } catch {
+      setNote(
+        total
+          ? `Read ${formatNumber(total)} message${total === 1 ? "" : "s"}, then stopped. The rest follows automatically.`
+          : "Could not check just now.",
+      );
+    }
+    setBusy("");
+  }, [load]);
+
   useEffect(() => {
     load();
     // The callback sends the owner back here with the outcome in the URL.
@@ -309,7 +344,7 @@ function Mailbox() {
     if (outcome) {
       setNote(
         {
-          connected: "Mailbox connected. Reading the last month of mail now.",
+          connected: "Mailbox connected. Reading your mail now.",
           failed: "That did not go through. Try connecting again.",
           expired: "That link had expired. Try connecting again.",
         }[outcome] || "",
@@ -317,9 +352,9 @@ function Mailbox() {
       window.history.replaceState({}, "", window.location.pathname);
       // Connecting is the moment the owner wants to see something happen, so
       // pull straight away rather than waiting for the sweep.
-      if (outcome === "connected") api.mailboxSync().then(load).catch(() => {});
+      if (outcome === "connected") pull();
     }
-  }, [load]);
+  }, [load, pull]);
 
   const connect = async () => {
     setBusy("connect");
@@ -332,21 +367,6 @@ function Mailbox() {
     }
   };
 
-  const sync = async () => {
-    setBusy("sync");
-    try {
-      const out = await api.mailboxSync();
-      setNote(
-        out.records
-          ? `Read ${formatNumber(out.records)} new message${out.records === 1 ? "" : "s"}.`
-          : "Nothing new since the last check.",
-      );
-      await load();
-    } catch {
-      setNote("Could not check just now.");
-    }
-    setBusy("");
-  };
 
   const disconnect = async (id) => {
     setBusy(id);
@@ -403,7 +423,7 @@ function Mailbox() {
                   : "Connect a mailbox"}
             </button>
             {state.accounts.length > 0 && (
-              <button onClick={sync} disabled={busy === "sync"}>
+              <button onClick={pull} disabled={busy === "sync"}>
                 {busy === "sync" ? "Checking…" : "Check now"}
               </button>
             )}

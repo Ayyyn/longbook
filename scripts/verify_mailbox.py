@@ -156,8 +156,36 @@ check("a page is ordered oldest first",
       [m["id"] for m in sorted(raw_page, key=lambda m: m.get("date") or 0)],
       ["a", "b", "c"])
 
-check("the default reaches back a month, not to the beginning of time",
-      (datetime.utcnow() - nylas.default_since()).days, 30)
+check("the default reaches back a year, so a full ordering cycle is covered",
+      round((datetime.utcnow() - nylas.default_since()).total_seconds() / 86400), 365)
+
+# The first pull of a mailbox open since 2014 is thousands of messages, and
+# every one of them costs a model call downstream. The cap makes that a pause
+# rather than a bill: the watermark means the next sync resumes.
+from app.config import Settings as _S  # noqa: E402
+
+check("there is a cap on the first pull", _S(_env_file=None).nylas_max_messages > 0, True)
+
+# Paging is what makes "all of it" possible at all — one page of 50 would
+# have meant the history trickling in at 50 per sweep.
+import inspect as _inspect  # noqa: E402
+
+sig = _inspect.signature(nylas.list_messages)
+check("list_messages takes a cursor", "cursor" in sig.parameters, True)
+check("  and hands the next one back",
+      "next_cursor" in _inspect.getsource(nylas.list_messages), True)
+
+# Sent mail is half of every commitment the business made. Filtering by folder
+# would have silently dropped it.
+check("no folder filter is sent, so sent mail comes back too",
+      '"in"' in _inspect.getsource(nylas.list_messages), False)
+
+from app.services import mail_sync  # noqa: E402
+
+check("the sync has a time budget",
+      "budget" in _inspect.signature(mail_sync.sync_account).parameters, True)
+check("  and reports when there is more to come",
+      '"more"' in _inspect.getsource(mail_sync.sync_account), True)
 
 # received_after is inclusive, so re-reading the boundary message is expected
 # and harmless — store_mail dedupes on content. A gap would not be.
