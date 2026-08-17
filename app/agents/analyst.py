@@ -1,8 +1,18 @@
-"""Answering questions about this business's own records.
+"""Answering questions about this business — from its records, and about them.
 
-Deliberately narrow. It is not a general assistant: it has one corpus, this
-tenant's records, and one rule, that every factual claim carries a citation to
-something in that corpus. Anything it cannot cite it does not say.
+The rule is about evidence, not about topic. Every factual claim about this
+business carries a citation to something in this tenant's records; anything it
+cannot cite it does not say. Within that, it is allowed to think: what the
+numbers mean, where the business is exposed, what to do about it. An earlier
+version forbade the second thing along with the first, and answered "how could
+I grow this business" with "that is outside what I can answer" — which is not
+caution, it is a system refusing to use what it just read.
+
+It can also search the web, for the things that are true of the world rather
+than of this business: a prevailing rate, a GST rate, a festival date. Those
+answers are grounded too, in pages rather than rows, and are reported as such.
+The one thing it must never do is search for a fact about this business — the
+records are the only authority on that.
 
 What changed, and why
 ---------------------
@@ -97,15 +107,37 @@ Writing the answer:
    reading "I have no balance records" concludes the app is broken; reading
    "nobody owes you anything" concludes their books are clear. Those are
    opposite meanings and only one is true.
-9. Answer only about this business's trade. For anything else, say it is
-   outside what you can answer and stop. No general advice or opinions.
-10. Be brief. This is read on a phone between customers. Two or three
+9. You are allowed to think, not only to fetch. If the owner asks what their
+   records mean, where they are exposed, which customer is worth chasing, or
+   how they might grow — answer properly. Ground it in what you looked up, say
+   which records led you there, and be concrete: "Mahavir is 40% of your
+   receivables [P1, P2] — that is your biggest single risk" is useful; "consider
+   diversifying your customer base" is a horoscope.
+
+   The line that matters is not topic, it is evidence. A fact about this
+   business must come from a lookup and carry its reference. A judgement built
+   on those facts is yours to make, and should be recognisable as judgement —
+   "that suggests", "you may want to" — rather than dressed up as a record.
+
+   Decline only what you genuinely should: legal, tax and accounting rulings
+   ("is this GST treatment correct"), anything about a named person's private
+   affairs, and anything you would have to invent to answer. Say plainly what
+   you cannot do and answer the part you can.
+10. You can search the web, and it happens by itself when you need it — there
+   is no lookup to call. Use it for things that are true of the world rather
+   than of this business: a prevailing market rate, a GST rate, an HSN code, a
+   festival date affecting demand, what a term means. Say when a figure came
+   from the web rather than their books, because the owner must never mistake
+   one for the other. Never search for a fact about this business — their
+   records are the only authority on that, and the web has nothing to say
+   about who owes them money.
+11. Be brief. This is read on a phone between customers. Two or three
    sentences, or a short list. No preamble, no restating the question.
-11. Money in rupees, Indian digit grouping.
-12. When you list more than two things, use a markdown list — one "- " item
+12. Money in rupees, Indian digit grouping.
+13. When you list more than two things, use a markdown list — one "- " item
     per line, each on its own line. Do not run a list into a paragraph.
     Bold a figure with **1,42,000** when it is the point of the answer.
-13. You CAN draw charts. When a comparison across parties, items or dates is
+14. You CAN draw charts. When a comparison across parties, items or dates is
     the point of the answer — or whenever one is asked for — emit a fenced
     block tagged `chart`, one row per line:
 
@@ -130,7 +162,7 @@ class Analyst(Agent):
     """Question in, cited answer out — with the lookups chosen by the model."""
 
     name = "analyst"
-    prompt_version = "analyst-v3-tools"
+    prompt_version = "analyst-v4-advice-web"
 
     @property
     def model(self) -> str:
@@ -189,8 +221,28 @@ class Analyst(Agent):
             user=question,
             tools=tools,
             history=history,
+            # The world outside their books: a prevailing rate, a GST rate, a
+            # festival date. Never a fact about this business — the records are
+            # the only authority on that, and the prompt says so.
+            web_search=True,
         )
         answer = (answer or "").strip()
+
+        # Pages a server-side search leant on. Kept apart from `refs` on
+        # purpose: a record citation is checked and stripped if invented,
+        # whereas these are reported by the API rather than echoed by the
+        # model, so there is nothing to verify and nothing to strip.
+        # Deduped by site, not by URL: a search routinely returns four pages
+        # from indiamart, and four identical-looking lines under an answer
+        # reads as padding rather than as evidence.
+        web_sources: list[dict[str, Any]] = []
+        seen_sites: set[str] = set()
+        for step in trace:
+            for src in step.get("sources") or []:
+                site = (src.get("title") or src.get("url") or "").lower()
+                if site and site not in seen_sites:
+                    seen_sites.add(site)
+                    web_sources.append(src)
 
         # Second enforcement, unchanged in spirit: a reference the model made
         # up resolves to nothing, and a sentence resting on it is a claim we
@@ -241,8 +293,15 @@ class Analyst(Agent):
         # A figure, though, must always be traceable — whether or not any
         # lookup returned rows. An invented number with no rows behind it is
         # the most dangerous output this thing can produce.
+        # A web-grounded answer has evidence, just not in the books — "GST on
+        # cotton fabric is 5%" is sourced, cited to a page, and correct. The
+        # figure check exists to catch numbers with nothing behind them, so
+        # grounding satisfies it exactly as a record reference does. Without
+        # this, every question the web answered would be clobbered into "I
+        # could not point to a record", which is both false and a worse answer
+        # than the one it replaces.
         claims_a_figure = bool(re.search(r"\d", answer))
-        if answered and not cited and claims_a_figure:
+        if answered and not cited and not web_sources and claims_a_figure:
             answered = False
             answer = (
                 "I could not point to a record that answers that, so I would "
@@ -275,6 +334,21 @@ class Analyst(Agent):
                 "interaction_id": row.get("_id") if row.get("tool") == "search_messages"
                                   else None,
                 "occurred_at": row.get("when") or row.get("date") or row.get("received_on"),
+            })
+
+        # Web pages go in the same list, marked as web. The owner needs to be
+        # able to tell at a glance which part of an answer came from their
+        # books and which came from the internet — that distinction is the
+        # whole reason a business would trust the first kind.
+        for src in web_sources:
+            sources.append({
+                "ref": None,
+                "kind": "web",
+                "label": src.get("title") or src.get("url"),
+                "detail": src.get("url"),
+                "url": src.get("url"),
+                "party_id": None, "order_id": None,
+                "interaction_id": None, "occurred_at": None,
             })
 
         return Decision(

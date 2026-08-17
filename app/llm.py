@@ -169,6 +169,30 @@ def _mime(kind: str) -> str:
     return {"audio": "audio/ogg", "image": "image/jpeg", "document": "application/pdf"}[kind]
 
 
+def _grounding(candidate) -> dict[str, Any] | None:
+    """The pages a server-side search actually used, if it ran.
+
+    Defensive throughout: grounding metadata is optional at every level, and a
+    shape change here should cost us the citation, never the answer.
+    """
+    meta = getattr(candidate, "grounding_metadata", None)
+    if meta is None:
+        return None
+    sources = []
+    for chunk in getattr(meta, "grounding_chunks", None) or []:
+        web = getattr(chunk, "web", None)
+        if web is None:
+            continue
+        uri = getattr(web, "uri", None)
+        if not uri:
+            continue
+        sources.append({"title": getattr(web, "title", None) or uri, "url": uri})
+    queries = list(getattr(meta, "web_search_queries", None) or [])
+    if not sources and not queries:
+        return None
+    return {"queries": queries, "sources": sources}
+
+
 def generate_with_tools(
     *,
     model: str,
@@ -177,6 +201,7 @@ def generate_with_tools(
     tools: dict[str, dict[str, Any]],
     history: list[dict[str, str]] | None = None,
     max_steps: int = 6,
+    web_search: bool = False,
 ) -> tuple[str, list[dict[str, Any]], dict]:
     """Let the model decide what to look up, instead of guessing in advance.
 
@@ -193,12 +218,28 @@ def generate_with_tools(
     Bounded by max_steps because a loop that can call tools can also loop.
     """
     declarations = [spec["declaration"] for spec in tools.values()]
+    tool_list = [types.Tool(function_declarations=declarations)]
+    extra: dict[str, Any] = {}
+    if web_search:
+        # Google Search runs server-side: the model issues the query, Google
+        # answers it, and the grounded text comes back within the same call —
+        # there is no round trip for us to run. That is why it is not one of
+        # `tools` and does not appear in the loop below.
+        #
+        # include_server_side_tool_invocations is load-bearing. Without it the
+        # API rejects a built-in tool and function declarations in the same
+        # request with a 400, which is a hard failure of the whole chat rather
+        # than a missing search.
+        tool_list.insert(0, types.Tool(google_search=types.GoogleSearch()))
+        extra["tool_config"] = types.ToolConfig(include_server_side_tool_invocations=True)
+
     config = types.GenerateContentConfig(
         system_instruction=system,
         temperature=0.1,
-        tools=[types.Tool(function_declarations=declarations)],
+        tools=tool_list,
         # Off: the loop is explicit so every call is logged and counted.
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+        **extra,
     )
 
     contents: list[Any] = []
@@ -226,6 +267,16 @@ def generate_with_tools(
         candidate = (resp.candidates or [None])[0]
         parts = getattr(getattr(candidate, "content", None), "parts", None) or []
         calls = [p.function_call for p in parts if getattr(p, "function_call", None)]
+
+        # A server-side search leaves its evidence in grounding metadata rather
+        # than in a function response, so it is collected here instead of in
+        # the loop below. Recorded as a trace entry like any other lookup: an
+        # answer that leant on the web should be auditable to the pages it
+        # leant on, exactly as one resting on records is auditable to the rows.
+        found = _grounding(candidate)
+        if found:
+            trace.append({"tool": "web_search", "args": {"queries": found["queries"]},
+                          "rows": len(found["sources"]), "sources": found["sources"]})
 
         if not calls:
             text = (getattr(resp, "text", None) or "").strip()

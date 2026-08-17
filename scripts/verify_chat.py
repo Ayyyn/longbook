@@ -157,7 +157,8 @@ import app.agents.analyst as analyst_module  # noqa: E402
 # Claims a fact citing a reference that does not exist. The analyst now drives
 # tools rather than a single JSON call, so the stub stands in for the tool loop
 # and returns (answer, trace, usage).
-def lying(*, model, system, user, tools=None, history=None, max_steps=6):
+def lying(*, model, system, user, tools=None, history=None, max_steps=6,
+          web_search=False):
     return (
         "Bharat Fabrics owes Rs 91,000 [P9].",
         [],
@@ -179,7 +180,8 @@ check("  the invention is recorded", decision.output["invented_citations"], ["P9
 # Actually calls a lookup, so the reference it cites is one the wrapper really
 # issued. That exercises the whole path: tool -> row -> short token -> citation
 # -> source with a record id the UI can link to.
-def honest(*, model, system, user, tools=None, history=None, max_steps=6):
+def honest(*, model, system, user, tools=None, history=None, max_steps=6,
+           web_search=False):
     rows = tools["outstanding"]["run"]()["rows"]
     trace = [{"tool": "outstanding", "args": {}, "rows": len(rows)}]
     if not rows:
@@ -252,6 +254,61 @@ from app.models import AgentRun  # noqa: E402
 with tenant_session(A) as db:
     runs = db.query(AgentRun).filter(AgentRun.agent == "analyst").count()
 check("the question reached agent_run", runs >= 1, True)
+
+print("\n-- a web-grounded answer is evidence too --")
+
+
+# The figure check exists to catch numbers with nothing behind them. A web
+# answer has something behind it — a page — so grounding satisfies that check
+# exactly as a record reference does. Without this, every question the web
+# answered would be clobbered into "I could not point to a record", which is
+# both false and a worse answer than the one it replaced.
+def grounded(*, model, system, user, tools=None, history=None, max_steps=6,
+             web_search=False):
+    check("  search is switched on for the analyst", web_search, True)
+    return (
+        "GST on cotton fabric is 5%.",
+        [{"tool": "web_search", "args": {"queries": ["gst cotton fabric"]}, "rows": 3,
+          "sources": [
+              {"title": "cbic.gov.in", "url": "https://example.gov/a"},
+              # The same site twice: one search routinely returns several pages
+              # from one domain, and four near-identical lines under an answer
+              # read as padding rather than as evidence.
+              {"title": "cbic.gov.in", "url": "https://example.gov/b"},
+              {"title": "indiamart.com", "url": "https://example.com/c"},
+          ]}],
+        {"input_tokens": 10, "output_tokens": 5, "cost_usd": 0.0001},
+    )
+
+
+analyst_module.generate_with_tools = grounded
+with tenant_session(A) as db:
+    web = Analyst(db, A).run({"question": "what is the gst on cotton fabric"})
+check("a figure from the web survives with no record citation",
+      web.output["answered"], True)
+check("  and the number still reaches the owner", "5%" in web.output["answer"], True)
+check("  the pages are listed", len(web.output["sources"]), 2)
+check("  deduped by site rather than by url",
+      [s["label"] for s in web.output["sources"]], ["cbic.gov.in", "indiamart.com"])
+check("  and marked as web, so it is never mistaken for the books",
+      {s["kind"] for s in web.output["sources"]}, {"web"})
+check("  with a url to open", web.output["sources"][0]["url"], "https://example.gov/a")
+
+
+# The dangerous inverse, and the reason the check exists at all: a figure with
+# neither a record nor a page behind it.
+def ungrounded(*, model, system, user, tools=None, history=None, max_steps=6,
+               web_search=False):
+    return ("Your margin is about 18%.", [],
+            {"input_tokens": 10, "output_tokens": 5, "cost_usd": 0.0001})
+
+
+analyst_module.generate_with_tools = ungrounded
+with tenant_session(A) as db:
+    bare = Analyst(db, A).run({"question": "what is my margin"})
+check("a figure with nothing behind it is still withdrawn",
+      bare.output["answered"], False)
+check("  and the number does not reach the owner", "18%" in bare.output["answer"], False)
 
 print(f"\n{ok} passed, {fail} failed")
 raise SystemExit(1 if fail else 0)

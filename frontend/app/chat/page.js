@@ -288,6 +288,19 @@ function Chat() {
 // on. Opening it shows them.
 function Sources({ rows }) {
   const [open, setOpen] = useState(false);
+
+  // Records and web pages are both evidence, and the owner has to be able to
+  // tell them apart at a glance — trusting the books is the whole proposition,
+  // and it survives only if "your ledger says" never blurs into "a website
+  // says". So they are counted separately in the summary and marked
+  // differently in the list.
+  const records = rows.filter((s) => s.kind !== "web");
+  const web = rows.filter((s) => s.kind === "web");
+  const summary = [
+    records.length ? `${records.length} record${records.length === 1 ? "" : "s"}` : null,
+    web.length ? `${web.length} web source${web.length === 1 ? "" : "s"}` : null,
+  ].filter(Boolean).join(" and ");
+
   return (
     <div className="sources">
       <button
@@ -295,32 +308,52 @@ function Sources({ rows }) {
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        {open ? "Hide" : "Show"} the {rows.length} record
-        {rows.length === 1 ? "" : "s"} behind this
+        {open ? "Hide" : "Show"} the {summary} behind this
       </button>
 
       {open &&
-        rows.map((s) => {
-          const href = s.order_id
-            ? `/orders/${s.order_id}`
-            : s.party_id
-              ? `/parties/${s.party_id}`
-              : null;
+        rows.map((s, i) => {
+          const isWeb = s.kind === "web";
+          const href = isWeb
+            ? s.url
+            : s.order_id
+              ? `/orders/${s.order_id}`
+              : s.party_id
+                ? `/parties/${s.party_id}`
+                : null;
           const inner = (
             <>
-              <span className="ref">[{s.ref}]</span>
+              <span className="ref">{isWeb ? "web" : `[${s.ref}]`}</span>
               <span>
                 <strong>{s.label}</strong>
-                {s.detail ? <span className="source-detail">{s.detail}</span> : null}
+                {s.detail && !isWeb ? (
+                  <span className="source-detail">{s.detail}</span>
+                ) : null}
               </span>
             </>
           );
+          const key = s.ref || s.url || `row-${i}`;
+          // An external link leaves the app, so it is a plain anchor rather
+          // than a router Link, and carries noopener.
+          if (isWeb && href) {
+            return (
+              <a
+                className="source-row"
+                key={key}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {inner}
+              </a>
+            );
+          }
           return href ? (
-            <Link href={href} className="source-row" key={s.ref}>
+            <Link href={href} className="source-row" key={key}>
               {inner}
             </Link>
           ) : (
-            <div className="source-row" key={s.ref}>
+            <div className="source-row" key={key}>
               {inner}
             </div>
           );
