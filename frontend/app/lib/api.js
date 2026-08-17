@@ -52,6 +52,25 @@ export class ApiError extends Error {
   }
 }
 
+// Pages anyone may read without signing in. A dead token must not take a
+// visitor off one of these: the account menu calls /me from the root layout,
+// so it runs on the home page and the pricing page too, and a 401 there was
+// throwing a stranger onto the sign-in screen half a second after the page
+// they asked for had rendered.
+//
+// Kept as a list rather than a "does this page use TokenGate" check because
+// the redirect fires from inside fetch, which has no idea what rendered it.
+const PUBLIC_PATHS = [
+  "/", "/pricing", "/contact", "/privacy", "/terms",
+  "/login", "/signup", "/recover",
+];
+
+function onPublicPage() {
+  if (typeof window === "undefined") return true;
+  const path = window.location.pathname.replace(/\/+$/, "") || "/";
+  return PUBLIC_PATHS.includes(path);
+}
+
 async function request(path, options = {}) {
   const token = getToken();
   const res = await fetch(`${BASE}${path}`, {
@@ -70,10 +89,13 @@ async function request(path, options = {}) {
 
   if (res.status === 401) {
     // The stored token is dead — a rotated token, or a database that was
-    // rebuilt under it. Drop it and send them to sign-in rather than leaving
-    // every screen showing the same red banner forever.
+    // rebuilt under it. Drop it either way; it is not going to start working.
     clearToken();
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+    // But only send them to sign-in if they were on a screen that needs one.
+    // On a public page the right outcome is simply to look signed out, and
+    // the caller's own .catch() is not enough to prevent this: the redirect
+    // happens here, before the error is ever thrown.
+    if (typeof window !== "undefined" && !onPublicPage()) {
       // Remember where they were so signing back in resumes the tap that
       // failed, instead of dumping them on Today.
       const next = window.location.pathname + window.location.search;
