@@ -72,7 +72,10 @@ export default function FilePicker({
         ref={inputRef}
         id={id}
         type="file"
-        accept={accept}
+        {/* Both omitted unless given. An `accept` on a phone greys out the
+            file the owner is reaching for whenever Android reports it with a
+            generic type, which it often does — see app/lib/accept.js. */}
+        {...(accept ? { accept } : {})}
         {...(capture ? { capture } : {})}
         multiple
         onChange={(e) => add([...(e.target.files || [])])}

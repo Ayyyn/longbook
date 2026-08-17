@@ -7,7 +7,7 @@ import { api, getToken, signup, setToken, setPhone, formatNumber } from "../lib/
 import PublicPage from "../components/PublicPage";
 import FilePicker from "../components/FilePicker";
 import { CONTACT } from "../lib/contact";
-import { CHAT_ACCEPT, PARTY_ACCEPT } from "../lib/accept";
+import { ANY_FILE } from "../lib/accept";
 
 // The order matters and it changed. Data comes before questions, because the
 // questions are written from the data: asking "do you track batch numbers?"
@@ -577,7 +577,7 @@ function DataStep({ busy, onSubmit, onBack }) {
       <FilePicker
         id="chat"
         label="Your chat exports"
-        accept={CHAT_ACCEPT}
+        accept={ANY_FILE}
         hint="Pick as many as you like — your suppliers, your regular buyers, your transporter."
         onEstimate={(picked) => setChats(picked)}
       />
@@ -590,7 +590,7 @@ function DataStep({ busy, onSubmit, onBack }) {
           ref={partyRef}
           id="parties"
           type="file"
-          accept={PARTY_ACCEPT}
+          accept={ANY_FILE}
           onChange={(e) => setPartyFile(e.target.files?.[0] || null)}
         />
         <p className="muted">

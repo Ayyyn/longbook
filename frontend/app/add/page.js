@@ -7,7 +7,7 @@ import { api, formatNumber } from "../lib/api";
 import Empty from "../components/Empty";
 import FilePicker from "../components/FilePicker";
 import VoiceNote from "../components/VoiceNote";
-import { CHAT_ACCEPT, DEVICE_ACCEPT, IMAGE_ACCEPT } from "../lib/accept";
+import { ANY_FILE, IMAGE_ACCEPT } from "../lib/accept";
 
 export default function AddDataPage() {
   return (
@@ -89,7 +89,7 @@ const MODES = {
   files: {
     id: "files",
     label: "Choose files",
-    accept: DEVICE_ACCEPT,
+    accept: ANY_FILE,
     hint:
       "Tally exports, PDFs, bills, sheets, photos or voice notes. Pick as " +
       "many as you like.",
@@ -106,7 +106,7 @@ const MODES = {
   whatsapp: {
     id: "chat",
     // Exports arrive as .txt, or .zip when media came along.
-    accept: CHAT_ACCEPT,
+    accept: ANY_FILE,
     label: "Choose exported chats",
     hint: "One file per chat. Export as many chats as you like and add them together.",
   },
