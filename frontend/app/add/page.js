@@ -16,15 +16,27 @@ export default function AddDataPage() {
   );
 }
 
+// Ordered by what each source keeps doing after today, not by how easy it is
+// to build. Email connects once and then stays current on its own, so it goes
+// first — it is the only one here that makes the books keep up without anyone
+// returning to this screen. Files come next: a Tally export or a folder of
+// bills is the fastest way to put real history in on day one.
+//
+// WhatsApp is last on purpose, and it is the one that most needs its position
+// explained. An export is a snapshot: it carries the history well and then
+// stops, so a business that set itself up from chat exports alone is a
+// business quietly running on last month's information. Until live chat sync
+// exists it stays available and stays at the end.
 const SOURCES = [
-  { key: "upload", label: "From this device" },
-  { key: "camera", label: "Take a photo" },
+  { key: "email", label: "Email" },
+  { key: "upload", label: "Files" },
+  { key: "whatsapp", label: "WhatsApp" },
+  { key: "camera", label: "Photo" },
   { key: "voice", label: "Speak" },
-  { key: "accounts", label: "Connected accounts" },
 ];
 
 function AddData() {
-  const [tab, setTab] = useState("upload");
+  const [tab, setTab] = useState("email");
   const [history, setHistory] = useState(null);
 
   const load = useCallback(async () => {
@@ -39,7 +51,9 @@ function AddData() {
     <>
       <header className="bar">
         <h1>Add data</h1>
-        <div className="sub">Chats, bills, spreadsheets — any time, not just at setup</div>
+        <div className="sub">
+          Start with email — it keeps itself current. The rest fills in your history.
+        </div>
       </header>
 
       <div className="filters">
@@ -54,10 +68,11 @@ function AddData() {
         ))}
       </div>
 
+      {tab === "email" && <Accounts />}
       {tab === "upload" && <Picker onDone={load} />}
-      {tab === "camera" && <Picker camera onDone={load} />}
+      {tab === "whatsapp" && <Picker mode="whatsapp" onDone={load} />}
+      {tab === "camera" && <Picker mode="camera" onDone={load} />}
       {tab === "voice" && <Voice onDone={load} />}
-      {tab === "accounts" && <Accounts />}
 
       <History rows={history} />
     </>
@@ -82,11 +97,39 @@ const DEVICE_ACCEPT = [
   ".ogg,.oga,.opus,.m4a,.mp3,.wav,.aac,.webm,audio/*",
 ].join(",");
 
-// One component for both device files and camera capture. The only difference
-// is the input's accept/capture attributes — the parse, estimate and dedup
-// path behind it is identical to onboarding, deliberately: two ingestion
-// routes would drift apart and one of them would quietly stop deduping.
-function Picker({ camera = false, onDone }) {
+// What each upload mode offers. Only the input's attributes and the words
+// around it change — the parse, estimate and dedup path behind all three is
+// identical, deliberately: two ingestion routes would drift apart and one of
+// them would quietly stop deduping.
+const MODES = {
+  files: {
+    id: "files",
+    label: "Choose files",
+    accept: DEVICE_ACCEPT,
+    hint:
+      "Tally exports, PDFs, bills, sheets, photos or voice notes. Pick as " +
+      "many as you like.",
+  },
+  camera: {
+    id: "shot",
+    label: "Photograph a bill, challan or ledger page",
+    accept: "image/*",
+    capture: "environment",
+    hint:
+      "Take as many as you like. Photograph the whole page, straight on, in " +
+      "good light — the text is read from the picture.",
+  },
+  whatsapp: {
+    id: "chat",
+    // Exports arrive as .txt, or .zip when media came along.
+    accept: ".txt,text/plain,.zip,application/zip,application/x-zip-compressed",
+    label: "Choose exported chats",
+    hint: "One file per chat. Export as many chats as you like and add them together.",
+  },
+};
+
+function Picker({ mode = "files", onDone }) {
+  const cfg = MODES[mode] || MODES.files;
   const [files, setFiles] = useState([]);
   const [estimate, setEstimate] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -128,17 +171,44 @@ function Picker({ camera = false, onDone }) {
         </div>
       )}
 
+      {mode === "whatsapp" && (
+        <div className="card">
+          <h3>Bring your chat history in</h3>
+          {/* Said plainly rather than buried, because it is the one thing that
+              decides whether somebody relies on this alone. */}
+          <p className="muted">
+            An export is a snapshot, not a connection — it carries everything
+            said up to today and then stops. Connect your email as well, so the
+            books keep up on their own.
+          </p>
+          <ol style={{ paddingLeft: 18, lineHeight: 1.7, margin: "12px 0 0" }}>
+            <li>Open the chat in WhatsApp.</li>
+            <li>Tap the name at the top, then scroll to <b>Export chat</b>.</li>
+            <li>
+              Choose <b>Include media</b> if the chat has photos of bills or
+              challans in it — those are read too.
+            </li>
+            <li>Save the file to this device, then choose it below.</li>
+          </ol>
+          <div className="row" style={{ marginTop: 12 }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>WhatsApp Business sync</div>
+              <div className="muted">
+                Continuous, so you stop exporting chats by hand.
+              </div>
+            </div>
+            <span className="chip plain">Coming soon</span>
+          </div>
+        </div>
+      )}
+
       <FilePicker
-        key={`${camera ? "cam" : "files"}-${nonce}`}
-        id={camera ? "shot" : "files"}
-        label={camera ? "Photograph a bill, challan or ledger page" : "Choose files"}
-        accept={camera ? "image/*" : DEVICE_ACCEPT}
-        capture={camera ? "environment" : undefined}
-        hint={
-          camera
-            ? "Take as many as you like. Photograph the whole page, straight on, in good light — the text is read from the picture."
-            : "Chat exports, PDFs, bills, sheets, photos or voice notes. Pick as many as you like."
-        }
+        key={`${mode}-${nonce}`}
+        id={cfg.id}
+        label={cfg.label}
+        accept={cfg.accept}
+        capture={cfg.capture}
+        hint={cfg.hint}
         onEstimate={(picked, body) => {
           setFiles(picked);
           setEstimate(body);
@@ -267,17 +337,6 @@ function Accounts() {
         )}
       </div>
 
-      <div className="card">
-        <div className="row">
-          <div>
-            <div style={{ fontWeight: 600 }}>WhatsApp Business</div>
-            <div className="muted">
-              Continuous sync, so you stop exporting chats by hand.
-            </div>
-          </div>
-          <span className="chip plain">Coming soon</span>
-        </div>
-      </div>
     </>
   );
 }
