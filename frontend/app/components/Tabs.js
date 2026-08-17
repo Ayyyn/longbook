@@ -1,21 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { api } from "../lib/api";
 
-// Five, in the order they get used. Review sits last because it is a chore
-// rather than a destination — an owner opens the app to see today, not to be
-// asked questions. Business and Activity moved into the account menu: they
-// are read once a month, and a bottom bar on a phone has room for what is
-// read daily and nothing more.
+// Five, in the order they get used. Analytics takes the last slot from
+// Review, which has moved to the account menu: Review is a chore rather than a
+// destination — it is opened because the app asked, and the badge in the
+// account menu still says when it has. Analytics is somewhere an owner goes on
+// purpose, which is what a bottom-bar slot is for.
+//
+// Business and Activity live in the account menu for the same reason: read
+// once a month, and a phone's bottom bar has room for what is read daily.
 const TABS = [
   { href: "/today", label: "Today" },
   { href: "/parties", label: "Parties" },
   { href: "/orders", label: "Orders" },
   { href: "/notes", label: "Notes" },
-  { href: "/review", label: "Review" },
+  { href: "/analytics", label: "Analytics" },
 ];
 
 // Screens you reach without being signed in. The tab bar would be five dead
@@ -26,24 +27,6 @@ const PUBLIC_HOME = "/";
 
 export default function Tabs() {
   const pathname = usePathname();
-  // The count on Review. An owner should not have to open a tab to find out
-  // whether it wants anything from them.
-  const [waiting, setWaiting] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    api.today()
-      .then((d) => {
-        if (!cancelled) setWaiting(d?.needs_review || 0);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-    // Re-read on navigation: confirming an item should drop the badge without
-    // a reload.
-  }, [pathname]);
-
   if (pathname === PUBLIC_HOME) return null;
   if (CHROMELESS.some((p) => pathname.startsWith(p))) return null;
   return (
@@ -60,17 +43,9 @@ export default function Tabs() {
         // they are.
         const active =
           pathname === tab.href || pathname.startsWith(`${tab.href}/`);
-        const badge = tab.href === "/review" && waiting > 0 ? waiting : null;
         return (
           <Link key={tab.href} href={tab.href} className={active ? "active" : ""}>
-            <span className="tab-label">
-              {tab.label}
-              {badge != null && (
-                <sup className="tab-badge" aria-label={`${badge} waiting`}>
-                  {badge > 99 ? "99+" : badge}
-                </sup>
-              )}
-            </span>
+            <span className="tab-label">{tab.label}</span>
           </Link>
         );
       })}

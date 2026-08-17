@@ -660,17 +660,25 @@ nav.tabs {
   padding-bottom: env(safe-area-inset-bottom);
   z-index: 20;
 }
+/* Bigger than it was. At 12px in a --s3/--s4 box the labels were smaller
+   than anything else on the screen and the tap target was thinner than a
+   thumb, on the one control used on every visit. "Analytics" is also the
+   longest label the bar has ever carried, and it needed the room. */
 nav.tabs a {
   flex: 1;
   text-align: center;
-  padding: var(--s3) 0 var(--s4);
-  font-size: 12px;
-  font-weight: 550;
-  letter-spacing: 0.02em;
+  padding: 13px 2px 15px;
+  font-size: 13.5px;
+  font-weight: 560;
+  letter-spacing: 0.01em;
   color: var(--muted);
   text-decoration: none;
   border-top: 2px solid transparent;
   transition: color 140ms ease, border-color 140ms ease;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 nav.tabs a.active { color: var(--accent); border-top-color: var(--accent); }
 
@@ -1761,4 +1769,144 @@ button.primary:disabled {
   font-size: 14px;
   white-space: nowrap;
   flex: 0 0 auto;
+}
+
+
+/* ---- Analytics ------------------------------------------------------- */
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+@media (min-width: 760px) { .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+.kpi {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--s4);
+  min-width: 0;
+}
+/* A measure the data cannot support keeps its tile and carries the reason.
+   Silently omitting it leaves the owner looking for a number that is not
+   coming, with nothing to explain why. */
+.kpi.unavailable { background: var(--card-2); border-style: dashed; }
+
+.kpi-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.kpi-value {
+  font-family: var(--font-head);
+  font-size: clamp(22px, 5vw, 28px);
+  line-height: 1.1;
+  margin: 6px 0 4px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.kpi-change { font-size: 13px; }
+.kpi-change.up { color: var(--accent); }
+.kpi-change.down { color: var(--warn); }
+.kpi-why { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+.control-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  margin-bottom: var(--s3);
+}
+.control-row select {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 14.5px;
+  max-width: 100%;
+}
+.control-row .check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.insights ul { margin: 0; padding-left: 18px; }
+.insights li { margin-bottom: 8px; line-height: 1.55; }
+.insights li:last-child { margin-bottom: 0; }
+.insights li.attention { color: var(--warn); }
+
+.breakdown { display: flex; flex-direction: column; margin-top: var(--s3); }
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: inherit;
+  font-size: 14.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.breakdown-row:last-child { border-bottom: 0; }
+.bd-name { min-width: 0; overflow-wrap: anywhere; }
+.bd-value { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.drill {
+  margin-top: var(--s3);
+  padding: var(--s3);
+  background: var(--card-2);
+  border-radius: 10px;
+}
+.drill-head { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.drill-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: 6px 0;
+  font-size: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.drill-row:last-child { border-bottom: 0; }
+
+.rank-grid { display: grid; grid-template-columns: 1fr; gap: var(--s4); }
+@media (min-width: 700px) { .rank-grid { grid-template-columns: repeat(3, 1fr); } }
+.rank-title {
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.rank-row { display: flex; gap: 8px; padding: 5px 0; font-size: 14.5px; align-items: baseline; }
+.rank-n { color: var(--muted); font-variant-numeric: tabular-nums; width: 14px; }
+.rank-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.rank-v { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.alert-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.alert-row:last-child { border-bottom: 0; }
+.alert-head { font-weight: 600; }
+.alert-row.high .alert-head { color: var(--warn); }
+
+/* The review count, now that Review lives in the account menu. */
+.menu-count {
+  display: inline-block;
+  margin-left: 8px;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 12px;
+  font-weight: 650;
+  text-align: center;
 }

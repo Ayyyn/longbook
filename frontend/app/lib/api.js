@@ -45,6 +45,15 @@ export function samePhone(a, b) {
   return left.length === 10 && left === digits(b);
 }
 
+function qs(params) {
+  const out = new URLSearchParams();
+  for (const [k, v] of Object.entries(params || {})) {
+    if (v === undefined || v === null || v === "" || v === false) continue;
+    out.set(k, String(v));
+  }
+  return out.toString();
+}
+
 export class ApiError extends Error {
   constructor(status, detail) {
     super(detail);
@@ -222,6 +231,14 @@ export const api = {
   sources: () => request("/api/ingest/sources"),
   inbound: () => request("/api/connect/inbound"),
   gmailStatus: () => request("/api/connect/gmail/status"),
+  // Analytics. Every figure behind these is computed in SQL — see
+  // app/services/analytics.py — so the dashboard never waits on a model for a
+  // number, only for the sentences under "What stands out".
+  analyticsOverview: (p) => request(`/api/analytics/overview?${qs(p)}`),
+  analyticsSeries: (p) => request(`/api/analytics/series?${qs(p)}`),
+  analyticsBreakdown: (p) => request(`/api/analytics/breakdown?${qs(p)}`),
+  analyticsDrill: (p) => request(`/api/analytics/drill?${qs(p)}`),
+  analyticsInsights: (period) => request(`/api/analytics/insights?period=${period}`),
   mailbox: () => request("/api/connect/mail"),
   // Bodyless POSTs need an explicit body or the proxy in front of Cloud Run
   // answers 411 Length Required before the request ever reaches us.

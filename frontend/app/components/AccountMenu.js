@@ -14,18 +14,24 @@ export default function AccountMenu() {
   const [open, setOpen] = useState(false);
   const [me, setMe] = useState(null);
   const [signedIn, setSignedIn] = useState(false);
+  const [waiting, setWaiting] = useState(0);
   const wrap = useRef(null);
 
   const load = useCallback(async () => {
     if (!getToken()) {
       setSignedIn(false);
       setMe(null);
+      setWaiting(0);
       return;
     }
     setSignedIn(true);
     // A failure here is not worth a visible error: the menu degrades to
     // showing just the actions.
     setMe(await api.me().catch(() => null));
+    // The review count rides along with the profile read that already happens
+    // on every navigation.
+    const digest = await api.today().catch(() => null);
+    setWaiting(digest?.needs_review || 0);
   }, []);
 
   // Re-read on navigation so signing in or out is reflected without a reload.
@@ -102,6 +108,18 @@ export default function AccountMenu() {
               </Link>
               <Link href="/chat" role="menuitem" onClick={() => setOpen(false)}>
                 Ask a question
+              </Link>
+              {/* Review left the bottom bar for Analytics. It is a chore rather
+                  than a destination — opened because the app asked — so the
+                  count has to come with it, or nothing tells the owner it is
+                  waiting. */}
+              <Link href="/review" role="menuitem" onClick={() => setOpen(false)}>
+                Review
+                {waiting > 0 && (
+                  <span className="menu-count" aria-label={`${waiting} waiting`}>
+                    {waiting > 99 ? "99+" : waiting}
+                  </span>
+                )}
               </Link>
               {/* Below "Ask a question" rather than in the bottom bar: both are
                   read occasionally, and the bar is for the five screens used
