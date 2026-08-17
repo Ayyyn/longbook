@@ -65,6 +65,15 @@ SAMPLE_COLS = 20
 OPENING_INVOICE_NO = "OPENING"
 
 
+class NotAPartyList(ValueError):
+    """This workbook is a perfectly good sheet of something else.
+
+    Distinct from a parse failure so the caller can route the file to the
+    general importer instead of refusing it: a rate card belongs in the books,
+    just not in the party table.
+    """
+
+
 @dataclass
 class PartySeed:
     name: str
@@ -329,17 +338,15 @@ def parse_party_excel(path: Path, db=None, tenant_id: uuid.UUID | None = None) -
         if candidates and candidates[0][0] >= 1.0:
             return candidates[0][1]
 
-        seen = sorted({
-            str(c).strip()
-            for sample in samples for row in sample["rows"] for c in row
-            if c not in (None, "")
-        })[:12]
-        raise ValueError(
-            "No list of customers or suppliers found in this workbook. One "
-            "column needs to hold party names — headings like: "
-            + ", ".join(COLUMN_ALIASES["name"])
-            + (f". What was found instead: {', '.join(seen)}" if seen
-               else ". The workbook looks empty.")
+        # Written for the owner, not for us. The first version listed every
+        # column alias the importer accepts and then a dozen raw cell values —
+        # "1180, 1350, 6204 2RS deep-groove ball bearing" — which reads as a
+        # crash. A rate card is not a broken customer list; it is a different
+        # kind of sheet, and saying so is the whole of the useful information.
+        raise NotAPartyList(
+            "This looks like a price or stock sheet rather than a list of "
+            "customers. A customer list needs a column of party names, with a "
+            "heading like Name, Party, Customer or Ledger."
         )
     finally:
         workbook.close()

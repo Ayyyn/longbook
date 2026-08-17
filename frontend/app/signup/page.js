@@ -190,13 +190,29 @@ export default function SignupPage() {
       }
       // One call per file: the import endpoint takes a single book, and two
       // books merged client-side would lose which row came from where.
+      //
+      // A file that is not a customer list at all — a rate card, a stock
+      // sheet — comes back 422 rather than 400. That is the wrong door, not a
+      // broken file, so it goes through the general importer instead of being
+      // refused. Somebody who picked three spreadsheets should not have to
+      // work out which one this box wanted.
+      const rerouted = [];
       for (let i = 0; i < (partyFiles?.length || 0); i += 1) {
         setNote(
           partyFiles.length === 1
             ? "Reading your customer list…"
-            : `Reading list ${i + 1} of ${partyFiles.length}…`,
+            : `Reading sheet ${i + 1} of ${partyFiles.length}…`,
         );
-        await api.uploadParties(partyFiles[i]);
+        try {
+          await api.uploadParties(partyFiles[i]);
+        } catch (err) {
+          if (err.status !== 422) throw err;
+          rerouted.push(partyFiles[i]);
+        }
+      }
+      if (rerouted.length) {
+        setNote("Reading the rest as business records…");
+        await api.uploadSample(rerouted);
       }
       setNote(null);
       await loadGenerated();

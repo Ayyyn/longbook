@@ -74,6 +74,7 @@ from app.services.uploads import parse_many
 from app.agents.interviewer import UNIVERSAL, Interviewer
 from app.services.onboarding import build_profile, sample_messages
 from app.services.party_import import (
+    NotAPartyList,
     import_parties,
     parse_upload,
     seeds_from_messages,
@@ -329,6 +330,12 @@ def import_party_list(
     tmp_path = save_upload(file)
     try:
         source, seeds = parse_upload(file.filename, tmp_path, db=db, tenant_id=tid)
+    except NotAPartyList as exc:
+        # A price list, a stock sheet, a rate card. Not a failure — the wrong
+        # door. 422 rather than 400 so the caller can tell "this file is
+        # broken" from "this file belongs somewhere else" and send it through
+        # the general importer instead of making the owner do it by hand.
+        raise HTTPException(422, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     finally:

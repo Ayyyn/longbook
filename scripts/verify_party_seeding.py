@@ -282,6 +282,36 @@ with tenant_session(tenant_a) as db:
     check("the owner's own number is not a party",
           sorted(s.name for s in derived), ["Ashok Textiles", "Bharat Fabrics"])
 
+print("\n-- a sheet of something else is the wrong door, not a failure --")
+
+from app.services.party_import import NotAPartyList, parse_upload  # noqa: E402
+
+_rate = Path("var") / "test-rate-card.xlsx"
+_wb = Workbook()
+_ws = _wb.active
+_ws.append(["Product", "Unit", "List rate"])
+_ws.append(["6204 2RS deep-groove ball bearing", "nos", 42])
+_wb.save(_rate)
+
+try:
+    parse_upload("test-rate-card.xlsx", _rate)
+    outcome, message = "accepted", ""
+except NotAPartyList as exc:
+    outcome, message = "NotAPartyList", str(exc)
+except Exception as exc:  # noqa: BLE001
+    outcome, message = type(exc).__name__, str(exc)
+
+check("a rate card raises NotAPartyList, not a generic failure",
+      outcome, "NotAPartyList")
+# The old message recited every column alias the importer accepts and then a
+# dozen raw cell values — "1180, 1350, 6204 2RS deep-groove ball bearing" —
+# which an owner reads as a crash rather than as a wrong file.
+check("  the message does not recite internal column aliases",
+      "partyname" in message or "ledgername" in message, False)
+check("  nor dump cell values back at the owner", "6204" in message, False)
+check("  and says what the sheet actually looks like",
+      "price or stock sheet" in message, True)
+
 for path in Path("var").glob("test-*.xlsx"):
     path.unlink(missing_ok=True)
 
