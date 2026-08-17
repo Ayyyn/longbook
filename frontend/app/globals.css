@@ -1153,8 +1153,65 @@ header.bar { padding-right: 56px; }
 }
 .ask-bar input { border: 0; box-shadow: none; background: transparent; }
 .ask-bar input:focus { box-shadow: none; }
-.ask-bar button { flex: 0 0 auto; }
-.mic-btn { min-width: 50px; padding: 0; font-size: 18px; }
+.ask-bar input { min-width: 0; }
+
+/* The mic and the send arrow sit on the bar rather than in boxes of their own.
+   They were buttons carrying borders and fills, which put three rectangles
+   inside one rectangle and made a simple thing look busy.
+   
+   Both take --ink against the bar's --card, so they are dark on light and stay
+   legible — the emoji mic they replace was rendered in its own colour by the
+   platform font, which on some phones was near-invisible here. */
+.ask-bar .dictate,
+.ask-bar .send {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ask-bar .dictate:hover,
+.ask-bar .send:hover:not(:disabled) { background: var(--card-2); }
+
+/* Recording is the one state worth colouring: it is the only one where the
+   app is holding the microphone open and the owner needs to know. */
+.dictate.recording { color: var(--warn); }
+.dictate.working { color: var(--muted); }
+
+.ask-bar .send:disabled { background: transparent; color: var(--muted); opacity: 1; }
+
+/* Three dots while the recording is being transcribed. */
+.dictate-dots {
+  width: 18px; height: 4px;
+  background:
+    radial-gradient(circle 2px at 2px 2px, currentColor 99%, transparent) 0 0/7px 4px repeat-x;
+  animation: dictate-pulse 1s linear infinite;
+}
+@keyframes dictate-pulse { 50% { opacity: 0.35; } }
+
+/* Notes uses the same control beside its other actions, where it does need a
+   box to match them. */
+.note-actions .dictate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+.note-actions .dictate.recording { color: var(--warn); border-color: var(--warn); }
 @media (min-width: 900px) { .ask-bar { bottom: var(--s4); } }
 
 /* A disabled button must look disabled. A pale-green primary reads as active

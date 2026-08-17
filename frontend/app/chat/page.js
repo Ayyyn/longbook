@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import TokenGate from "../components/TokenGate";
-import VoiceNote from "../components/VoiceNote";
+import Dictate from "../components/Dictate";
 import AnswerBody from "../components/AnswerBody";
 import { api, formatNumber } from "../lib/api";
 
@@ -20,7 +20,6 @@ function Chat() {
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
-  const [mic, setMic] = useState(false);
   const [error, setError] = useState(null);
   const [conversationId, setConversationId] = useState(null);
   const [past, setPast] = useState([]);
@@ -105,36 +104,10 @@ function Chat() {
     }
   }
 
-  async function askByVoice(file) {
-    setMic(false);
-    setBusy(true);
-    setError(null);
-    setTurns((t) => [...t, { role: "you", text: "🎤 Voice question" }]);
-    try {
-      const body = await api.askVoice(file);
-      setTurns((t) => [
-        ...t,
-        {
-          role: "answer",
-          text: body.answer,
-          answered: body.answered,
-          sources: body.sources || [],
-          latency_ms: body.latency_ms,
-          heard: body.question,
-        },
-      ]);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <>
       <header className="bar">
-        <h1>Ask</h1>
-        <div className="sub">Questions about your own records, with the proof</div>
+        <h1>ASK</h1>
       </header>
 
       {past.length > 0 && (
@@ -183,9 +156,7 @@ function Chat() {
         <div className="empty-state" style={{ textAlign: "left" }}>
           <h3>What would you like to know?</h3>
           <div className="why">
-            I answer only from your own records, and I show you which record
-            each answer came from. If I do not have it, I will say so rather
-            than guess.
+            You can ask anything about your business. Example questions:
           </div>
           <div className="suggestions">
             {suggestions.map((s) => (
@@ -234,33 +205,39 @@ function Chat() {
       {busy && <div className="bubble">Looking through your records…</div>}
       <div ref={bottom} />
 
-      {mic ? (
-        <VoiceNote
-          label="Ask out loud"
-          hint="Hindi, Gujarati, Marathi or English — or all three."
-          onRecorded={askByVoice}
+      {/* One bar, always. Speaking used to replace it with a recording panel,
+          which meant the question you had half-typed vanished and what came
+          back was an answer rather than words you could fix. Now the mic
+          dictates into the same box the keyboard fills. */}
+      <div className="ask-bar">
+        <input
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && ask()}
+          placeholder="Who owes me the most?"
+          aria-label="Your question"
         />
-      ) : (
-        <div className="ask-bar">
-          <input
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && ask()}
-            placeholder="Who owes me the most?"
-            aria-label="Your question"
-          />
-          <button
-            className="mic-btn"
-            aria-label="Ask by voice"
-            onClick={() => setMic(true)}
-          >
-            🎤
-          </button>
-          <button className="primary" disabled={busy || !question.trim()} onClick={() => ask()}>
-            Ask
-          </button>
-        </div>
-      )}
+        {/* Both are plain icons on the bar. They were buttons carrying their
+            own borders and fills, which put three rectangles inside one. */}
+        <Dictate
+          onText={(t) => setQuestion((q) => (q ? `${q} ${t}` : t))}
+          onError={setError}
+        />
+        <button
+          className="send"
+          disabled={busy || !question.trim()}
+          onClick={() => ask()}
+          aria-label="Send"
+          title="Send"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"
+               fill="none" stroke="currentColor" strokeWidth="2"
+               strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 12h14" />
+            <path d="M13 6l6 6-6 6" />
+          </svg>
+        </button>
+      </div>
 
       {turns.length > 0 && (
         <p className="muted" style={{ textAlign: "center" }}>

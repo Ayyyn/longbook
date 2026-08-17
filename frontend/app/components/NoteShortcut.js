@@ -15,6 +15,9 @@ import { usePathname } from "next/navigation";
 const HIDDEN_ON = [
   "/login", "/signup", "/recover", "/onboarding",
   "/privacy", "/terms", "/pricing", "/contact", "/notes",
+  // Ask already has a text box and a mic on screen; a floating
+  // pencil over them is a third way to type into a fourth place.
+  "/chat",
 ];
 
 export default function NoteShortcut() {

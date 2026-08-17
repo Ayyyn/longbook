@@ -158,10 +158,6 @@ export default function VoiceNote({ onRecorded, label = "Record a voice note", h
               Use this
             </button>
           </div>
-          <p className="muted" style={{ marginBottom: 0 }}>
-            Speak as you would to your munim — Hindi, Gujarati, Marathi or
-            English, or all of them in one sentence.
-          </p>
         </>
       )}
     </div>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import TokenGate from "../components/TokenGate";
-import VoiceNote from "../components/VoiceNote";
+import Dictate from "../components/Dictate";
 import Empty from "../components/Empty";
 import { api } from "../lib/api";
 
@@ -33,7 +33,6 @@ function Notes() {
   const [text, setText] = useState("");
   const [caption, setCaption] = useState("");
   const [picked, setPicked] = useState(null);
-  const [mic, setMic] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [source, setSource] = useState("typed");
@@ -65,27 +64,11 @@ function Notes() {
     }
   }
 
-  async function dictate(file) {
-    setMic(false);
-    setBusy(true);
-    setError(null);
-    try {
-      const { text: heard } = await api.transcribeNote(file);
-      // Appended, not replaced: a second thought should not wipe the first.
-      setText((current) => (current ? `${current} ${heard}` : heard));
-      setSource("voice");
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <>
       <header className="bar">
         <h1>Notes</h1>
-        <div className="sub">Anything worth remembering that is not an order</div>
+        <div className="sub">Note down anything you would like to</div>
       </header>
 
       {error && <div className="banner error">{error}</div>}
@@ -135,9 +118,15 @@ function Notes() {
           <button onClick={() => fileRef.current?.click()} aria-label="Attach a picture">
             📷 Picture
           </button>
-          <button onClick={() => setMic(true)} aria-label="Say the note out loud">
-            🎤 Speak
-          </button>
+          <Dictate
+            onText={(heard) => {
+              // Appended, not replaced: a second thought should not wipe the
+              // first.
+              setText((current) => (current ? `${current} ${heard}` : heard));
+              setSource("voice");
+            }}
+            onError={setError}
+          />
           <button
             className="primary"
             disabled={busy || (!text.trim() && !picked)}
@@ -147,23 +136,12 @@ function Notes() {
           </button>
         </div>
 
-        {mic && (
-          <VoiceNote
-            label="Say your note"
-            hint="Hindi, Gujarati, Marathi or English — you can correct the words before saving."
-            onRecorded={dictate}
-          />
-        )}
       </div>
 
       {notes === null ? (
         <div className="empty">Loading…</div>
       ) : notes.length === 0 ? (
-        <Empty title="Nothing written down yet">
-          Anything that matters but is not an order or a payment belongs here —
-          what a customer said they wanted next month, which transporter let you
-          down, a photo of a sample with a note about who it is for.
-        </Empty>
+        <Empty title="Nothing written down yet" />
       ) : (
         notes.map((note) => <NoteCard key={note.id} note={note} onDeleted={load} />)
       )}

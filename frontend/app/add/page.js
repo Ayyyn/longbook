@@ -302,7 +302,7 @@ function Voice({ onDone }) {
       {busy && <div className="banner">Sending…</div>}
       <VoiceNote
         label="Say what happened"
-        hint="An order, a payment, a rate you agreed — say it the way you would tell someone in the shop."
+        hint="Speak in any language."
         onRecorded={send}
       />
     </>

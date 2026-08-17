@@ -12,7 +12,10 @@ export default function Empty({ title, children, action, href, onAction }) {
   return (
     <div className="empty-state">
       <h3>{title}</h3>
-      <div className="why">{children}</div>
+      {/* Omitted rather than rendered empty: a bare .why still carries its
+          margin, which leaves a gap under the heading that reads as something
+          failing to load. */}
+      {children ? <div className="why">{children}</div> : null}
       {href && action && (
         <Link href={href} className="button-link">
           <button className="primary">{action}</button>
