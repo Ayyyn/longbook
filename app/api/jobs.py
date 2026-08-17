@@ -22,6 +22,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.db import admin_session, tenant_session
 from app.models.tenant import BusinessProfile, Tenant
+from app.api.tenants import require_admin
 from app.services.digest import DEFAULT_DIGEST_HOUR, run_digest_for_tenant, tenant_local_hour
 
 router = APIRouter()
@@ -89,3 +90,43 @@ def run_digests(
         "skipped_not_due": skipped,
         "results": results,
     }
+
+
+@router.post("/reextract", dependencies=[Depends(require_admin)])
+def reextract(tenant_id: uuid.UUID | None = Query(default=None)) -> dict:
+    """Read again everything the pipeline has not successfully read.
+
+    An operator lever, not a schedule. It exists because there was no way to
+    say "try that again" after a bug ate a class of records: every photograph,
+    PDF and voice note failed extraction for as long as media was handed to
+    Gemini as a gs:// URI, and once the fix landed there was nothing that would
+    revisit the windows it had spoiled short of asking customers to re-upload.
+
+    Safe to run at any time, and safe to run twice. A window is only picked up
+    when its content hash differs from the hash it was last extracted at, so
+    work already done costs nothing, and `curated` windows — ones a human has
+    corrected — are never touched.
+    """
+    from app.models.window import ExtractionWindow
+    from app.services.dispatch import dispatch_backfill
+
+    with admin_session() as db:
+        stale = select(ExtractionWindow.tenant_id).where(
+            ExtractionWindow.outcome != "curated",
+            (ExtractionWindow.extracted_hash.is_(None))
+            | (ExtractionWindow.extracted_hash != ExtractionWindow.content_hash),
+        )
+        if tenant_id is not None:
+            stale = stale.where(ExtractionWindow.tenant_id == tenant_id)
+        targets = sorted({row[0] for row in db.execute(stale).all()})
+
+    started = []
+    for tid in targets:
+        job_id = uuid.uuid4()
+        try:
+            how = dispatch_backfill(tid, job_id, None)
+            started.append({"tenant_id": str(tid), "job_id": str(job_id), "how": how})
+        except Exception as exc:  # noqa: BLE001 - one tenant, not the sweep
+            started.append({"tenant_id": str(tid), "error": f"{type(exc).__name__}: {exc}"})
+
+    return {"tenants": len(targets), "started": started}
