@@ -51,7 +51,6 @@ function Chat() {
         answered: t.answered,
         sources: t.sources || [],
         latency_ms: t.latency_ms,
-        cost_usd: t.cost_usd,
       })));
       setConversationId(id);
     } catch (err) {
@@ -93,7 +92,6 @@ function Chat() {
           answered: body.answered,
           sources: body.sources || [],
           latency_ms: body.latency_ms,
-          cost_usd: body.cost_usd,
         },
       ]);
       if (body.conversation_id) {
@@ -122,7 +120,6 @@ function Chat() {
           answered: body.answered,
           sources: body.sources || [],
           latency_ms: body.latency_ms,
-          cost_usd: body.cost_usd,
           heard: body.question,
         },
       ]);
@@ -223,11 +220,12 @@ function Chat() {
               </p>
             )}
 
-            {/* On demand, so the cost of asking should be visible. */}
+            {/* What it cost us to answer is our business, not the owner's.
+                It is still recorded on every agent_run — the accounting has
+                not changed, only who is shown it. A shopkeeper asking where
+                their money is should not be reading a meter while they do it. */}
             <div className="answer-meta">
               {turn.latency_ms != null && `${(turn.latency_ms / 1000).toFixed(1)}s`}
-              {turn.cost_usd != null &&
-                ` · $${turn.cost_usd < 0.01 ? turn.cost_usd.toFixed(4) : turn.cost_usd.toFixed(2)}`}
             </div>
           </div>
         ),

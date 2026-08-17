@@ -28,17 +28,54 @@ export default function AddDataPage() {
 // stops, so a business that set itself up from chat exports alone is a
 // business quietly running on last month's information. Until live chat sync
 // exists it stays available and stays at the end.
+//
+// Each carries the title and description shown once it is chosen. On a phone
+// the row is icons alone — five words do not fit across a phone without
+// shrinking to the point of being unreadable — so the label has to reappear
+// underneath, or the owner is looking at five glyphs and guessing. That is
+// what `title` and `blurb` are for.
 const SOURCES = [
-  { key: "email", label: "Email" },
-  { key: "upload", label: "Files" },
-  { key: "whatsapp", label: "WhatsApp" },
-  { key: "camera", label: "Photo" },
-  { key: "voice", label: "Speak" },
+  {
+    key: "email",
+    label: "Email",
+    icon: "✉",
+    title: "Email",
+    blurb: "Connect once. Your invoices and orders keep arriving on their own.",
+  },
+  {
+    key: "upload",
+    label: "Files",
+    icon: "🗎",
+    title: "Files",
+    blurb: "Tally exports, bills, spreadsheets, PDFs — anything you already keep.",
+  },
+  {
+    key: "whatsapp",
+    label: "WhatsApp",
+    icon: "💬",
+    title: "WhatsApp",
+    blurb: "Bring across the history sitting in your chats.",
+  },
+  {
+    key: "camera",
+    label: "Photo",
+    icon: "📷",
+    title: "Photo",
+    blurb: "Photograph a bill, challan or ledger page and it is read from the picture.",
+  },
+  {
+    key: "voice",
+    label: "Speak",
+    icon: "🎤",
+    title: "Speak",
+    blurb: "Say it out loud, in whichever language you think in.",
+  },
 ];
 
 function AddData() {
   const [tab, setTab] = useState("email");
   const [history, setHistory] = useState(null);
+  const current = SOURCES.find((s) => s.key === tab) || SOURCES[0];
 
   const load = useCallback(async () => {
     setHistory(await api.sources().catch(() => []));
@@ -52,21 +89,34 @@ function AddData() {
     <>
       <header className="bar">
         <h1>Add data</h1>
-        <div className="sub">
-          Start with email — it keeps itself current. The rest fills in your history.
-        </div>
       </header>
 
-      <div className="filters">
+      {/* One control, two renderings. CSS decides which: labels on a wide
+          screen, icons on a phone. Rendering two sets of buttons and hiding
+          one would mean two things to keep in step, and the wrong one would
+          eventually be the one that worked. */}
+      <div className="source-picker">
         {SOURCES.map((s) => (
           <button
             key={s.key}
-            className={tab === s.key ? "primary" : ""}
+            className={`source-tab${tab === s.key ? " is-on" : ""}`}
             onClick={() => setTab(s.key)}
+            aria-pressed={tab === s.key}
+            aria-label={s.label}
+            title={s.label}
           >
-            {s.label}
+            <span className="source-icon" aria-hidden="true">{s.icon}</span>
+            <span className="source-label">{s.label}</span>
           </button>
         ))}
+      </div>
+
+      {/* Names the chosen source. On a wide screen the row already says it,
+          which makes this a heading rather than a repetition; on a phone it
+          is the only thing that says what the icon meant. */}
+      <div className="source-head">
+        <h2>{current.title}</h2>
+        <p className="muted">{current.blurb}</p>
       </div>
 
       {tab === "email" && <Accounts />}
@@ -157,14 +207,26 @@ function Picker({ mode = "files", onDone }) {
 
       {mode === "whatsapp" && (
         <div className="card">
-          <h3>Bring your chat history in</h3>
-          {/* Said plainly rather than buried, because it is the one thing that
-              decides whether somebody relies on this alone. */}
-          <p className="muted">
-            An export is a snapshot, not a connection — it carries everything
-            said up to today and then stops. Connect your email as well, so the
-            books keep up on their own.
+          {/* What is coming leads, because it is what an owner wants to know
+              before deciding how much effort to put into exporting by hand. */}
+          <div className="row">
+            <div>
+              <div style={{ fontWeight: 600 }}>WhatsApp Business sync</div>
+              <div className="muted">
+                Continuous, so you stop exporting chats by hand.
+              </div>
+            </div>
+            <span className="chip plain">Coming soon</span>
+          </div>
+
+          <p style={{ marginBottom: 4 }}>
+            You can bring your chat history in, till then.
           </p>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Importing exports will help Longbook get a deeper picture of your
+            business.
+          </p>
+
           <ol style={{ paddingLeft: 18, lineHeight: 1.7, margin: "12px 0 0" }}>
             <li>Open the chat in WhatsApp.</li>
             <li>Tap the name at the top, then scroll to <b>Export chat</b>.</li>
@@ -174,15 +236,6 @@ function Picker({ mode = "files", onDone }) {
             </li>
             <li>Save the file to this device, then choose it below.</li>
           </ol>
-          <div className="row" style={{ marginTop: 12 }}>
-            <div>
-              <div style={{ fontWeight: 600 }}>WhatsApp Business sync</div>
-              <div className="muted">
-                Continuous, so you stop exporting chats by hand.
-              </div>
-            </div>
-            <span className="chip plain">Coming soon</span>
-          </div>
         </div>
       )}
 
@@ -256,73 +309,13 @@ function Voice({ onDone }) {
   );
 }
 
+// Just the mailbox now. The forwarding alias used to sit under it as a
+// fallback, but it asked the owner to remember to forward every invoice by
+// hand — which is the habit this screen exists to remove, offered as if it
+// were a feature. The address still works for anyone already using it; it is
+// simply no longer proposed to somebody setting up.
 function Accounts() {
-  const [inbound, setInbound] = useState(null);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    api.inbound().then(setInbound).catch(() => setInbound({ configured: false }));
-  }, []);
-
-  return (
-    <>
-      <Mailbox />
-
-      {/* Forwarding stays. It is the one that works without a grant, and the
-          fallback for anyone who does not want to connect a mailbox. */}
-      <div className="card">
-        <h3>Forward your invoices here</h3>
-        {inbound?.configured ? (
-          <>
-            <p
-              style={{
-                fontFamily: "ui-monospace, monospace",
-                fontSize: 15,
-                wordBreak: "break-all",
-                background: "var(--card-2)",
-                padding: "12px 14px",
-                borderRadius: 10,
-                margin: "4px 0 12px",
-              }}
-            >
-              {inbound.address}
-            </p>
-            <div className="actions">
-              <button
-                className="primary"
-                style={{ width: "100%" }}
-                onClick={() => {
-                  navigator.clipboard?.writeText(inbound.address);
-                  setCopied(true);
-                }}
-              >
-                {copied ? "Copied" : "Copy address"}
-              </button>
-            </div>
-            <ul style={{ paddingLeft: 18, lineHeight: 1.7, margin: "12px 0 0" }}>
-              {inbound.how.map((line) => (
-                <li key={line} style={{ marginBottom: 6 }}>
-                  {line}
-                </li>
-              ))}
-            </ul>
-            {inbound.limits?.length > 0 && (
-              <p className="muted" style={{ marginBottom: 0 }}>
-                {inbound.limits.join(" ")}
-              </p>
-            )}
-          </>
-        ) : (
-          <p className="muted" style={{ marginBottom: 0 }}>
-            {inbound
-              ? "Email forwarding is not switched on yet."
-              : "Loading…"}
-          </p>
-        )}
-      </div>
-
-    </>
-  );
+  return <Mailbox />;
 }
 
 // The connected mailbox.
@@ -431,7 +424,17 @@ function Mailbox() {
         </p>
       ) : (
         <>
-          <p className="muted">{state.detail}</p>
+          {/* Fixed copy rather than the server's `detail`, which varied by
+              state and buried the one thing worth saying: it reads the
+              history as well as keeping up. `detail` still carries the
+              exceptions — a mailbox that stopped syncing needs saying. */}
+          <p className="muted">
+            Longbook connects with your mailbox, extracts past history as well
+            as syncs to keep information updated all the time.
+          </p>
+          {state.accounts.some((a) => a.status === "revoked") && (
+            <p className="muted">{state.detail}</p>
+          )}
 
           {state.accounts.map((a) => (
             <div className="row" key={a.id}>
@@ -488,7 +491,13 @@ function Mailbox() {
   );
 }
 
+// Collapsed by default. It grows by a row every time anything is added, so
+// within a week it is the longest thing on the screen and it sits underneath
+// the controls somebody actually came here to use. It is a record to consult,
+// not a thing to read — so it stays one tap away rather than always open.
 function History({ rows }) {
+  const [open, setOpen] = useState(false);
+
   if (!rows) return <div className="empty">Loading…</div>;
 
   if (!rows.length) {
@@ -505,35 +514,47 @@ function History({ rows }) {
 
   return (
     <section className="feed">
-      <h2>
-        Imported so far
-        <span className="count">{rows.length}</span>
-      </h2>
-      {rows.map((r) => (
-        <div className="list-row" key={r.id}>
-          <div className="top">
-            <span className="name">{r.label || r.kind}</span>
-            <span className="muted" style={{ fontSize: 14 }}>
-              {new Date(r.created_at).toLocaleDateString("en-IN", {
-                day: "numeric",
-                month: "short",
-              })}
-            </span>
+      <button
+        className="feed-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <h2>
+          Imported so far
+          <span className="count">{rows.length}</span>
+        </h2>
+        <span className="feed-chevron" aria-hidden="true">{open ? "−" : "+"}</span>
+      </button>
+      {open &&
+        rows.map((r) => (
+          <div className="list-row" key={r.id}>
+            <div className="top">
+              {/* A filename is arbitrary and often long — an export is called
+                  "WhatsApp Chat with Kalyan Mills (2).txt" — so it wraps
+                  rather than running out of its box, and the date is held to
+                  its own width instead of being squeezed to nothing. */}
+              <span className="name">{r.label || r.kind}</span>
+              <span className="stamp">
+                {new Date(r.created_at).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                })}
+              </span>
+            </div>
+            <div className="sub">
+              {r.status === "failed" ? (
+                <span className="warn">{r.detail || "Could not be read"}</span>
+              ) : (
+                <>
+                  {formatNumber(r.messages)} message{r.messages === 1 ? "" : "s"}
+                  {r.media > 0 && ` · ${formatNumber(r.media)} photos`}
+                  {r.duplicates > 0 && ` · ${formatNumber(r.duplicates)} already had`}
+                  {` · from ${r.kind === "upload" ? "a file" : r.kind}`}
+                </>
+              )}
+            </div>
           </div>
-          <div className="sub">
-            {r.status === "failed" ? (
-              <span className="warn">{r.detail || "Could not be read"}</span>
-            ) : (
-              <>
-                {formatNumber(r.messages)} message{r.messages === 1 ? "" : "s"}
-                {r.media > 0 && ` · ${formatNumber(r.media)} photos`}
-                {r.duplicates > 0 && ` · ${formatNumber(r.duplicates)} already had`}
-                {` · from ${r.kind === "upload" ? "a file" : r.kind}`}
-              </>
-            )}
-          </div>
-        </div>
-      ))}
+        ))}
     </section>
   );
 }

@@ -1591,3 +1591,95 @@ button.primary:disabled {
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
+
+/* --- Add data: choosing a source ------------------------------------- */
+
+/* One row of buttons that becomes an icon strip on a phone. Five labels do
+   not fit across a phone without shrinking to the point of being unreadable,
+   and a horizontally scrolling row hides whichever option is off-screen —
+   which, for a list whose first item is the one we most want chosen, is the
+   worst possible thing to hide. */
+.source-picker {
+  display: flex;
+  gap: var(--s2);
+  margin-bottom: var(--s4);
+}
+
+.source-tab {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  padding: 10px var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 15px;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.source-tab.is-on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+
+/* The same colour for every icon, on purpose. Five different colours would
+   read as five statuses rather than five choices, and the only thing that
+   should stand out here is which one is selected. */
+.source-icon {
+  font-size: 19px;
+  line-height: 1;
+  color: inherit;
+  /* Stops the emoji being rendered in its own colour by the platform font,
+     which is what would otherwise reintroduce five colours. */
+  filter: grayscale(1);
+}
+
+.source-tab.is-on .source-icon { filter: grayscale(1) invert(1) brightness(2); }
+
+.source-head { margin-bottom: var(--s3); }
+.source-head h2 { margin: 0 0 2px; font-size: 20px; }
+.source-head p { margin: 0; }
+
+@media (max-width: 640px) {
+  /* Icons alone. The name of the chosen source is carried by .source-head
+     immediately below, so nothing is unlabelled — it just moves. */
+  .source-label { display: none; }
+  .source-tab { padding: 12px 0; }
+  .source-icon { font-size: 22px; }
+}
+
+/* --- Add data: what has been imported -------------------------------- */
+
+.feed-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+}
+
+.feed-toggle h2 { margin: 0; }
+.feed-chevron { font-size: 20px; color: var(--muted); padding-left: var(--s3); }
+
+/* A filename is arbitrary and often long — "WhatsApp Chat with Kalyan Mills
+   (2).txt" — and it was running out of its box. It wraps instead, including
+   mid-token for a name with no spaces in it, while the date keeps its own
+   width rather than being squeezed away. */
+.list-row .top { align-items: flex-start; }
+.list-row .name { min-width: 0; overflow-wrap: anywhere; }
+.list-row .stamp {
+  color: var(--muted);
+  font-size: 14px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}

@@ -77,8 +77,8 @@ function Activity() {
         ) : (
           <Empty title="No decisions yet">
             Every time an agent reads a message and decides something, it is
-            logged here — what it chose, how sure it was, how long it took and
-            what it cost. Nothing has run yet, so there is nothing to show.
+            logged here — what it chose, how sure it was and how long it took.
+            Nothing has run yet, so there is nothing to show.
           </Empty>
         )}
       </>
@@ -132,15 +132,6 @@ function Activity() {
           <div className="muted">Average time</div>
           <div style={{ fontWeight: 650 }}>
             {summary.avg_latency_ms ? `${(summary.avg_latency_ms / 1000).toFixed(1)}s` : "—"}
-          </div>
-        </div>
-        <div className="row">
-          <div className="muted">Spend</div>
-          <div style={{ fontWeight: 650 }}>
-            ${summary.cost_usd.toFixed(2)}{" "}
-            <span className="muted">
-              ({formatNumber(summary.input_tokens + summary.output_tokens)} tokens)
-            </span>
           </div>
         </div>
         {summary.errors > 0 && (
@@ -223,7 +214,6 @@ function exportCsv(runs) {
     "model",
     "prompt_version",
     "latency_ms",
-    "cost_usd",
     "trace_id",
   ];
   const cell = (value) =>
@@ -267,7 +257,6 @@ function RunCard({ run, open, onToggle }) {
 
       <div className="muted">
         {run.model} · {run.prompt_version} · {run.latency_ms ?? "—"}ms
-        {run.cost_usd ? ` · $${run.cost_usd.toFixed(4)}` : ""}
         {run.created_at ? ` · ${new Date(run.created_at).toLocaleString("en-IN")}` : ""}
       </div>
 
