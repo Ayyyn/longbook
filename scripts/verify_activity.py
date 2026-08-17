@@ -11,7 +11,7 @@ from __future__ import annotations
 import csv
 import shutil
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -62,7 +62,7 @@ TENANT = uuid.uuid4()
 with admin_session() as db:
     tenant = Tenant(id=TENANT, business_name="Activity Mills",
                     owner_phone=f"98{uuid.uuid4().int % 10**8:08d}",
-                    onboarded_at=datetime.utcnow())
+                    onboarded_at=datetime.utcnow(), paid_until=datetime.utcnow() + timedelta(days=365))
     TOKEN = issue_token(tenant)
     db.add(tenant)
 
@@ -154,7 +154,7 @@ print("\n-- isolation --")
 
 OTHER = uuid.uuid4()
 with admin_session() as db:
-    other = Tenant(id=OTHER, business_name="Other", owner_phone=f"97{uuid.uuid4().int % 10**8:08d}")
+    other = Tenant(id=OTHER, business_name="Other", owner_phone=f"97{uuid.uuid4().int % 10**8:08d}", paid_until=datetime.utcnow() + timedelta(days=365))
     OTHER_TOKEN = issue_token(other)
     db.add(other)
 

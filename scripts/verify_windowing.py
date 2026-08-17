@@ -72,7 +72,7 @@ extractor_module.generate_json = fake_extract
 TENANT = uuid.uuid4()
 with admin_session() as db:
     db.add(Tenant(id=TENANT, business_name="Window Mills",
-                  owner_phone=f"98{uuid.uuid4().int % 10**8:08d}"))
+                  owner_phone=f"98{uuid.uuid4().int % 10**8:08d}", paid_until=datetime.utcnow() + timedelta(days=365)))
 
 with tenant_session(TENANT) as db:
     db.add(BusinessProfile(tenant_id=TENANT, segments=["wholesaler"], modules={},
@@ -221,7 +221,7 @@ print("\n-- isolation --")
 
 OTHER = uuid.uuid4()
 with admin_session() as db:
-    db.add(Tenant(id=OTHER, business_name="Other", owner_phone=f"97{uuid.uuid4().int % 10**8:08d}"))
+    db.add(Tenant(id=OTHER, business_name="Other", owner_phone=f"97{uuid.uuid4().int % 10**8:08d}", paid_until=datetime.utcnow() + timedelta(days=365)))
 with tenant_session(OTHER) as db:
     check("another tenant has no windows", db.query(ExtractionWindow).count(), 0)
     check("  and sync finds nothing to do", len(sync_windows(db, OTHER)), 0)

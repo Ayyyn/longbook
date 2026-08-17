@@ -202,16 +202,6 @@ function Today() {
         )}
       </Section>
 
-      {data.needs_review > 0 && (
-        <Link href="/review" className="section-row cta">
-          <div>
-            <div className="rt">{formatNumber(data.needs_review)} waiting in Review</div>
-            <div className="rs">confirm what the agents were unsure about</div>
-          </div>
-          <div className="ra"><span className="chev">›</span></div>
-        </Link>
-      )}
-
       {nothingYet && !working && (
         <Empty title="Nothing has come through yet">
           Your history has been read, but no orders, payments or dispatches
@@ -220,23 +210,6 @@ function Today() {
         </Empty>
       )}
 
-      <Link href="/chat" className="section-row cta">
-        <div>
-          <div className="rt">Ask a question</div>
-          <div className="rs">who owes the most, what was quoted, what is undispatched</div>
-        </div>
-        <div className="ra"><span className="chev">›</span></div>
-      </Link>
-
-      <Link href="/add" className="section-row cta">
-        <div>
-          <div className="rt">Add data</div>
-          <div className="rs">
-            more chats, a bill photo, a Tally sheet
-          </div>
-        </div>
-        <div className="ra"><span className="chev">›</span></div>
-      </Link>
 
       {/* Running low needs the stock maths. Named rather than left out: an
           absent section would read as "nothing is running low". */}

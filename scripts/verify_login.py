@@ -11,7 +11,7 @@ tested here rather than trusted to the browser.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi.testclient import TestClient
 
@@ -36,14 +36,14 @@ PHONE = f"98{uuid.uuid4().int % 10**8:08d}"
 TENANT = uuid.uuid4()
 with admin_session() as db:
     tenant = Tenant(id=TENANT, business_name="Login Mills", owner_phone=f"+91{PHONE}",
-                    onboarded_at=datetime.utcnow())
+                    onboarded_at=datetime.utcnow(), paid_until=datetime.utcnow() + timedelta(days=365))
     TOKEN = issue_token(tenant)
     db.add(tenant)
 
 OTHER = uuid.uuid4()
 with admin_session() as db:
     other = Tenant(id=OTHER, business_name="Other Mills",
-                   owner_phone=f"97{uuid.uuid4().int % 10**8:08d}")
+                   owner_phone=f"97{uuid.uuid4().int % 10**8:08d}", paid_until=datetime.utcnow() + timedelta(days=365))
     OTHER_TOKEN = issue_token(other)
     db.add(other)
 
@@ -66,7 +66,7 @@ check("a junk token is a 401",
       401)
 check("a well-formed token for a dead tenant is a 401",
       client.get("/api/tenants/me",
-                 headers={"Authorization": f"Bearer {issue_token(Tenant(id=uuid.uuid4(), business_name='Ghost', owner_phone='+910000000000'))}"}).status_code,
+                 headers={"Authorization": f"Bearer {issue_token(Tenant(id=uuid.uuid4(), business_name='Ghost', owner_phone='+910000000000', paid_until=datetime.utcnow() + timedelta(days=365)))}"}).status_code,
       401)
 
 print("\n-- the phone check is what stops token reuse --")

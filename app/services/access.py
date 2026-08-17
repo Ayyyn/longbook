@@ -14,13 +14,18 @@ of the screens, not erased. People pay late in this business and come back.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from app.models.tenant import Tenant
 
-# How long a business gets before anyone has to have paid. Long enough to see
-# a full cycle of their own trade in the app, short enough to be a decision.
-TRIAL_DAYS = 14
+# There is no free trial. Access comes from `paid_until` and nothing else.
+#
+# The trial used to be granted implicitly: any tenant without `paid_until` got
+# fourteen days from the day it was created. That was invisible — nothing in
+# the product asked for it and nothing recorded that it had been given — so a
+# business could be using the app for a fortnight without anyone having
+# decided to let them. Removing it means access is now always something
+# somebody granted, which is the point.
 
 # When the countdown starts appearing in the app. Two weeks is enough notice to
 # arrange a transfer without the app nagging for a month.
@@ -29,7 +34,7 @@ WARN_WITHIN_DAYS = 14
 
 @dataclass(frozen=True)
 class Access:
-    status: str            # trial | active | expired
+    status: str            # active | expired
     days_remaining: int | None
     until: datetime | None
 
@@ -47,7 +52,7 @@ class Access:
 
 
 def access_for(tenant: Tenant, now: datetime | None = None) -> Access:
-    """Resolve a tenant's access from `paid_until`, falling back to the trial.
+    """Resolve a tenant's access from `paid_until`. There is no fallback.
 
     A tenant switched off by hand (`is_active=False`) is expired regardless of
     what has been paid — that is the lever for a business that has to be
@@ -64,10 +69,7 @@ def access_for(tenant: Tenant, now: datetime | None = None) -> Access:
             return Access("expired", 0, tenant.paid_until)
         return Access("active", max(0, remaining), tenant.paid_until)
 
-    # Never paid: the trial runs from the day the business was created, not
-    # from onboarding, so an abandoned half-setup does not sit open for ever.
-    started = tenant.created_at or now
-    ends = started + timedelta(days=TRIAL_DAYS)
-    if ends <= now:
-        return Access("expired", 0, ends)
-    return Access("trial", max(0, (ends - now).days), ends)
+    # No paid_until means nobody has granted access. Onboarding is deliberately
+    # still reachable — a business must be able to finish setting up before
+    # anyone decides what to charge them — but the guarded screens are not.
+    return Access("expired", 0, None)

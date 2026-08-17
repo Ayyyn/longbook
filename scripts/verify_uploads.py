@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import uuid
 import zipfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 
 from fastapi.testclient import TestClient
@@ -49,7 +49,7 @@ TENANT = uuid.uuid4()
 with admin_session() as db:
     tenant = Tenant(id=TENANT, business_name="Upload Mills",
                     owner_phone=f"98{uuid.uuid4().int % 10**8:08d}",
-                    onboarded_at=datetime.utcnow())
+                    onboarded_at=datetime.utcnow(), paid_until=datetime.utcnow() + timedelta(days=365))
     TOKEN = issue_token(tenant)
     db.add(tenant)
 with tenant_session(TENANT) as db:
@@ -200,7 +200,7 @@ print("\n-- adding data before the interview --")
 BARE = uuid.uuid4()
 with admin_session() as db:
     bare = Tenant(id=BARE, business_name="No Profile Mills",
-                  owner_phone=f"96{uuid.uuid4().int % 10**8:08d}")
+                  owner_phone=f"96{uuid.uuid4().int % 10**8:08d}", paid_until=datetime.utcnow() + timedelta(days=365))
     BARE_TOKEN = issue_token(bare)
     db.add(bare)
 bh = {"Authorization": f"Bearer {BARE_TOKEN}"}

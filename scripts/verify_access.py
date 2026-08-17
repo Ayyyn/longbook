@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 
 from app.db import admin_session, tenant_session
 from app.models import BusinessProfile, Party, Tenant
-from app.services.access import TRIAL_DAYS, access_for
+from app.services.access import access_for
 from app.services.auth import issue_token
 
 ok = fail = 0
@@ -56,13 +56,16 @@ print("\n-- the states --")
 
 now = datetime.utcnow()
 
+# There is no free trial. Access is something somebody granted, or it does
+# not exist — a business that has never been paid for is expired on day one,
+# not on day fifteen.
 fresh = Tenant(business_name="x", owner_phone="1", created_at=now, is_active=True)
-check("a brand new tenant is on trial", access_for(fresh, now).status, "trial")
-check("  and gets the full trial", access_for(fresh, now).days_remaining, TRIAL_DAYS)
+check("a brand new tenant has no access", access_for(fresh, now).status, "expired")
+check("  and is not allowed in", access_for(fresh, now).allowed, False)
 
 old = Tenant(business_name="x", owner_phone="1",
-             created_at=now - timedelta(days=TRIAL_DAYS + 1), is_active=True)
-check("an unpaid tenant past the trial is expired", access_for(old, now).status, "expired")
+             created_at=now - timedelta(days=30), is_active=True)
+check("an old tenant nobody paid for is still expired", access_for(old, now).status, "expired")
 
 paid = Tenant(business_name="x", owner_phone="1", created_at=now - timedelta(days=400),
               paid_until=now + timedelta(days=30), is_active=True)

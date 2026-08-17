@@ -15,9 +15,17 @@ from sqlalchemy import func, or_, select
 
 from app.api.deps import Profile, TenantDB, TenantId
 from app.models.orders import Order
+from app.models.ingestion import Extraction
 from app.models.party import Party
-from app.schemas.parties import PartyBrief, PartyDetail, PartyRow, PartySummary
+from app.schemas.parties import (
+    Mention,
+    PartyBrief,
+    PartyDetail,
+    PartyRow,
+    PartySummary,
+)
 from app.services.ledger import outstanding_by_party, party_ledger
+from app.services.sql import not_in_values
 from app.services.party_brief import refresh_party
 from app.services.wa import wa_link
 from app.services.clock import business_today
@@ -151,6 +159,21 @@ def party_detail(
     if party.phone and statement["closing_balance"] > 0:
         link = wa_link(party.phone, _reminder(party.name, statement["closing_balance"], brief))
 
+    # Everything the extractor read about this party and filed as context
+    # rather than as a record: enquiries, complaints, promises. It has always
+    # been stored; nothing ever showed it.
+    # The party link lives in `resolved`, written by the Resolver — there is no
+    # party_id column on an extraction, because at extraction time nobody knows
+    # yet who it is about.
+    mentions = db.execute(
+        select(Extraction)
+        .where(Extraction.tenant_id == tid,
+               Extraction.resolved["party_id"].astext == str(party_id),
+               not_in_values(Extraction.record_type, _RECORD_TYPES))
+        .order_by(Extraction.created_at.desc())
+        .limit(25)
+    ).scalars().all()
+
     return PartyDetail(
         id=party.id,
         name=party.name,
@@ -164,6 +187,16 @@ def party_detail(
         days_overdue=position.get("days_overdue", 0),
         closing_balance=statement["closing_balance"],
         brief=PartyBrief(**_brief_out(brief)),
+        mentions=[
+            Mention(
+                id=m.id,
+                kind=m.record_type,
+                summary=_mention_summary(m),
+                occurred_at=m.created_at,
+                interaction_id=m.interaction_id,
+            )
+            for m in mentions
+        ],
         entries=statement["entries"],
         orders=[
             {
@@ -208,3 +241,25 @@ def _reminder(name: str, balance: float, brief: dict) -> str:
     lines.append("")
     lines.append("Could you confirm when payment is expected? Thank you.")
     return "\n".join(lines)
+
+
+# Record types that already have a screen of their own. Anything else the
+# extractor produced is a mention.
+_RECORD_TYPES = ("order", "payment", "invoice", "dispatch", "noise")
+
+
+def _mention_summary(extraction) -> str | None:
+    """One readable line from whatever the extractor put in `payload`."""
+    fields = extraction.payload or {}
+    for key in ("summary", "note", "text", "description", "detail", "body"):
+        value = fields.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()[:280]
+    # Nothing named obviously: show whatever short strings are there rather
+    # than an empty row that says a thing exists and not what it was.
+    parts = [
+        f"{k.replace('_', ' ')}: {v}"
+        for k, v in fields.items()
+        if isinstance(v, (str, int, float)) and str(v).strip()
+    ]
+    return ", ".join(parts)[:280] or None

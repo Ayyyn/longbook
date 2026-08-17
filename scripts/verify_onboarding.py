@@ -9,6 +9,7 @@ and the Extractor's model call stubbed.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timedelta
 
 from fastapi.testclient import TestClient
 
@@ -122,6 +123,15 @@ check("  but allowed on a dev machine", resp.status_code, 201)
 settings().admin_token = "secret-admin"
 
 headers = {"Authorization": f"Bearer {TOKEN}"}
+
+# A business created through the API has no paid_until, and without a free
+# trial that means no access to the guarded screens. Onboarding itself is
+# still reachable — a business must be able to finish setting up before
+# anyone decides what to charge it — but /api/ingest is guarded, so grant
+# access here to test what this file is actually about.
+with admin_session() as db:
+    granted = db.get(Tenant, TENANT)
+    granted.paid_until = datetime.utcnow() + timedelta(days=365)
 
 # --- the token is the tenant ---------------------------------------------
 

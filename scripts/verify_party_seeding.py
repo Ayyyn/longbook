@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import io
 import uuid
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -18,8 +19,8 @@ from openpyxl import Workbook
 import app.agents.configurator as configurator_module
 import app.agents.extractor as extractor_module
 from app.config import settings
-from app.db import tenant_session
-from app.models import Invoice, Order, Party, Payment
+from app.db import admin_session, tenant_session
+from app.models import Invoice, Order, Party, Payment, Tenant
 from app.services.party_import import (
     parse_party_excel,
     parse_tally_xml,
@@ -195,6 +196,13 @@ def onboard(business: str, party_file: tuple | None):
         "business_name": business, "owner_phone": f"9{uuid.uuid4().int % 10**9:09d}",
     }).json()
     headers = {"Authorization": f"Bearer {created['token']}"}
+    # No free trial, so a freshly created business has no access to the
+    # guarded screens until somebody grants it. This file is about party
+    # seeding, not billing.
+    with admin_session() as db:
+        db.get(Tenant, uuid.UUID(created["tenant_id"])).paid_until = (
+            datetime.utcnow() + timedelta(days=365)
+        )
     client.post("/api/tenants/sample", headers=headers,
                 files={"file": ("chat.txt", build_export(), "text/plain")})
     imported = None

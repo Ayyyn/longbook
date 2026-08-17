@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import sys
 import uuid
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 from fastapi.testclient import TestClient
 
@@ -58,7 +58,7 @@ def ago(days: int) -> date:
 TENANT = uuid.uuid4()
 with admin_session() as db:
     tenant = Tenant(id=TENANT, business_name="Memory Mills",
-                    owner_phone=f"98{uuid.uuid4().int % 10**8:08d}")
+                    owner_phone=f"98{uuid.uuid4().int % 10**8:08d}", paid_until=datetime.utcnow() + timedelta(days=365))
     TOKEN = issue_token(tenant)
     db.add(tenant)
 
@@ -267,7 +267,7 @@ print("\n-- isolation --")
 OTHER = uuid.uuid4()
 with admin_session() as db:
     other = Tenant(id=OTHER, business_name="Other",
-                   owner_phone=f"97{uuid.uuid4().int % 10**8:08d}")
+                   owner_phone=f"97{uuid.uuid4().int % 10**8:08d}", paid_until=datetime.utcnow() + timedelta(days=365))
     OTHER_TOKEN = issue_token(other)
     db.add(other)
 with tenant_session(OTHER) as db:

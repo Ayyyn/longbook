@@ -44,7 +44,7 @@ def make_tenant(name: str, party: str, amount: float, secret: str):
     with admin_session() as db:
         t = Tenant(id=tid, business_name=name,
                    owner_phone=f"98{uuid.uuid4().int % 10**8:08d}",
-                   onboarded_at=datetime.utcnow())
+                   onboarded_at=datetime.utcnow(), paid_until=datetime.utcnow() + timedelta(days=365))
         token = issue_token(t)
         db.add(t)
     with tenant_session(tid) as db:
@@ -69,7 +69,7 @@ A, TOKEN_A = make_tenant("Alpha Mills", "Ashok Textiles", 25000, "ALPHASECRET")
 EMPTY_FOR_MONEY = uuid.uuid4()
 with admin_session() as db:
     db.add(Tenant(id=EMPTY_FOR_MONEY, business_name="Nil Mills",
-                  owner_phone=f"96{uuid.uuid4().int % 10**8:08d}"))
+                  owner_phone=f"96{uuid.uuid4().int % 10**8:08d}", paid_until=datetime.utcnow() + timedelta(days=365)))
 with tenant_session(EMPTY_FOR_MONEY) as db:
     db.add(BusinessProfile(tenant_id=EMPTY_FOR_MONEY, segments=["wholesaler"],
                            modules={}, vocabulary={}, rules={}, examples=[]))
@@ -207,7 +207,7 @@ print("\n-- nothing to answer from --")
 EMPTY = uuid.uuid4()
 with admin_session() as db:
     t = Tenant(id=EMPTY, business_name="Empty Mills",
-               owner_phone=f"97{uuid.uuid4().int % 10**8:08d}")
+               owner_phone=f"97{uuid.uuid4().int % 10**8:08d}", paid_until=datetime.utcnow() + timedelta(days=365))
     EMPTY_TOKEN = issue_token(t)
     db.add(t)
 with tenant_session(EMPTY) as db:

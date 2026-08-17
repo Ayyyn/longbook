@@ -10,7 +10,7 @@ than with whatever the code happens to produce.
 from __future__ import annotations
 
 import uuid
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 from fastapi.testclient import TestClient
 
@@ -54,7 +54,7 @@ TENANT = uuid.uuid4()
 with admin_session() as db:
     tenant = Tenant(id=TENANT, business_name="Ledger Mills",
                     owner_phone=f"98{uuid.uuid4().int % 10**8:08d}",
-                    owner_email="owner@example.com", locale="en")
+                    owner_email="owner@example.com", locale="en", paid_until=datetime.utcnow() + timedelta(days=365))
     TOKEN = issue_token(tenant)
     db.add(tenant)
 

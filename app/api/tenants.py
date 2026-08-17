@@ -288,6 +288,27 @@ def import_party_list(
         raise HTTPException(400, "No parties found in that file.")
 
     result = import_parties(db, tid, seeds, source)
+
+    # Recorded like every other upload. Without this the customer list was
+    # genuinely read — parties were created from it — and then never appeared
+    # under "Imported so far", so the only honest conclusion an owner could
+    # draw was that their spreadsheet had been ignored.
+    db.add(IngestSource(
+        tenant_id=tid,
+        kind="party_list",
+        label=file.filename or f"{source} party list",
+        messages=result.created + result.merged,
+        duplicates=result.merged,
+        skipped=result.skipped,
+        media=0,
+        bytes=0,
+        status="done",
+        detail=(f"{result.created} added, {result.merged} matched existing"
+                + (f", {result.opening_invoices} opening balances"
+                   if result.opening_invoices else "")),
+    ))
+    db.flush()
+
     total = db.execute(
         select(func.count()).select_from(Party).where(Party.tenant_id == tid)
     ).scalar_one()

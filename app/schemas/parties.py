@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -63,6 +63,16 @@ class OrderRow(BaseModel):
     pending_fields: list[str] = Field(default_factory=list)
 
 
+class Mention(BaseModel):
+    """Something read about a party that no schema wanted."""
+
+    id: uuid.UUID
+    kind: str | None
+    summary: str | None
+    occurred_at: datetime | None = None
+    interaction_id: uuid.UUID | None = None
+
+
 class PartyDetail(BaseModel):
     id: uuid.UUID
     name: str
@@ -81,6 +91,11 @@ class PartyDetail(BaseModel):
     entries: list[LedgerEntryOut] = Field(default_factory=list)
     orders: list[OrderRow] = Field(default_factory=list)
     reminder_link: str | None = None
+    # Things said about this party that are not an order or a payment — an
+    # enquiry, a complaint, a promise. The extractor already recognises these
+    # and files them as context rather than records; until now nothing showed
+    # them, so the most human half of what was read was invisible.
+    mentions: list[Mention] = Field(default_factory=list)
 
 
 class OrderLineOut(BaseModel):

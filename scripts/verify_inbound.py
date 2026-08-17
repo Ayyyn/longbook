@@ -10,7 +10,7 @@ and not reading it twice.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from email.message import EmailMessage
 
 from app.db import admin_session, tenant_session
@@ -51,7 +51,7 @@ with admin_session() as db:
     for tid, name in [(A, "Alias Mills A"), (B, "Alias Mills B")]:
         db.add(Tenant(id=tid, business_name=name,
                       owner_phone=f"98{uuid.uuid4().int % 10**8:08d}",
-                      onboarded_at=datetime.utcnow()))
+                      onboarded_at=datetime.utcnow(), paid_until=datetime.utcnow() + timedelta(days=365)))
 
 with admin_session() as db:
     slug_a = ensure_slug(db, db.get(Tenant, A))

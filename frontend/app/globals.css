@@ -916,9 +916,13 @@ button.big { min-height: 58px; font-size: 17px; font-weight: 600; width: 100%; }
 @media (min-width: 900px) {
   .rail-mark {
     display: block;
-    font-family: var(--font-head);
-    font-size: 21px;
-    letter-spacing: -0.01em;
+    /* The sans at 700, matching the public wordmark. Instrument Serif ships
+       weight 400 only, so asking the display face for bold gets the browser's
+       synthetic smear. */
+    font-family: var(--font-sans);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
     color: var(--ink);
     text-decoration: none;
     padding: 0 var(--s4) var(--s5);
@@ -1565,4 +1569,25 @@ button.primary:disabled {
 @media (min-width: 900px) {
   /* The tab bar becomes a left rail on desktop, so the button comes down. */
   .note-shortcut { bottom: var(--s5); }
+}
+
+
+/* The count on the Review tab. A superscript rather than a pill: the bar is
+   five items wide on a phone and a badge that changes a tab's width would
+   shift every other tab when it appears. */
+.tab-label { position: relative; display: inline-block; }
+.tab-badge {
+  position: absolute;
+  top: -6px;
+  right: -14px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--warn);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }

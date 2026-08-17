@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timedelta
 
 from sqlalchemy import select
 
@@ -27,8 +28,8 @@ a_id, b_id = uuid.uuid4(), uuid.uuid4()
 suffix = uuid.uuid4().hex[:6]
 
 with admin_session() as db:
-    db.add(Tenant(id=a_id, business_name="Ashok Tex Mills", owner_phone=f"9000{suffix}"))
-    db.add(Tenant(id=b_id, business_name="Rival Traders", owner_phone=f"9111{suffix}"))
+    db.add(Tenant(id=a_id, business_name="Ashok Tex Mills", owner_phone=f"9000{suffix}", paid_until=datetime.utcnow() + timedelta(days=365)))
+    db.add(Tenant(id=b_id, business_name="Rival Traders", owner_phone=f"9111{suffix}", paid_until=datetime.utcnow() + timedelta(days=365)))
 
 with tenant_session(a_id) as db:
     db.add(Party(name="Ashok Textiles", aliases=["Ashok Tex", "ashok bhai", "A.T. Mumbai"],

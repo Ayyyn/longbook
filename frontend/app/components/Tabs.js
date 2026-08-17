@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { api } from "../lib/api";
 
 // Five, in the order they get used. Review sits last because it is a chore
 // rather than a destination — an owner opens the app to see today, not to be
@@ -24,6 +26,24 @@ const PUBLIC_HOME = "/";
 
 export default function Tabs() {
   const pathname = usePathname();
+  // The count on Review. An owner should not have to open a tab to find out
+  // whether it wants anything from them.
+  const [waiting, setWaiting] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.today()
+      .then((d) => {
+        if (!cancelled) setWaiting(d?.needs_review || 0);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // Re-read on navigation: confirming an item should drop the badge without
+    // a reload.
+  }, [pathname]);
+
   if (pathname === PUBLIC_HOME) return null;
   if (CHROMELESS.some((p) => pathname.startsWith(p))) return null;
   return (
@@ -40,9 +60,17 @@ export default function Tabs() {
         // they are.
         const active =
           pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+        const badge = tab.href === "/review" && waiting > 0 ? waiting : null;
         return (
           <Link key={tab.href} href={tab.href} className={active ? "active" : ""}>
-            {tab.label}
+            <span className="tab-label">
+              {tab.label}
+              {badge != null && (
+                <sup className="tab-badge" aria-label={`${badge} waiting`}>
+                  {badge > 99 ? "99+" : badge}
+                </sup>
+              )}
+            </span>
           </Link>
         );
       })}

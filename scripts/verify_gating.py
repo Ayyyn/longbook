@@ -158,7 +158,7 @@ extractor_module.generate_json = fake_extract
 TENANT = uuid.uuid4()
 with admin_session() as db:
     tenant = Tenant(id=TENANT, business_name="Gating Mills",
-                    owner_phone=f"98{uuid.uuid4().int % 10**8:08d}")
+                    owner_phone=f"98{uuid.uuid4().int % 10**8:08d}", paid_until=datetime.utcnow() + timedelta(days=365))
     TOKEN = issue_token(tenant)
     db.add(tenant)
 

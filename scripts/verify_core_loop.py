@@ -10,7 +10,7 @@ without spending a Gemini call. Needs `httpx` (already present via the SDKs).
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import yaml
@@ -111,7 +111,7 @@ seed = yaml.safe_load(Path("app/profiles/universal.yaml").read_text(encoding="ut
 
 with admin_session() as db:
     tenant = Tenant(id=TENANT, business_name="Verify Mills",
-                    owner_phone=f"98{uuid.uuid4().int % 10**8:08d}")
+                    owner_phone=f"98{uuid.uuid4().int % 10**8:08d}", paid_until=datetime.utcnow() + timedelta(days=365))
     TOKEN = issue_token(tenant)
     db.add(tenant)
 
@@ -553,7 +553,7 @@ print("\n-- isolation --")
 OTHER = uuid.uuid4()
 with admin_session() as db:
     other = Tenant(id=OTHER, business_name="Other Mills",
-                   owner_phone=f"97{uuid.uuid4().int % 10**8:08d}")
+                   owner_phone=f"97{uuid.uuid4().int % 10**8:08d}", paid_until=datetime.utcnow() + timedelta(days=365))
     OTHER_TOKEN = issue_token(other)
     db.add(other)
 with tenant_session(OTHER) as db:

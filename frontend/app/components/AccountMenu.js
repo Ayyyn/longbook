@@ -89,6 +89,14 @@ export default function AccountMenu() {
                 </div>
               )}
 
+              {/* The way back to the public site. The rail-mark does this on a
+                  desktop, but it is hidden on a phone where the bottom bar has
+                  no room — so on a phone this was the only screen without any
+                  route home at all. */}
+              <Link href="/" role="menuitem" onClick={() => setOpen(false)}>
+                Longbook home
+              </Link>
+              <div className="account-sep" />
               <Link href="/add" role="menuitem" onClick={() => setOpen(false)}>
                 Add data
               </Link>
