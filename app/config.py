@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -168,6 +169,20 @@ class Settings(BaseSettings):
     # Cloud Scheduler hits the digest endpoint with this; it is not a tenant
     # token because the run is cross-tenant.
     scheduler_token: str = ""
+
+    # Secrets get pasted, and pasting adds whitespace. A file saved by an
+    # editor ends in a newline, a copied token picks up a trailing space, and
+    # Secret Manager stores the bytes exactly as given — so the credential is
+    # right and every call still 401s. That failure looks like a wrong key and
+    # is not one, which is an afternoon nobody gets back.
+    #
+    # Applied to every string setting rather than the credentials alone: a
+    # trailing newline is never meaningful in any of them, and remembering to
+    # add each new secret to a list is how the next one gets missed.
+    @field_validator("*", mode="before")
+    @classmethod
+    def _trim(cls, value):
+        return value.strip() if isinstance(value, str) else value
 
     class Config:
         env_file = ".env"
