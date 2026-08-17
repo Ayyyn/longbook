@@ -63,6 +63,15 @@ export default function FilePicker({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
+  // Both are omitted unless given, rather than passed as undefined. `accept`
+  // on a phone greys out the very file the owner is reaching for whenever
+  // Android reports it with a generic type, which it often does — so most
+  // callers pass nothing at all. See app/lib/accept.js for why.
+  const filter = {
+    ...(accept ? { accept } : {}),
+    ...(capture ? { capture } : {}),
+  };
+
   return (
     <div className="card">
       <label htmlFor={id} style={{ fontWeight: 600 }}>
@@ -72,11 +81,7 @@ export default function FilePicker({
         ref={inputRef}
         id={id}
         type="file"
-        {/* Both omitted unless given. An `accept` on a phone greys out the
-            file the owner is reaching for whenever Android reports it with a
-            generic type, which it often does — see app/lib/accept.js. */}
-        {...(accept ? { accept } : {})}
-        {...(capture ? { capture } : {})}
+        {...filter}
         multiple
         onChange={(e) => add([...(e.target.files || [])])}
       />
