@@ -111,14 +111,26 @@ def reextract(tenant_id: uuid.UUID | None = Query(default=None)) -> dict:
     from app.services.dispatch import dispatch_backfill
 
     with admin_session() as db:
-        stale = select(ExtractionWindow.tenant_id).where(
+        stale = select(
+            ExtractionWindow.tenant_id, ExtractionWindow.id,
+            ExtractionWindow.outcome, ExtractionWindow.last_error,
+        ).where(
             ExtractionWindow.outcome != "curated",
             (ExtractionWindow.extracted_hash.is_(None))
             | (ExtractionWindow.extracted_hash != ExtractionWindow.content_hash),
         )
         if tenant_id is not None:
             stale = stale.where(ExtractionWindow.tenant_id == tenant_id)
-        targets = sorted({row[0] for row in db.execute(stale).all()})
+        rows = db.execute(stale).all()
+        targets = sorted({row[0] for row in rows})
+        # Why each one is stuck, not merely that it is. A window that keeps
+        # failing for the same reason needs the reason, or the only tool left
+        # is running this again and hoping.
+        blocked = [
+            {"tenant_id": str(r[0]), "window_id": str(r[1]),
+             "outcome": r[2], "last_error": (r[3] or "")[:200]}
+            for r in rows if r[2] == "failed"
+        ][:20]
 
     started = []
     for tid in targets:
@@ -129,4 +141,4 @@ def reextract(tenant_id: uuid.UUID | None = Query(default=None)) -> dict:
         except Exception as exc:  # noqa: BLE001 - one tenant, not the sweep
             started.append({"tenant_id": str(tid), "error": f"{type(exc).__name__}: {exc}"})
 
-    return {"tenants": len(targets), "started": started}
+    return {"tenants": len(targets), "started": started, "blocked": blocked}
