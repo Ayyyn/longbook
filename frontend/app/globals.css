@@ -1181,10 +1181,12 @@ header.bar { padding-right: 56px; }
 .ask-bar .dictate:hover,
 .ask-bar .send:hover:not(:disabled) { background: var(--card-2); }
 
-/* Recording is the one state worth colouring: it is the only one where the
-   app is holding the microphone open and the owner needs to know. */
-.dictate.recording { color: var(--warn); }
-.dictate.working { color: var(--muted); }
+/* One colour throughout, --ink like every other icon on the bar. Tinting the
+   recording state amber (--warn is #8a5008) turned the mic a muddy brown
+   mid-tap, which read as a fault rather than as a state. The state is carried
+   by the glyph instead — the mic becomes a stop square while recording, and
+   dots while it is being transcribed — which says the same thing without
+   changing colour under the owner's finger. */
 
 .ask-bar .send:disabled { background: transparent; color: var(--muted); opacity: 1; }
 
@@ -1211,7 +1213,6 @@ header.bar { padding-right: 56px; }
   color: var(--ink);
   cursor: pointer;
 }
-.note-actions .dictate.recording { color: var(--warn); border-color: var(--warn); }
 @media (min-width: 900px) { .ask-bar { bottom: var(--s4); } }
 
 /* A disabled button must look disabled. A pale-green primary reads as active
