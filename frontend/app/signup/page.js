@@ -178,7 +178,7 @@ export default function SignupPage() {
     }
   }
 
-  async function sendData(chats, partyFile) {
+  async function sendData(chats, partyFiles) {
     setBusy(true);
     setError(null);
     try {
@@ -188,9 +188,15 @@ export default function SignupPage() {
         );
         setUploaded(await api.uploadSample(chats));
       }
-      if (partyFile) {
-        setNote("Reading your customer list…");
-        await api.uploadParties(partyFile);
+      // One call per file: the import endpoint takes a single book, and two
+      // books merged client-side would lose which row came from where.
+      for (let i = 0; i < (partyFiles?.length || 0); i += 1) {
+        setNote(
+          partyFiles.length === 1
+            ? "Reading your customer list…"
+            : `Reading list ${i + 1} of ${partyFiles.length}…`,
+        );
+        await api.uploadParties(partyFiles[i]);
       }
       setNote(null);
       await loadGenerated();
@@ -545,7 +551,7 @@ function BusinessStep({ code, setCode, details, setDetails, busy, onNext, gated,
 // Data first. Everything after this is written from what lands here.
 function DataStep({ busy, onSubmit, onBack }) {
   const [chats, setChats] = useState([]);
-  const [partyFile, setPartyFile] = useState(null);
+  const [partyFiles, setPartyFiles] = useState([]);
   const partyRef = useRef(null);
 
   return (
@@ -602,28 +608,40 @@ function DataStep({ busy, onSubmit, onBack }) {
           id="parties"
           type="file"
           accept={ANY_FILE}
-          onChange={(e) => setPartyFile(e.target.files?.[0] || null)}
+          multiple
+          onChange={(e) => {
+            // Appended and de-duplicated on name+size: a customer list and an
+            // outstanding sheet are two files, and picking the second should
+            // not discard the first.
+            const picked = [...(e.target.files || [])];
+            setPartyFiles((current) => {
+              const seen = new Set(current.map((f) => `${f.name}:${f.size}`));
+              return [...current, ...picked.filter(
+                (f) => !seen.has(`${f.name}:${f.size}`))];
+            });
+            if (partyRef.current) partyRef.current.value = "";
+          }}
         />
         <p className="muted">
           If you have one, names and balances are right from day one instead of
           being learned from messages. A Tally master export (.xml) or an Excel
-          sheet (.xlsx) — whichever you have.
+          sheet (.xlsx) — whichever you have. Pick as many as you like.
         </p>
-        {partyFile && (
+        {partyFiles.length > 0 && (
           <div className="picked">
-            <div className="picked-row">
-              <div className="picked-name">{partyFile.name}</div>
-              <button
-                className="picked-remove"
-                aria-label="Remove"
-                onClick={() => {
-                  setPartyFile(null);
-                  if (partyRef.current) partyRef.current.value = "";
-                }}
-              >
-                ×
-              </button>
-            </div>
+            {partyFiles.map((f, i) => (
+              <div className="picked-row" key={`${f.name}:${f.size}:${i}`}>
+                <div className="picked-name">{f.name}</div>
+                <button
+                  className="picked-remove"
+                  aria-label={`Remove ${f.name}`}
+                  onClick={() =>
+                    setPartyFiles((c) => c.filter((_, j) => j !== i))}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -637,8 +655,8 @@ function DataStep({ busy, onSubmit, onBack }) {
         <button
           className="primary"
           style={{ width: onBack ? undefined : "100%" }}
-          disabled={busy || (!chats.length && !partyFile)}
-          onClick={() => onSubmit(chats, partyFile)}
+          disabled={busy || (!chats.length && !partyFiles.length)}
+          onClick={() => onSubmit(chats, partyFiles)}
         >
           {busy ? "Reading…" : "Continue"}
         </button>
